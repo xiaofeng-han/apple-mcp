@@ -3,9 +3,9 @@ import Combine
 import EventKit
 import SwiftUI
 
-/// The window shown when the app is opened by hand: what it may access, and its one setting.
-/// (Plain ObservableObject and Binding, no SwiftUI macros: the Command Line Tools ship without
-/// the macro plugins.)
+/// The window shown when the app is opened by hand: what it may access, and its settings, in
+/// English or Chinese. (Plain ObservableObject and Binding, no SwiftUI macros: the Command Line
+/// Tools ship without the macro plugins.)
 @MainActor
 enum SettingsPanel {
     static let remindersPrivacy = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders")!
@@ -31,11 +31,25 @@ enum SettingsPanel {
     }
 }
 
+/// The languages the window speaks. Without a choice it takes the first of them in the system's
+/// preferred languages, and English when neither is there.
+enum Language: String {
+    case english = "en", chinese = "zh-Hans"
+
+    static func resolve(_ choice: String?) -> Language {
+        if let choice, let language = Language(rawValue: choice) { return language }
+        let preferred = Bundle.preferredLocalizations(from: [english.rawValue, chinese.rawValue],
+                                                      forPreferences: Locale.preferredLanguages)
+        return preferred.first.flatMap(Language.init(rawValue:)) ?? .english
+    }
+}
+
 @MainActor
 final class PanelState: ObservableObject {
     @Published private(set) var reminders = EKEventStore.authorizationStatus(for: .reminder)
     @Published private(set) var fullDisk = DeletedDatabase.available
     @Published private(set) var completesRepeating = Settings.allowCompletingRecurring
+    @Published private(set) var languageChoice = Settings.interfaceLanguage
     private var poll: AnyCancellable?
 
     init() {
@@ -48,10 +62,26 @@ final class PanelState: ObservableObject {
         }
     }
 
+    var language: Language { Language.resolve(languageChoice) }
+
+    /// The text in the window's language.
+    func text(_ english: String, _ chinese: String) -> String {
+        language == .chinese ? chinese : english
+    }
+
     var completesRepeatingBinding: Binding<Bool> {
         Binding(get: { self.completesRepeating }, set: { value in
             Settings.setAllowCompletingRecurring(value)
             self.completesRepeating = value
+        })
+    }
+
+    /// "system" or a Language raw value.
+    var languageBinding: Binding<String> {
+        Binding(get: { self.languageChoice ?? "system" }, set: { value in
+            let choice = value == "system" ? nil : value
+            Settings.setInterfaceLanguage(choice)
+            self.languageChoice = choice
         })
     }
 
@@ -67,39 +97,56 @@ struct PanelView: View {
     @ObservedObject var state: PanelState
 
     var body: some View {
+        let allowed = Label(state.text("Allowed", "已允许"), systemImage: "checkmark.seal.fill").foregroundStyle(.green)
         Form {
             Section {
-                LabeledContent("提醒事项") {
+                LabeledContent(state.text("Reminders", "提醒事项")) {
                     switch state.reminders {
-                    case .fullAccess: Label("已允许", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-                    case .notDetermined: Button("允许访问…") { state.requestReminders() }
+                    case .fullAccess: allowed
+                    case .notDetermined: Button(state.text("Allow Access…", "允许访问…")) { state.requestReminders() }
                     default:
-                        Button("在系统设置中打开…") { NSWorkspace.shared.open(SettingsPanel.remindersPrivacy) }
+                        Button(state.text("Open in System Settings…", "在系统设置中打开…")) {
+                            NSWorkspace.shared.open(SettingsPanel.remindersPrivacy)
+                        }
                     }
                 }
-                LabeledContent("完全磁盘访问（可选）") {
+                LabeledContent(state.text("Full Disk Access (optional)", "完全磁盘访问（可选）")) {
                     if state.fullDisk {
-                        Label("已允许", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                        allowed
                     } else {
                         HStack {
-                            Button("在访达中显示") { NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL]) }
-                            Button("系统设置…") { NSWorkspace.shared.open(SettingsPanel.fullDiskPrivacy) }
+                            Button(state.text("Show in Finder", "在访达中显示")) {
+                                NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                            }
+                            Button(state.text("System Settings…", "系统设置…")) { NSWorkspace.shared.open(SettingsPanel.fullDiskPrivacy) }
                         }
                     }
                 }
             } header: {
-                Text("权限")
+                Text(state.text("Permissions", "权限"))
             } footer: {
-                Text("权限记在这个 App 名下，所有 AI 助手共用。完全磁盘访问只用来读：列出「最近删除」里的全部提醒，以及读取提醒上的图片；不开也能正常使用。")
+                Text(state.text(
+                    "The permissions belong to this app and are shared by every AI assistant. Full Disk Access is only used for reading: to list everything in Recently Deleted and to read images on reminders. Everything else works without it.",
+                    "权限记在这个 App 名下，所有 AI 助手共用。完全磁盘访问只用来读：列出「最近删除」里的全部提醒，以及读取提醒上的图片；不开也能正常使用。"))
                     .foregroundStyle(.secondary)
             }
             Section {
-                Toggle("允许 AI 助手勾完成重复提醒", isOn: state.completesRepeatingBinding)
+                Toggle(state.text("Allow AI assistants to complete repeating reminders", "允许 AI 助手勾完成重复提醒"),
+                       isOn: state.completesRepeatingBinding)
             } header: {
-                Text("设置")
+                Text(state.text("Settings", "设置"))
             } footer: {
-                Text("勾完成时，「提醒事项」会留下一条已完成的记录，并把提醒推到下一次。关闭后，AI 助手会请你自己在 App 里勾。")
+                Text(state.text(
+                    "When a repeating reminder is completed, Reminders keeps a completed copy and moves the reminder to its next date. With this off, AI assistants ask you to check it off in the app yourself.",
+                    "勾完成时，「提醒事项」会留下一条已完成的记录，并把提醒推到下一次。关闭后，AI 助手会请你自己在 App 里勾。"))
                     .foregroundStyle(.secondary)
+            }
+            Section {
+                Picker(state.text("Language", "语言"), selection: state.languageBinding) {
+                    Text(state.text("System Language", "跟随系统")).tag("system")
+                    Text("English").tag(Language.english.rawValue)
+                    Text("简体中文").tag(Language.chinese.rawValue)
+                }
             }
         }
         .formStyle(.grouped)

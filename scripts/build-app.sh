@@ -21,6 +21,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/AppleRemindersMCP"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# The icon (compiled by build-icon.sh), and the permission prompt's text, which macOS shows in
+# the system language.
+mkdir -p "$APP/Contents/Resources"
+cp Resources/AppIcon-compiled/* "$APP/Contents/Resources/"
+cp -R Resources/en.lproj Resources/zh-Hans.lproj "$APP/Contents/Resources/"
 xattr -cr "$APP"
 
 set -- --force --identifier "$BUNDLE_ID"

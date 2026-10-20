@@ -2,12 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Apple Reminders MCP</string>
 	<key>CFBundleExecutable</key>
 	<string>AppleRemindersMCP</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.xiaofeng.apple-reminders-mcp</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>Apple Reminders MCP</string>
 	<key>CFBundlePackageType</key>
@@ -21,8 +32,8 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Apple Reminders MCP 让你的 AI 助手读取、新建和修改提醒事项。</string>
+	<string>Apple Reminders MCP lets your AI assistants read, create and change your reminders.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Apple Reminders MCP 让你的 AI 助手读取、新建和修改提醒事项。</string>
+	<string>Apple Reminders MCP lets your AI assistants read, create and change your reminders.</string>
 </dict>
 </plist>

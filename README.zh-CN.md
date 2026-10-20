@@ -79,11 +79,14 @@ installer -pkg AppleRemindersMCP-0.1.0.pkg -target CurrentUserHomeDirectory
 ~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --self-check
 ```
 
-直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口里能看到两项权限的状态，还有「允许 AI 助手勾完成重复提醒」开关，默认打开。这个开关也可以用命令改：
+直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口里能看到两项权限的状态、「允许 AI 助手勾完成重复提醒」开关（默认打开），以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选。这两项设置也可以用命令改：
 
 ```bash
 defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminders -bool NO
+defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Hans   # 或 en；删掉这一项就跟随系统
 ```
+
+授权弹窗是 macOS 自己的，总是跟随系统语言。
 
 完全磁盘访问要手动添加：系统设置 → 隐私与安全性 → 完全磁盘访问，点 ＋，选 `~/Applications/AppleRemindersMCP.app`。
 
@@ -95,6 +98,8 @@ ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
 `./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。
+
+图标的源文件是 Icon Composer 文档 `Resources/AppIcon.icon`。改了之后运行 `./scripts/build-icon.sh`（要用 Xcode 里的 `actool`），再提交 `Resources/AppIcon-compiled`；平常构建只复制这个目录。图稿要画成铺满的正方形，由 macOS 裁成它的圆角形状：自己画了形状、四周透明的图标，会被缩小放进一个灰色底框里。`swift scripts/flatten-icon.swift <图标.png> Resources/AppIcon.icon/Assets/artwork.png` 能把「透明背景上画一个圆角方块」的图标转成这种图稿。
 
 ### 权限为什么记在这个 App 名下
 

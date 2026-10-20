@@ -18,6 +18,22 @@ enum Settings {
         CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication)
     }
 
+    static let interfaceLanguageKey = "InterfaceLanguage"
+
+    /// The settings window's language, "en" or "zh-Hans"; nil follows the system.
+    static var interfaceLanguage: String? {
+        UserDefaults.standard.string(forKey: interfaceLanguageKey)
+    }
+
+    static func setInterfaceLanguage(_ value: String?) {
+        if let value {
+            UserDefaults.standard.set(value, forKey: interfaceLanguageKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: interfaceLanguageKey)
+        }
+        CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication)
+    }
+
     /// Where the app keeps its own files.
     static var supportDirectory: URL {
         let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/AppleRemindersMCP")

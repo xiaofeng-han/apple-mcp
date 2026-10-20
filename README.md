@@ -79,11 +79,14 @@ Then allow access to Reminders:
 ~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --self-check
 ```
 
-Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It shows the status of both permissions and a switch, on by default, that allows AI assistants to complete repeating reminders (the window's labels are in Chinese). The switch can also be set from the command line:
+Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It shows the status of both permissions, a switch (on by default) that allows AI assistants to complete repeating reminders, and the window's language: English or Simplified Chinese, following the system unless you pick one. Both settings can also be set from the command line:
 
 ```bash
 defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminders -bool NO
+defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Hans   # or en; delete it to follow the system
 ```
+
+The permission dialog itself comes from macOS and always uses the system language.
 
 Full Disk Access has to be added by hand: System Settings → Privacy & Security → Full Disk Access, click +, and choose `~/Applications/AppleRemindersMCP.app`.
 
@@ -95,6 +98,8 @@ ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
 `./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum.
+
+The icon's source is the Icon Composer document `Resources/AppIcon.icon`. After changing it, run `./scripts/build-icon.sh` (it needs Xcode for `actool`) and commit `Resources/AppIcon-compiled`; ordinary builds only copy that folder. Draw the artwork as a full-bleed square, which macOS masks to its rounded shape: an icon that is transparent around its own shape is shown shrunk inside a grey tile. `swift scripts/flatten-icon.swift <icon.png> Resources/AppIcon.icon/Assets/artwork.png` turns an icon drawn as a rounded square on a transparent background into that artwork.
 
 ### Why the permission belongs to this app
 

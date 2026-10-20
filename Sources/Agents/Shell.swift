@@ -16,6 +16,19 @@ public enum Shell {
             ?? FileManager.default.homeDirectoryForCurrentUser
     }
 
+    /// The account's own home folder, whatever $HOME says.
+    static var accountHome: String? {
+        getpwuid(getuid()).flatMap { $0.pointee.pw_dir.map { String(cString: $0) } }
+    }
+
+    /// `path` with the home folder written as ~. Only the account's own home folder is shortened:
+    /// a stand-in $HOME is spelled out, so its files are not taken for the real ones.
+    public static func abbreviate(_ path: String) -> String {
+        let home = home.standardizedFileURL.path
+        guard home == accountHome.map({ URL(fileURLWithPath: $0).standardizedFileURL.path }), path.hasPrefix(home + "/") else { return path }
+        return "~" + path.dropFirst(home.count)
+    }
+
     /// Folders where installers put programs, which a GUI app's PATH lacks.
     static func usualFolders(home: URL) -> [String] {
         var folders = [".local/bin", ".opencode/bin", ".grok/bin", ".bun/bin", ".npm-global/bin", ".volta/bin", "Library/pnpm/bin", "Library/pnpm",

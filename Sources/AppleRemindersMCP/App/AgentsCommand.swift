@@ -66,7 +66,6 @@ enum AgentsCommand {
     static func list(_ installation: Installation) {
         print("Apple Reminders MCP \(version), \(describe(installation)).")
         print("Agents start: \(installation.command) \(installation.arguments.joined(separator: " "))\n")
-        let home = Shell.home.path
         for agent in Agent.all {
             let id = agent.id.padding(toLength: 17, withPad: " ", startingAt: 0)
             switch agent.locate() {
@@ -74,8 +73,7 @@ enum AgentsCommand {
                 let install = agent.installer(for: installation).map { "install: \($0.summary)" } ?? agent.installRequirement.0
                 print("\(id)\(agent.name): not installed. \(install)")
             case .installed(let path, let version):
-                let place = path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
-                print("\(id)\(agent.name)\(version.map { " " + $0 } ?? "") (\(place)): \(status(agent, installation))")
+                print("\(id)\(agent.name)\(version.map { " " + $0 } ?? "") (\(Shell.abbreviate(path))): \(status(agent, installation))")
             }
         }
     }

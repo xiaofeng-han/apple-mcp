@@ -293,6 +293,17 @@ struct Sandbox {
         #expect(result.output.contains("none"))
     }
 
+    @Test func shortensOnlyTheAccountsOwnHome() throws {
+        let home = try #require(Shell.accountHome)
+        let saved = ProcessInfo.processInfo.environment["HOME"]
+        defer { if let saved { setenv("HOME", saved, 1) } else { unsetenv("HOME") } }
+        setenv("HOME", home, 1)
+        #expect(Shell.abbreviate(home + "/.opencode/bin/opencode") == "~/.opencode/bin/opencode")
+        #expect(Shell.abbreviate("/opt/homebrew/bin/codex") == "/opt/homebrew/bin/codex")
+        setenv("HOME", "/tmp/agents-preview", 1)
+        #expect(Shell.abbreviate("/tmp/agents-preview/.opencode/bin/opencode") == "/tmp/agents-preview/.opencode/bin/opencode")
+    }
+
     @Test func versions() {
         #expect(Locator.version(in: "grok 1.0.62 (1474f9cbdd91) [stable]") == "1.0.62")
         #expect(Locator.version(in: "codex-cli 0.163.0") == "0.163.0")

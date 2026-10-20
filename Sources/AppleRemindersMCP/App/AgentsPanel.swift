@@ -279,9 +279,7 @@ struct AgentRow: View {
         case nil: return nil
         case .absent: return state.text("Not installed", "未安装")
         case .installed(let path, let version):
-            let home = Shell.home.path
-            let place = path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
-            return [version, place].compactMap { $0 }.joined(separator: " · ")
+            return [version, Shell.abbreviate(path)].compactMap { $0 }.joined(separator: " · ")
         }
     }
 

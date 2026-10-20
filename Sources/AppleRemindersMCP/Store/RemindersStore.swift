@@ -24,7 +24,7 @@ final class RemindersStore: @unchecked Sendable {
     static let permissionHelp = """
         Apple Reminders MCP has no access to Reminders. Ask the user to allow it in System Settings → \
         Privacy & Security → Reminders (turn on "Apple Reminders MCP" with full access), or to open \
-        ~/Applications/AppleRemindersMCP.app once and click Allow.
+        Apple Reminders MCP in Applications once and click Allow.
         """
 
     /// Asks for access the first time (the system dialog appears on the Mac) and fails with

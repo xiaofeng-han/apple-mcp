@@ -76,6 +76,27 @@
 
 ## 安装
 
+发布的包只支持 Apple 芯片，需要 macOS 26 或更新。可以用 Homebrew 装，也可以用安装包装。
+
+### 用 Homebrew
+
+```bash
+brew install --cask xiaofeng-han/tap/apple-reminders-mcp
+```
+
+写全名会自动添加 tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap)，并且只信任这一个 cask。Homebrew 6 起，第三方 tap 里的内容要先信任才会加载。之后 `brew upgrade` 就能收到新版本。
+
+Homebrew 装的就是下面那个安装包，只是用 macOS 的安装器为所有用户安装，所以会要管理员密码，App 装在 `/Applications`。它还会添加命令 `apple-reminders-mcp`（`/opt/homebrew/bin/apple-reminders-mcp`），这是一个启动 App 的小脚本，下面的步骤都用它。`brew uninstall --cask apple-reminders-mcp` 卸载 App，加上 `--zap` 还会把它的设置和删除记录移到废纸篓。
+
+如果之前用安装包「仅为我安装」过，删掉那一份，并把各 agent 改成用新命令（见[注册到客户端](#注册到客户端)）。Claude Code 不能重复添加同名服务，要先运行 `claude mcp remove -s user apple-reminders` 再添加；其他客户端改 `command` 即可。两份的签名相同，提醒事项的权限会沿用。
+
+```bash
+rm -rf ~/Applications/AppleRemindersMCP.app
+pkgutil --volume ~ --forget com.xiaofeng.apple-reminders-mcp.pkg
+```
+
+### 用安装包
+
 从 [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) 下载 `AppleRemindersMCP-<版本>.pkg` 打开安装，或者在终端里装：
 
 ```bash
@@ -83,18 +104,22 @@ gh release download v0.2.0 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
 installer -pkg AppleRemindersMCP-0.2.0.pkg -target CurrentUserHomeDirectory
 ```
 
-选「仅为我安装」会装到 `~/Applications`，不需要管理员密码，下面的命令都假定 App 在那里。发布的包只支持 Apple 芯片。安装包没有 Developer ID 签名：用浏览器下载后如果 macOS 拒绝打开，到「系统设置 → 隐私与安全性」里允许。
+选「仅为我安装」会装到 `~/Applications`，不需要管理员密码；为所有用户安装则装到 `/Applications`。安装包没有 Developer ID 签名：用浏览器下载后如果 macOS 拒绝打开，到「系统设置 → 隐私与安全性」里允许。
 
-然后授权访问提醒事项：
+### 装好之后
+
+下面的例子用的是 Homebrew 添加的命令。用安装包装的，把它换成 App 的可执行文件：`~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`；为所有用户安装的是 `/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`。
+
+授权访问提醒事项：
 
 ```bash
-~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP setup
+apple-reminders-mcp setup
 ```
 
 `setup` 会弹出授权窗口（可能被别的窗口挡住），点「允许」。检查状态：
 
 ```bash
-~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --self-check
+apple-reminders-mcp --self-check
 ```
 
 直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口里能看到两项权限的状态、「允许 AI 助手勾完成重复提醒」开关（默认打开），以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选。这两项设置也可以用命令改：
@@ -106,7 +131,7 @@ defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Han
 
 授权弹窗是 macOS 自己的，总是跟随系统语言。
 
-完全磁盘访问要手动添加：系统设置 → 隐私与安全性 → 完全磁盘访问，点 ＋，选 `~/Applications/AppleRemindersMCP.app`。
+完全磁盘访问要手动添加：系统设置 → 隐私与安全性 → 完全磁盘访问，点 ＋，选 `AppleRemindersMCP.app`。用安装包「仅为我安装」的在 `~/Applications`，其他情况在 `/Applications`。
 
 ### 从源码构建
 
@@ -115,13 +140,17 @@ defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Han
 ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
-`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。
+`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：
+1. 用 `gh release create v<版本> dist/AppleRemindersMCP-<版本>.pkg dist/AppleRemindersMCP-<版本>.pkg.sha256` 上传安装包。
+2. 运行 `./scripts/update-cask.sh`。它先确认 GitHub 上的文件和本地的一致，再把 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，也可以传别的路径）里 Homebrew cask 的版本和校验和改成新的，然后提交并推送。
 
 图标的源文件是 Icon Composer 文档 `Resources/AppIcon.icon`。改了之后运行 `./scripts/build-icon.sh`（要用 Xcode 里的 `actool`），再提交 `Resources/AppIcon-compiled`；平常构建只复制这个目录。图稿要画成铺满的正方形，由 macOS 裁成它的圆角形状：自己画了形状、四周透明的图标，会被缩小放进一个灰色底框里。`swift scripts/flatten-icon.swift <图标.png> Resources/AppIcon.icon/Assets/artwork.png` 能把「透明背景上画一个圆角方块」的图标转成这种图稿。
 
 ### 权限为什么记在这个 App 名下
 
 macOS 把子进程的隐私权限算在「责任进程」头上。Claude Code 和 Claude Desktop 的 Info.plist 里没有提醒事项的用途说明，由它们直接启动的程序访问提醒事项会被静默拒绝。所以 App 一启动就放弃这层责任关系，以自己的身份再启动一次（`Sources/Launcher`），stdin 和 stdout 原样交给新进程。这样权限只需授予一次「Apple Reminders MCP」，与谁启动它无关。
+
+所以要用真实路径启动它，或者像 Homebrew 的 `apple-reminders-mcp` 那样用脚本 `exec` 它，不要经符号链接启动。经链接启动时 macOS 找不到 App 包，App 就不会以自己的身份重新启动，权限会算到启动它的程序头上。
 
 ### 「最近删除」
 
@@ -144,14 +173,14 @@ rm key.pem id.p12
 
 ## 注册到客户端
 
-命令都是 `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --stdio`，服务名 `apple-reminders`。服务器支持 MCP 的会话协议（2024-11-05 到 2025-11-25）和无状态的 2026-07-28 协议。
+用 Homebrew 装的，命令是 `/opt/homebrew/bin/apple-reminders-mcp`；用安装包「仅为我安装」的，是 `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`（为所有用户安装的是 `/Applications/…`）。运行时加 `--stdio`。要写完整路径：从程序坞启动的 App 的 `PATH` 里一般没有 `/opt/homebrew/bin`。服务名 `apple-reminders`。服务器支持 MCP 的会话协议（2024-11-05 到 2025-11-25）和无状态的 2026-07-28 协议。
 
 - Claude Code：`claude mcp add -s user apple-reminders -- <命令> --stdio`
 - Codex（`~/.codex/config.toml`，Codex App 共用）、Grok Build（`~/.grok/config.toml`，另加 `enabled = true`）：
 
   ```toml
   [mcp_servers.apple-reminders]
-  command = "/Users/<you>/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP"
+  command = "/opt/homebrew/bin/apple-reminders-mcp"   # 或 "/Users/<you>/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP"
   args = ["--stdio"]
   ```
 

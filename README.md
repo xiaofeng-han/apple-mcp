@@ -76,6 +76,27 @@ Rules:
 
 ## Install
 
+Releases are built for Apple silicon and need macOS 26 or later. Install with Homebrew or from the package.
+
+### With Homebrew
+
+```bash
+brew install --cask xiaofeng-han/tap/apple-reminders-mcp
+```
+
+Naming the cask in full adds the tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap) and trusts only this cask. Since Homebrew 6, items from taps outside Homebrew have to be trusted before Homebrew loads them. After that, `brew upgrade` picks up new releases.
+
+Homebrew installs the same package described below, but for all users and through the macOS installer. So it asks for an administrator password, and it puts the app in `/Applications`. It also adds the command `apple-reminders-mcp` (`/opt/homebrew/bin/apple-reminders-mcp`), a small script that starts the app; the steps below use it. `brew uninstall --cask apple-reminders-mcp` removes the app. Adding `--zap` also moves its settings and its record of deleted reminders to the Trash.
+
+If you installed the package for yourself before, remove that copy and point your agents at the new command (see [Registering with clients](#registering-with-clients)). Claude Code will not add a server name that already exists, so run `claude mcp remove -s user apple-reminders` before adding it again; in the other clients, change `command`. Both copies have the same signature, so the Reminders permission carries over.
+
+```bash
+rm -rf ~/Applications/AppleRemindersMCP.app
+pkgutil --volume ~ --forget com.xiaofeng.apple-reminders-mcp.pkg
+```
+
+### From the package
+
 Download `AppleRemindersMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) and open it, or install it from the terminal:
 
 ```bash
@@ -83,18 +104,22 @@ gh release download v0.2.0 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
 installer -pkg AppleRemindersMCP-0.2.0.pkg -target CurrentUserHomeDirectory
 ```
 
-Installing for yourself only puts the app in `~/Applications` without an administrator password, and the commands below assume it is there. Releases are built for Apple silicon. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security.
+Installing for yourself only puts the app in `~/Applications` and needs no administrator password; installing for all users puts it in `/Applications`. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security.
 
-Then allow access to Reminders:
+### After installing
+
+The examples use the command that Homebrew adds. If you installed the package, use the app's executable in its place: `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`, or `/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP` if you installed it for all users.
+
+Allow access to Reminders:
 
 ```bash
-~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP setup
+apple-reminders-mcp setup
 ```
 
 `setup` shows a permission dialog (it may be hidden behind other windows); click Allow. To check the status:
 
 ```bash
-~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --self-check
+apple-reminders-mcp --self-check
 ```
 
 Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It shows the status of both permissions, a switch (on by default) that allows AI assistants to complete repeating reminders, and the window's language: English or Simplified Chinese, following the system unless you pick one. Both settings can also be set from the command line:
@@ -106,7 +131,7 @@ defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Han
 
 The permission dialog itself comes from macOS and always uses the system language.
 
-Full Disk Access has to be added by hand: System Settings → Privacy & Security → Full Disk Access, click +, and choose `~/Applications/AppleRemindersMCP.app`.
+Full Disk Access has to be added by hand: System Settings → Privacy & Security → Full Disk Access, click +, and choose `AppleRemindersMCP.app`. It is in `~/Applications` if you installed the package for yourself, and in `/Applications` otherwise.
 
 ### Build from source
 
@@ -115,13 +140,17 @@ Full Disk Access has to be added by hand: System Settings → Privacy & Security
 ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
-`./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum.
+`./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release:
+1. Upload the package with `gh release create v<version> dist/AppleRemindersMCP-<version>.pkg dist/AppleRemindersMCP-<version>.pkg.sha256`.
+2. Run `./scripts/update-cask.sh`. It checks that GitHub serves the same file. It then sets the new version and checksum in the Homebrew cask, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless given another path), and commits and pushes.
 
 The icon's source is the Icon Composer document `Resources/AppIcon.icon`. After changing it, run `./scripts/build-icon.sh` (it needs Xcode for `actool`) and commit `Resources/AppIcon-compiled`; ordinary builds only copy that folder. Draw the artwork as a full-bleed square, which macOS masks to its rounded shape: an icon that is transparent around its own shape is shown shrunk inside a grey tile. `swift scripts/flatten-icon.swift <icon.png> Resources/AppIcon.icon/Assets/artwork.png` turns an icon drawn as a rounded square on a transparent background into that artwork.
 
 ### Why the permission belongs to this app
 
 macOS charges a child process's privacy permissions to its "responsible process". Claude Code and Claude Desktop have no Reminders usage description in their Info.plist, so programs they start directly are silently denied access to Reminders. The app therefore gives up that responsibility as soon as it starts and launches itself again under its own identity (`Sources/Launcher`), passing stdin and stdout through unchanged. That way the permission is granted once, to "Apple Reminders MCP", no matter what starts it.
+
+So start it by its real path, or through a script that `exec`s it, as Homebrew's `apple-reminders-mcp` does. Do not start it through a symbolic link. From a link, macOS cannot find the app bundle, so the app does not launch itself again and the permission is charged to whatever started it.
 
 ### Recently Deleted
 
@@ -144,14 +173,14 @@ Use the system's `/usr/bin/openssl`. Homebrew's OpenSSL 3 exports p12 files with
 
 ## Registering with clients
 
-The command is always `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP --stdio`, and the server name is `apple-reminders`. The server supports MCP's session protocol (2024-11-05 to 2025-11-25) and the stateless 2026-07-28 protocol.
+The command is `/opt/homebrew/bin/apple-reminders-mcp` after a Homebrew install, and `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP` after installing the package for yourself (`/Applications/…` for all users). Run it with `--stdio`. Give the full path: apps started from the Dock usually do not have `/opt/homebrew/bin` in their `PATH`. The server name is `apple-reminders`. The server supports MCP's session protocol (2024-11-05 to 2025-11-25) and the stateless 2026-07-28 protocol.
 
 - Claude Code: `claude mcp add -s user apple-reminders -- <command> --stdio`
 - Codex (`~/.codex/config.toml`, shared with the Codex app) and Grok Build (`~/.grok/config.toml`, plus `enabled = true`):
 
   ```toml
   [mcp_servers.apple-reminders]
-  command = "/Users/<you>/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP"
+  command = "/opt/homebrew/bin/apple-reminders-mcp"   # or "/Users/<you>/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP"
   args = ["--stdio"]
   ```
 

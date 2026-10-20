@@ -5,6 +5,9 @@
 # Installing "for me only" puts the app in ~/Applications without an administrator password;
 # installing for all users puts it in /Applications. From the terminal:
 #   installer -pkg AppleRemindersMCP-<version>.pkg -target CurrentUserHomeDirectory
+# The Homebrew cask (github.com/xiaofeng-han/homebrew-tap) installs this same package with
+# `sudo installer -target /`, that is for all users, so the distribution must keep allowing the
+# local system domain. scripts/update-cask.sh points the cask at a new release.
 #
 # The package itself is unsigned (there is no Developer ID); the app inside keeps the signature
 # build-app.sh gave it, so a Reminders permission granted to an earlier build still applies.

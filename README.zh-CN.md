@@ -56,11 +56,20 @@
 - 颜色：red、orange、yellow、green、light-blue、blue、indigo、pink、purple、brown、gray、rose，或 `#RRGGBB`。图标是 emoji 或 Reminders 的图标名（如 `nature2`）。
 - 共享清单其他人能看到，agent 改动前应先问用户。
 
-## 构建与安装
+## 安装
+
+从 [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) 下载 `AppleRemindersMCP-<版本>.pkg` 打开安装，或者在终端里装：
 
 ```bash
-./scripts/build-app.sh
-ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
+gh release download v0.1.0 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
+installer -pkg AppleRemindersMCP-0.1.0.pkg -target CurrentUserHomeDirectory
+```
+
+选「仅为我安装」会装到 `~/Applications`，不需要管理员密码，下面的命令都假定 App 在那里。发布的包只支持 Apple 芯片。安装包没有 Developer ID 签名：用浏览器下载后如果 macOS 拒绝打开，到「系统设置 → 隐私与安全性」里允许。
+
+然后授权访问提醒事项：
+
+```bash
 ~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP setup
 ```
 
@@ -77,6 +86,15 @@ defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminder
 ```
 
 完全磁盘访问要手动添加：系统设置 → 隐私与安全性 → 完全磁盘访问，点 ＋，选 `~/Applications/AppleRemindersMCP.app`。
+
+### 从源码构建
+
+```bash
+./scripts/build-app.sh
+ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
+```
+
+`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。
 
 ### 权限为什么记在这个 App 名下
 

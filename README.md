@@ -56,11 +56,20 @@ Rules:
 - Colors: red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or `#RRGGBB`. An icon is an emoji or a Reminders icon name (such as `nature2`).
 - Other people can see shared lists, so agents should ask the user before changing them.
 
-## Build and install
+## Install
+
+Download `AppleRemindersMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) and open it, or install it from the terminal:
 
 ```bash
-./scripts/build-app.sh
-ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
+gh release download v0.1.0 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
+installer -pkg AppleRemindersMCP-0.1.0.pkg -target CurrentUserHomeDirectory
+```
+
+Installing for yourself only puts the app in `~/Applications` without an administrator password, and the commands below assume it is there. Releases are built for Apple silicon. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security.
+
+Then allow access to Reminders:
+
+```bash
 ~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP setup
 ```
 
@@ -77,6 +86,15 @@ defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminder
 ```
 
 Full Disk Access has to be added by hand: System Settings → Privacy & Security → Full Disk Access, click +, and choose `~/Applications/AppleRemindersMCP.app`.
+
+### Build from source
+
+```bash
+./scripts/build-app.sh
+ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
+```
+
+`./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum.
 
 ### Why the permission belongs to this app
 

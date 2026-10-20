@@ -3,6 +3,7 @@
 #include <crt_externs.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libproc.h>
 #include <signal.h>
 #include <spawn.h>
@@ -91,4 +92,32 @@ void launcher_become_responsible(const char *marker) {
     // Die the same way, without a crash report of our own: that would be named like the copy's
     // and replace it.
     _exit(128 + (WIFSIGNALED(status) ? WTERMSIG(status) : 1));
+}
+
+int launcher_spawn_disclaimed(const char *path, char *const argv[], char *const envp[], const char *directory, int output_fd,
+                              pid_t *pid) {
+    posix_spawnattr_t attrs;
+    int error = posix_spawnattr_init(&attrs);
+    if (error) return error;
+    disclaim_fn disclaim = (disclaim_fn)dlsym(RTLD_DEFAULT, "responsibility_spawnattrs_setdisclaim");
+    if (disclaim) disclaim(&attrs, 1);
+    // A session of its own: no terminal to prompt on, and one process group to stop.
+    short flags = POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSID;
+    posix_spawnattr_setflags(&attrs, flags);
+
+    posix_spawn_file_actions_t actions;
+    error = posix_spawn_file_actions_init(&actions);
+    if (error) {
+        posix_spawnattr_destroy(&attrs);
+        return error;
+    }
+    posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
+    posix_spawn_file_actions_adddup2(&actions, output_fd, STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&actions, output_fd, STDERR_FILENO);
+    if (directory) posix_spawn_file_actions_addchdir(&actions, directory);
+
+    error = posix_spawn(pid, path, &actions, &attrs, argv, envp);
+    posix_spawn_file_actions_destroy(&actions);
+    posix_spawnattr_destroy(&attrs);
+    return error;
 }

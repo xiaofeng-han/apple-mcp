@@ -1,6 +1,8 @@
 #ifndef LAUNCHER_H
 #define LAUNCHER_H
 
+#include <sys/types.h>
+
 /// Makes this process its own "responsible process" for privacy permissions.
 ///
 /// macOS charges a child process's TCC permissions (here: Reminders) to the app that started
@@ -15,5 +17,13 @@
 ///
 /// Returns only in the process that should go on running.
 void launcher_become_responsible(const char *marker);
+
+/// Starts `path` with `argv` and `envp` (both NULL-terminated) in `directory`, with its
+/// responsibility for privacy permissions disclaimed, so it gets none of this app's (Reminders,
+/// Full Disk Access). It runs in a session of its own, with no terminal: stdin is /dev/null, and
+/// stdout and stderr go to `output_fd`. No other descriptor is inherited. Returns 0 and sets `*pid`,
+/// or returns an errno value.
+int launcher_spawn_disclaimed(const char *path, char *const argv[], char *const envp[], const char *directory, int output_fd,
+                              pid_t *pid);
 
 #endif

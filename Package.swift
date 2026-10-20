@@ -12,6 +12,8 @@ let package = Package(
         .target(name: "Wire"),
         .target(name: "Launcher"),
         .target(name: "ReminderKitShim"),
-        .executableTarget(name: "AppleRemindersMCP", dependencies: ["Wire", "Launcher", "ReminderKitShim"]),
+        .target(name: "Agents", dependencies: ["Launcher"]),
+        .executableTarget(name: "AppleRemindersMCP", dependencies: ["Wire", "Launcher", "ReminderKitShim", "Agents"]),
+        .testTarget(name: "AgentsTests", dependencies: ["Agents"]),
     ]
 )

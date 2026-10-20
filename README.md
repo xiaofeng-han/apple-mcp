@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-An MCP server that lets AI agents (Claude Code, Codex, Grok Build, pi, …) fully read and write Reminders on macOS.
+An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) fully read and write Reminders on macOS. Its settings window finds the agents on your Mac and sets each one up with one click, installing the ones you are missing.
 
 Writes go through Apple's private ReminderKit framework, the same path Reminders.app itself uses. So everything below is native and shows up correctly on iPhone too:
 - Reminders: flags, real tags, subtasks, Urgent (rings like an alarm), repeats, early reminders, location and getting in or out of the car, "when messaging a person", links, images, assignment in shared lists, and ordering;
@@ -133,6 +133,40 @@ The permission dialog itself comes from macOS and always uses the system languag
 
 Full Disk Access has to be added by hand: System Settings → Privacy & Security → Full Disk Access, click +, and choose `AppleRemindersMCP.app`. It is in `~/Applications` if you installed the package for yourself, and in `/Applications` otherwise.
 
+### Setting up your agents
+
+The window's **AI Assistants** tab (shown first once Reminders access is allowed) registers this server with your agents. When the window opens, it works out how this copy was installed (with Homebrew, from the package, or neither), and so which command agents should start. It then looks for each agent below and reads its settings file. Next to each agent is a button:
+- **Set Up** when the server is not there yet. The button reads **Update** when the agent starts another copy, **Repair** when that copy is gone, and **Turn On** when the server is turned off.
+- **Install** for an agent you do not have. It installs the agent the way this copy was installed: with Homebrew after a Homebrew install, otherwise with the vendor's own installer or download. Then it sets the agent up. Hold the pointer over the button to see the command it runs.
+
+**Set Up All** does every installed agent at once.
+
+| Agent | Settings it changes | Installs with (after a Homebrew install / otherwise) |
+|---|---|---|
+| Claude Code (also the Claude app's Code tab) | `~/.claude.json`, through `claude mcp add-json -s user` | `brew install --cask claude-code` / `curl -fsSL https://claude.ai/install.sh \| bash` |
+| Claude app | `~/Library/Application Support/Claude/claude_desktop_config.json`. Claude rewrites this file from memory, so it is quit while the server is added and then opened again | `brew install --cask claude` / the app from Anthropic's update feed |
+| Codex CLI and the ChatGPT app (formerly the Codex app) | `~/.codex/config.toml` | `brew install --cask codex` and `chatgpt` / `curl -fsSL https://chatgpt.com/codex/install.sh \| sh` and the app's disk image |
+| Grok Build | `~/.grok/config.toml` | `brew install --cask grok-build` / `curl -fsSL https://x.ai/cli/install.sh \| bash` |
+| OpenCode and OpenCode Desktop | `~/.config/opencode/opencode.json` (or `opencode.jsonc`) | `brew install opencode` and `--cask opencode-desktop` / `curl -fsSL https://opencode.ai/v2/install \| bash` and the app's disk image |
+| Gemini CLI | `~/.gemini/settings.json` | `npm install -g @google/gemini-cli` (Homebrew's formula is deprecated) |
+| Antigravity app and CLI | `~/.gemini/config/mcp_config.json` | `brew install --cask antigravity` and `antigravity-cli` / the app's disk image and `curl -fsSL https://antigravity.google/cli/install.sh \| bash` |
+
+Grok Bot and the Gemini app are listed too, but they cannot use this server. Grok Bot runs MCP servers on its cloud computer, and the Gemini app only takes remote servers that are added on gemini.google.com.
+
+Set Up writes the `apple-reminders` entry and keeps what you added to it (environment variables, timeouts). If the agent had turned the server off, Set Up turns it back on: it takes it out of Grok's `disabled_mcp_servers` and Gemini CLI's `mcp.excluded`, `mcp-server-enablement.json` and (when you keep one) `mcp.allowed`. The rest of the file stays as it was, comments and formatting included. An entry that you wrote in a form the app does not edit, such as a TOML inline table, is left alone and shown as set up by hand. Folders moved by variables such as `CODEX_HOME` or `XDG_CONFIG_HOME` are followed when your login shell sets them. Before the first change of a day, the old file is kept next to it as `<name>.bak-<yyyyMMdd>-apple-reminders-mcp`.
+
+Installers and agents' commands run without this app's permissions (Reminders, Full Disk Access), in a session of their own with no terminal. A downloaded app is installed only if Gatekeeper accepts it and, for vendors whose team is built in (all but OpenCode and Antigravity), it is signed by that team. Without npm, Gemini CLI cannot be installed from the app.
+
+The same is available in the terminal:
+
+```bash
+apple-reminders-mcp agents                     # which agents are installed and set up
+apple-reminders-mcp agents set-up --all        # or name them: agents set-up codex grok
+apple-reminders-mcp agents install opencode    # installs, then sets up; --dry-run only shows the command
+```
+
+`agents set-up` leaves the Claude app alone while it is open, unless you add `--restart`.
+
 ### Build from source
 
 ```bash
@@ -173,6 +207,8 @@ Use the system's `/usr/bin/openssl`. Homebrew's OpenSSL 3 exports p12 files with
 
 ## Registering with clients
 
+The app's AI Assistants tab, or `apple-reminders-mcp agents set-up`, does this for you (see [Setting up your agents](#setting-up-your-agents)). To do it by hand:
+
 The command is `/opt/homebrew/bin/apple-reminders-mcp` after a Homebrew install, and `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP` after installing the package for yourself (`/Applications/…` for all users). Run it with `--stdio`. Give the full path: apps started from the Dock usually do not have `/opt/homebrew/bin` in their `PATH`. The server name is `apple-reminders`. The server supports MCP's session protocol (2024-11-05 to 2025-11-25) and the stateless 2026-07-28 protocol.
 
 - Claude Code: `claude mcp add -s user apple-reminders -- <command> --stdio`
@@ -184,6 +220,8 @@ The command is `/opt/homebrew/bin/apple-reminders-mcp` after a Homebrew install,
   args = ["--stdio"]
   ```
 
+- Claude app (`~/Library/Application Support/Claude/claude_desktop_config.json`; quit Claude first), Gemini CLI (`~/.gemini/settings.json`) and Antigravity (`~/.gemini/config/mcp_config.json`): `"mcpServers": {"apple-reminders": {"command": "<command>", "args": ["--stdio"]}}`
+- OpenCode (`~/.config/opencode/opencode.json`): `"mcp": {"servers": {"apple-reminders": {"type": "local", "command": ["<command>", "--stdio"]}}}`. OpenCode 1 before 1.18.24 only reads servers written directly under `mcp`, with `"enabled": true`.
 - pi (`mcpServers` in `~/.pi/agent/mcp.json`): `{"type": "stdio", "command": "<command>", "args": ["--stdio"]}`
 
 To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, set `APPLE_REMINDERS_MCP_WIRE_LOG=<file>` to log every message sent and received.
@@ -195,6 +233,8 @@ To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, se
 ```
 
 Runs every tool and rule over stdio, 121 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
+
+`swift test` checks the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, and how each agent's settings are read and written, in throwaway folders.
 
 ## Not possible
 

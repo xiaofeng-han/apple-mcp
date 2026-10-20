@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-让 AI agent（Claude Code、Codex、Grok Build、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。
+让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。它的设置窗口会找出 Mac 上的 agent，一键配好每一个，没装的也能直接安装。
 
 写入走苹果的私有框架 ReminderKit，和 Reminders.app 自己用的是同一条路。所以下面这些功能都是原生的，iPhone 上也显示正常：
 - 提醒本身：旗标、真标签、子任务、Urgent（像闹钟一样响）、重复、提前提醒、地点和上车/下车提醒、"给某人发消息时"、链接、图片、共享清单里的指派、排列顺序；
@@ -133,6 +133,40 @@ defaults write com.xiaofeng.apple-reminders-mcp InterfaceLanguage -string zh-Han
 
 完全磁盘访问要手动添加：系统设置 → 隐私与安全性 → 完全磁盘访问，点 ＋，选 `AppleRemindersMCP.app`。用安装包「仅为我安装」的在 `~/Applications`，其他情况在 `/Applications`。
 
+### 配置 AI 助手
+
+窗口里的「AI 助手」标签页（允许访问提醒事项之后会先显示它）负责把服务器注册到各个 agent。窗口打开时，它先判断这份副本是怎么装的（Homebrew、安装包，还是都不是），从而确定 agent 该启动哪个命令；然后找下面这些 agent，读它们的设置文件。每个 agent 旁边有一个按钮：
+- 还没注册时是「配置」。agent 启动的是另一份副本时显示「更新」，那份副本已经不在时显示「修复」，服务器被关掉时显示「打开」。
+- 没装的 agent 是「安装」。它按这份副本的安装方式来装：用 Homebrew 装的就用 Homebrew，否则用厂商自己的安装脚本或下载包。装好后接着配置。鼠标停在按钮上能看到要运行的命令。
+
+「全部配置」一次配好所有已安装的 agent。
+
+| Agent | 改的设置 | 安装方式（Homebrew 安装时 / 其他情况） |
+|---|---|---|
+| Claude Code（也是 Claude App 的 Code 标签页） | `~/.claude.json`，通过 `claude mcp add-json -s user` | `brew install --cask claude-code` / `curl -fsSL https://claude.ai/install.sh \| bash` |
+| Claude App | `~/Library/Application Support/Claude/claude_desktop_config.json`。Claude 会把内存里的设置写回这个文件，所以添加时会先退出它，之后再打开 | `brew install --cask claude` / 从 Anthropic 的更新源下载 App |
+| Codex CLI 和 ChatGPT App（原 Codex App） | `~/.codex/config.toml` | `brew install --cask codex`、`chatgpt` / `curl -fsSL https://chatgpt.com/codex/install.sh \| sh`、App 的磁盘映像 |
+| Grok Build | `~/.grok/config.toml` | `brew install --cask grok-build` / `curl -fsSL https://x.ai/cli/install.sh \| bash` |
+| OpenCode 和 OpenCode Desktop | `~/.config/opencode/opencode.json`（或 `opencode.jsonc`） | `brew install opencode`、`--cask opencode-desktop` / `curl -fsSL https://opencode.ai/v2/install \| bash`、App 的磁盘映像 |
+| Gemini CLI | `~/.gemini/settings.json` | `npm install -g @google/gemini-cli`（Homebrew 的 formula 已弃用） |
+| Antigravity App 和 CLI | `~/.gemini/config/mcp_config.json` | `brew install --cask antigravity`、`antigravity-cli` / App 的磁盘映像、`curl -fsSL https://antigravity.google/cli/install.sh \| bash` |
+
+列表里也有 Grok Bot 和 Gemini App，但它们用不了这个服务器：Grok Bot 的 MCP 服务器跑在它的云端电脑上，Gemini App 只接受在 gemini.google.com 添加的远程服务器。
+
+「配置」写入 `apple-reminders` 这一项，并保留你在里面加的东西（环境变量、超时）。如果 agent 把服务器关掉了，「配置」会重新打开它：从 Grok 的 `disabled_mcp_servers`、Gemini CLI 的 `mcp.excluded` 和 `mcp-server-enablement.json` 里去掉它，在你设了 `mcp.allowed` 时把它加进去。文件里其他内容（包括注释和格式）保持原样。用本 App 不改的写法（比如 TOML 内联表）写的条目不会动，显示为「已手动配置」。`CODEX_HOME`、`XDG_CONFIG_HOME` 这类挪动配置目录的变量，只要登录 shell 里设了就会跟着走。每天第一次修改前，旧文件会备份在旁边，名为 `<文件名>.bak-<yyyyMMdd>-apple-reminders-mcp`。
+
+安装程序和 agent 的命令运行时不带本 App 的权限（提醒事项、完全磁盘访问），在独立的会话里，没有终端。下载的 App 必须通过 Gatekeeper；内置了团队号的厂商（除 OpenCode 和 Antigravity 外都有）还必须是该团队签名的，才会安装。没有 npm 时无法从 App 安装 Gemini CLI。
+
+终端里也能做同样的事：
+
+```bash
+apple-reminders-mcp agents                     # 哪些 agent 装了、配了
+apple-reminders-mcp agents set-up --all        # 或者点名：agents set-up codex grok
+apple-reminders-mcp agents install opencode    # 安装后接着配置；加 --dry-run 只显示命令
+```
+
+Claude App 开着的时候，`agents set-up` 不会动它，除非加 `--restart`。
+
 ### 从源码构建
 
 ```bash
@@ -173,6 +207,8 @@ rm key.pem id.p12
 
 ## 注册到客户端
 
+App 的「AI 助手」标签页或 `apple-reminders-mcp agents set-up` 会替你做这件事（见[配置 AI 助手](#配置-ai-助手)）。手动注册的话：
+
 用 Homebrew 装的，命令是 `/opt/homebrew/bin/apple-reminders-mcp`；用安装包「仅为我安装」的，是 `~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`（为所有用户安装的是 `/Applications/…`）。运行时加 `--stdio`。要写完整路径：从程序坞启动的 App 的 `PATH` 里一般没有 `/opt/homebrew/bin`。服务名 `apple-reminders`。服务器支持 MCP 的会话协议（2024-11-05 到 2025-11-25）和无状态的 2026-07-28 协议。
 
 - Claude Code：`claude mcp add -s user apple-reminders -- <命令> --stdio`
@@ -184,6 +220,8 @@ rm key.pem id.p12
   args = ["--stdio"]
   ```
 
+- Claude App（`~/Library/Application Support/Claude/claude_desktop_config.json`，先退出 Claude）、Gemini CLI（`~/.gemini/settings.json`）、Antigravity（`~/.gemini/config/mcp_config.json`）：`"mcpServers": {"apple-reminders": {"command": "<命令>", "args": ["--stdio"]}}`
+- OpenCode（`~/.config/opencode/opencode.json`）：`"mcp": {"servers": {"apple-reminders": {"type": "local", "command": ["<命令>", "--stdio"]}}}`。1.18.24 之前的 OpenCode 1 只读直接写在 `mcp` 下的服务器，并且要 `"enabled": true`。
 - pi（`~/.pi/agent/mcp.json` 的 `mcpServers`）：`{"type": "stdio", "command": "<命令>", "args": ["--stdio"]}`
 
 验证：`claude mcp list`、`grok mcp doctor`、`pi mcp list`。调试时设 `APPLE_REMINDERS_MCP_WIRE_LOG=<文件>` 可以记录收发的每条消息。
@@ -195,6 +233,8 @@ rm key.pem id.p12
 ```
 
 通过 stdio 把所有工具和规则走一遍，共 121 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。
+
+`swift test` 检查 agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑，以及各 agent 设置的读写（都在临时目录里进行）。
 
 ## 做不到的
 

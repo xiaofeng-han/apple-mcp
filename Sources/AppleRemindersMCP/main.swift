@@ -7,11 +7,12 @@ let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? Stri
 let arguments = Set(CommandLine.arguments.dropFirst())
 
 /// What to do: `--stdio` (or input from a pipe or socket) serves MCP; `setup` asks for the
-/// Reminders permission in the terminal; `--self-check` prints a diagnosis; `--settings` (or a
-/// double-click in Finder) opens the settings window.
-enum Mode { case serve, setup, check, settings }
+/// Reminders permission in the terminal; `--self-check` prints a diagnosis; `agents` lists, sets
+/// up and installs AI agents; `--settings` (or a double-click in Finder) opens the settings window.
+enum Mode { case serve, setup, check, agents, settings }
 
 let mode: Mode = {
+    if CommandLine.arguments.dropFirst().first == "agents" { return .agents }
     if arguments.contains("setup") || arguments.contains("authorize") { return .setup }
     if arguments.contains("--self-check") { return .check }
     if arguments.contains("--settings") { return .settings }
@@ -48,18 +49,28 @@ let writeGuard: Set<String>? = ProcessInfo.processInfo.environment["APPLE_REMIND
 }
 let store = RemindersStore(writeGuard: writeGuard)
 
+/// Runs `work` on the main actor and exits with what it returns. The top-level code itself stays
+/// synchronous: async top-level code runs as one long job on the main queue, and the settings
+/// window's event loop inside it would keep every other main-actor task from running.
+func runThenExit(_ work: @escaping @MainActor () async -> Int32) -> Never {
+    Task { @MainActor in exit(await work()) }
+    dispatchMain()
+}
+
 switch mode {
 case .setup:
-    let status = EKEventStore.authorizationStatus(for: .reminder)
-    print("Reminders access:", describe(status))
-    if status == .notDetermined {
-        print("Asking for access; click Allow in the dialog (it may be behind other windows).")
-        let granted = (try? await EKEventStore().requestFullAccessToReminders()) ?? false
-        print(granted ? "Access granted." : "Access was not granted.")
-    } else if status != .fullAccess {
-        print(RemindersStore.permissionHelp)
+    runThenExit {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        print("Reminders access:", describe(status))
+        if status == .notDetermined {
+            print("Asking for access; click Allow in the dialog (it may be behind other windows).")
+            let granted = (try? await EKEventStore().requestFullAccessToReminders()) ?? false
+            print(granted ? "Access granted." : "Access was not granted.")
+        } else if status != .fullAccess {
+            print(RemindersStore.permissionHelp)
+        }
+        return EKEventStore.authorizationStatus(for: .reminder) == .fullAccess ? 0 : 1
     }
-    exit(EKEventStore.authorizationStatus(for: .reminder) == .fullAccess ? 0 : 1)
 
 case .check:
     print("Apple Reminders MCP \(version) (\(Bundle.main.bundleIdentifier ?? "development build"))")
@@ -78,8 +89,11 @@ case .check:
     if let writeGuard { print("Write guard:", writeGuard.sorted().map { "\"\($0)\"" }.joined(separator: ", ")) }
     exit(0)
 
+case .agents:
+    runThenExit { await AgentsCommand.run(Array(CommandLine.arguments.dropFirst(2))) }
+
 case .settings:
-    await MainActor.run { SettingsPanel.show() }
+    SettingsPanel.show()
     exit(0)
 
 case .serve:
@@ -95,5 +109,8 @@ case .serve:
         """
     let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions,
                           tools: readTools(store) + writeTools(store) + organizeTools(store))
-    await StdioServer.run(service)
+    runThenExit {
+        await StdioServer.run(service)
+        return 0
+    }
 }

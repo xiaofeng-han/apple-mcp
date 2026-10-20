@@ -3,9 +3,9 @@ import Combine
 import EventKit
 import SwiftUI
 
-/// The window shown when the app is opened by hand: what it may access, and its settings, in
-/// English or Chinese. (Plain ObservableObject and Binding, no SwiftUI macros: the Command Line
-/// Tools ship without the macro plugins.)
+/// The window shown when the app is opened by hand: what it may access, its settings, and the AI
+/// assistants it can be set up with, in English or Chinese. (Plain ObservableObject and Binding,
+/// no SwiftUI macros: the Command Line Tools ship without the macro plugins.)
 @MainActor
 enum SettingsPanel {
     static let remindersPrivacy = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders")!
@@ -15,19 +15,53 @@ enum SettingsPanel {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let state = PanelState()
-        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state)))
+        let agents = AgentsState { [unowned state] in state.language }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state, agents: agents)))
         window.title = "Apple Reminders MCP"
         window.styleMask = [.titled, .closable]
         window.center()
-        let closer = WindowCloser()
+        let closer = WindowCloser(state: state, agents: agents)
         window.delegate = closer
+        app.delegate = closer
         window.makeKeyAndOrderFront(nil)
         app.activate()
-        withExtendedLifetime((closer, state)) { app.run() }
+        withExtendedLifetime((closer, state, agents)) { app.run() }
     }
 
-    final class WindowCloser: NSObject, NSWindowDelegate {
+    /// Closing the window quits the app. Quitting while an agent is being installed or set up
+    /// would cut it off halfway, so the user is asked first, however the app is quit.
+    final class WindowCloser: NSObject, NSWindowDelegate, NSApplicationDelegate {
+        let state: PanelState
+        let agents: AgentsState
+        private var confirmed = false
+
+        init(state: PanelState, agents: AgentsState) {
+            self.state = state
+            self.agents = agents
+        }
+
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            MainActor.assumeIsolated { mayQuit() }
+        }
+
         func windowWillClose(_ notification: Notification) { NSApplication.shared.terminate(nil) }
+
+        func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+            MainActor.assumeIsolated { mayQuit() ? .terminateNow : .terminateCancel }
+        }
+
+        @MainActor
+        private func mayQuit() -> Bool {
+            guard !confirmed, agents.rows.contains(where: \.isWorking) else { return true }
+            let alert = NSAlert()
+            alert.messageText = state.text("Quit while an agent is being set up?", "AI 助手还在安装或配置，要退出吗？")
+            alert.informativeText = state.text("Quitting now may leave its installation or settings unfinished.",
+                                               "现在退出可能让安装或配置停在一半。")
+            alert.addButton(withTitle: state.text("Keep Going", "继续"))
+            alert.addButton(withTitle: state.text("Quit", "退出"))
+            confirmed = alert.runModal() == .alertSecondButtonReturn
+            return confirmed
+        }
     }
 }
 
@@ -94,6 +128,29 @@ final class PanelState: ObservableObject {
 }
 
 struct PanelView: View {
+    enum Tab { case general, agents }
+
+    @ObservedObject var state: PanelState
+    @ObservedObject var agents: AgentsState
+    @State private var tab: Tab
+
+    init(state: PanelState, agents: AgentsState) {
+        self.state = state
+        self.agents = agents
+        // The assistants come first once Reminders access is settled.
+        _tab = State(initialValue: state.reminders == .fullAccess ? .agents : .general)
+    }
+
+    var body: some View {
+        TabView(selection: $tab) {
+            GeneralView(state: state).tabItem { Text(state.text("General", "通用")) }.tag(Tab.general)
+            AgentsView(state: state, agents: agents).tabItem { Text(state.text("AI Assistants", "AI 助手")) }.tag(Tab.agents)
+        }
+        .frame(width: 580, height: 660)
+    }
+}
+
+struct GeneralView: View {
     @ObservedObject var state: PanelState
 
     var body: some View {
@@ -150,7 +207,5 @@ struct PanelView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }

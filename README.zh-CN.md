@@ -12,6 +12,24 @@
 
 需要 macOS 26 或更新版本，在 macOS 27.0.1 上开发和验证。代码全部是本项目自己写的，不依赖第三方库。
 
+## 同类工具对比
+
+2026-10-20 对照各项目源码和苹果官方文档逐项核实，星标数为当天数据。✅ 已核实支持 · 🟡 部分支持或变通 · ❌ 不支持 · ❓ 未核实 · — 不适用
+
+| 工具 | 星标 | 实现方式 | 标签 | 子任务 | 分区 | 智能清单 | 位置提醒 | 紧急 | 分组/颜色 | 重复 | 指派 | 恢复删除 | 防覆盖 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **MCP 服务器** | | | | | | | | | | | | | |
+| **xiaofeng-han/apple-reminders-mcp**（本项目） | 新 | ReminderKit（「提醒事项」App 自己用的私有框架） | ✅ 原生 | ✅ 原生 | ✅ | ✅ | ✅ 另有上车/下车、「给某人发消息时」 | ✅ | ✅ | ✅ | ✅ | ✅ 回到原清单 | ✅ 版本哈希 |
+| [supermemoryai/apple-mcp](https://github.com/supermemoryai/apple-mcp) | 3,120 | AppleScript（`tell application "Reminders"`） | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| [FradSer/mcp-server-apple-events](https://github.com/FradSer/mcp-server-apple-events) | 224 | EventKit（Swift 命令行） | 🟡 `[#tag]` 文本写在备注里 | 🟡 备注里的文本块 | ❌ | ❌ | 🟡 只读 | ❌ | 🟡 清单颜色，只读 | 🟡 只读 | ❌ | ❌ | ❌ |
+| [omarshahine/apple-pim](https://github.com/omarshahine/apple-pim) | 65 | EventKit（Swift 命令行） | ❌ | ❌ | ❌ | ❌ | ✅ 到达/离开 | ❌ | 🟡 清单颜色，只读 | ✅ | ❌ | ❌ | ❌ |
+| [PsychQuant/che-ical-mcp](https://github.com/PsychQuant/che-ical-mcp) | 41 | EventKit（Swift） | 🟡 备注里的 hashtag（“MCP 层面”） | ❌ | ❌ | ❌ | ✅ | ❌ | 🟡 清单颜色，可读写 | ✅ | ❌ | 🟡 撤销时重建（是新条目） | 🟡 撤销不会覆盖用户的修改 |
+| [shadowfax92/apple-reminders-mcp](https://github.com/shadowfax92/apple-reminders-mcp) | 39 | JXA，经 node-reminders（osascript） | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| [dbmcco/apple-reminders-mcp](https://github.com/dbmcco/apple-reminders-mcp) | 29 | AppleScript（osascript） | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **苹果自带** | | | | | | | | | | | | | |
+| Siri / Apple Intelligence | — | 系统自带语音 | ❓ | ❌ | ❓ | ❌ | ✅ “到家时提醒我” | ❓ | ❌ | ✅ | ❌ | ❌ | — |
+| 快捷指令「新建提醒事项」等（iOS / macOS 27） | — | 系统自带动作 | ❓ | ❓ | 🟡 能建、删分区，不能把提醒放进分区 | ❌ | ❓ | ✅ iOS 27 | 🟡 能建、删分组（iOS 27） | ❓ | ❓ | ❌ | ❌ |
+
 ## 工具
 
 | 工具 | 作用 |

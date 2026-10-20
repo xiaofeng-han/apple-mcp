@@ -12,6 +12,24 @@ Once saved, the system's remindd syncs changes to iCloud on its own. The only pr
 
 Requires macOS 26 or later; developed and tested on macOS 27.0.1. All code is written for this project, with no third-party dependencies.
 
+## Comparison
+
+Checked on 2026-10-20 against each project's source code and Apple's documentation; star counts are from that day. ✅ verified · 🟡 partial or workaround · ❌ not supported · ❓ not verified · — not applicable
+
+| Tool | Stars | Approach | Tags | Subtasks | Sections | Smart lists | Location alerts | Urgent | Groups / colors | Recurrence | Shared-list assign | Restore deleted | Conflict protection |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **MCP servers** | | | | | | | | | | | | | |
+| **xiaofeng-han/apple-reminders-mcp** (this project) | new | ReminderKit (private framework used by Reminders.app) | ✅ native | ✅ native | ✅ | ✅ | ✅ + car + “when messaging” | ✅ | ✅ | ✅ | ✅ | ✅ to original list | ✅ version hash |
+| [supermemoryai/apple-mcp](https://github.com/supermemoryai/apple-mcp) | 3,120 | AppleScript (`tell application "Reminders"`) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| [FradSer/mcp-server-apple-events](https://github.com/FradSer/mcp-server-apple-events) | 224 | EventKit (Swift CLI) | 🟡 `[#tag]` text in notes | 🟡 text block in notes | ❌ | ❌ | 🟡 read-only | ❌ | 🟡 list color, read-only | 🟡 read-only | ❌ | ❌ | ❌ |
+| [omarshahine/apple-pim](https://github.com/omarshahine/apple-pim) | 65 | EventKit (Swift CLI) | ❌ | ❌ | ❌ | ❌ | ✅ arrive/leave | ❌ | 🟡 list color, read-only | ✅ | ❌ | ❌ | ❌ |
+| [PsychQuant/che-ical-mcp](https://github.com/PsychQuant/che-ical-mcp) | 41 | EventKit (Swift) | 🟡 hashtags in notes (“MCP-level”) | ❌ | ❌ | ❌ | ✅ | ❌ | 🟡 list color, read/write | ✅ | ❌ | 🟡 undo recreates (new item) | 🟡 undo won’t overwrite user edits |
+| [shadowfax92/apple-reminders-mcp](https://github.com/shadowfax92/apple-reminders-mcp) | 39 | JXA via node-reminders (osascript) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| [dbmcco/apple-reminders-mcp](https://github.com/dbmcco/apple-reminders-mcp) | 29 | AppleScript (osascript) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Apple built-in** | | | | | | | | | | | | | |
+| Siri / Apple Intelligence | — | Built-in voice / system | ❓ | ❌ | ❓ | ❌ | ✅ “remind me when I get home” | ❓ | ❌ | ✅ | ❌ | ❌ | — |
+| Shortcuts “New Reminder” etc. (iOS / macOS 27) | — | Built-in actions | ❓ | ❓ | 🟡 create/delete sections; can’t put a reminder in one | ❌ | ❓ | ✅ iOS 27 | 🟡 create/delete groups (iOS 27) | ❓ | ❓ | ❌ | ❌ |
+
 ## Tools
 
 | Tool | What it does |

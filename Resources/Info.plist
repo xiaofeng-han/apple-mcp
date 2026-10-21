@@ -29,8 +29,6 @@
 	<string>8</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
-	<key>LSUIElement</key>
-	<true/>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Apple Reminders MCP lets your AI assistants read, create and change your reminders.</string>
 	<key>NSRemindersUsageDescription</key>

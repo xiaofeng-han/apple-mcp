@@ -49,6 +49,7 @@ One note paragraph is one Markdown line, so a model can change a line without an
 - Locked notes cannot be read or changed. Shared notes can be edited (the edits merge with the other people's), but are not deleted here, and a move into or out of a shared folder needs `allow_shared` (after asking the user).
 - `delete_note` and a recursive folder delete only move notes to Recently Deleted, and refuse a note already there (deleting it again would erase it for good). A recursive delete needs `expected_notes`, the number of notes the caller saw, and checks everything before it changes anything.
 - An export goes only to a path that does not exist yet, outside `~/Library`.
+- Any tool can be turned off for all AI assistants in the settings window (see [Choosing the tools](#choosing-the-tools)).
 
 ## Command line
 
@@ -176,7 +177,7 @@ apple-notes-mcp --self-check   # shows both permissions and counts your notes
 
 Full Disk Access has to be turned on by hand: System Settings → Privacy & Security → Full Disk Access, then turn on Apple Notes MCP, adding it with + if it is not listed (it is in `~/Applications` if you installed the package for yourself, and in `/Applications` otherwise).
 
-Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It opens in front, on the **AI Assistants** tab; the **General** tab shows both permissions, with buttons to grant them, and the window's language: English or Simplified Chinese, following the system unless you pick one (`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`, or `en`; delete it to follow the system). When an agent calls the server without a permission it needs, the server opens this window once and tells the agent so.
+Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It opens in front, on the **AI Assistants** tab; the **Tools** tab chooses which tools AI assistants may use; the **General** tab shows both permissions, with buttons to grant them, and the window's language: English or Simplified Chinese, following the system unless you pick one (`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`, or `en`; delete it to follow the system). When an agent calls the server without a permission it needs, the server opens this window once and tells the agent so.
 
 ### Setting up your agents
 
@@ -250,6 +251,24 @@ apple-notes-mcp agents set-up claude-code codex --folder ~/code/app   # one proj
 apple-notes-mcp skill                                                 # print the skill, to install it by hand anywhere
 ```
 
+### Choosing the tools
+
+The window's **Tools** tab lists the 10 tools by name, each with what it does and a label: **Read-only**, **Writes**, or **Can delete**. Tick the ones AI assistants may use. **All**, **None**, **Invert** and **Read-Only** (only the tools labelled Read-only) change them all at once. The choice is saved as soon as you make it, in `~/Library/Application Support/AppleNotesMCP/tools.json`, outside the app, so restarts, updates and reinstalls keep it:
+
+```json
+{
+  "tools" : {
+    "create_note" : true,
+    "delete_note" : false,
+    …
+  }
+}
+```
+
+It applies at once. A turned-off tool is left out of the tool list, and calling it anyway is refused with a message that tells the assistant where you can turn it back on. Running assistants are told with `notifications/tools/list_changed`: clients of the 2026-07-28 protocol (Claude Code, Grok Build) on the `subscriptions/listen` stream they open, older ones after they initialize. Claude Code lists the tools again and the change shows up in the same session; a client that ignores the notice sees it in its next session. Servers started by a version before this one don't read the file, so restart those assistants once after updating.
+
+A tool that a later version adds, and that the file therefore doesn't name yet, starts on, unless you turned off another tool with the same label: after Read-Only, new tools that write stay off. If the file can't be read (after a hand edit that broke it, say), no tools are offered until it is fixed; choosing again in the tab replaces it and keeps the broken one as `tools.json.bak-<date>-<time>`. `apple-notes-mcp --self-check` prints how many tools are offered. With no file, every tool is.
+
 ### Build from source
 
 ```bash
@@ -302,11 +321,12 @@ For debugging, set `APPLE_NOTES_MCP_WIRE_LOG=<file>` to log every message sent a
 swift test
 ```
 
-`e2e.py` runs every tool over stdio, and the main command-line commands, 66 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment`. `swift test` checks, in throwaway folders where files are involved:
+`e2e.py` runs every tool over stdio, and the main command-line commands, 90 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment`. The choice of tools comes from a throwaway file (`APPLE_NOTES_MCP_TOOLS_FILE`), so yours is neither used nor changed. `swift test` checks, in throwaway folders where files are involved:
 - the Markdown conversion, including that every kind of line reads back the same;
 - the planning of edits, and the stored-body decoder;
 - the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, how each agent's settings are read and written, and where each agent's skill goes;
-- how command-line flags are read from the tools' input schemas.
+- how command-line flags are read from the tools' input schemas;
+- the choice of tools: the rule for tools the file doesn't name, saving, reading and watching the file, and what the server lists, refuses and announces.
 
 ## Limits
 

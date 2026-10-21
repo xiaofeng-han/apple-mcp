@@ -49,6 +49,7 @@
 - 加锁的笔记不能读也不能改。共享的笔记可以编辑（与其他人的修改合并），但这里不删除；移进或移出共享文件夹要 `allow_shared`（先问用户）。
 - `delete_note` 和递归删除文件夹只把笔记移到「最近删除」；已经在那里的笔记会被拒绝（再删一次就永久删除了）。递归删除要传 `expected_notes`（调用方看到的笔记数），并且在动手之前把所有条件检查完。
 - 导出只能写到还不存在的路径，且不能在 `~/Library` 里。
+- 任何工具都可以在设置窗口里对所有 AI 助手关掉（见[选择开放的工具](#选择开放的工具)）。
 
 ## 命令行
 
@@ -176,7 +177,7 @@ apple-notes-mcp --self-check   # 显示两项权限，并数一下笔记
 
 完全磁盘访问要手动打开：系统设置 → 隐私与安全性 → 完全磁盘访问，打开 Apple Notes MCP；列表里没有就点 ＋ 添加（用安装包「仅为我安装」的在 `~/Applications`，其他情况在 `/Applications`）。
 
-直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口会出现在最前面，停在「**AI 助手**」标签页；「**通用**」标签页显示两项权限和授权按钮，以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选（`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`，或 `en`；删掉这一项就跟随系统）。agent 调用服务器时如果缺权限，服务器会打开这个窗口一次，并告诉 agent。
+直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口会出现在最前面，停在「**AI 助手**」标签页；「**工具**」标签页选择 AI 助手能用哪些工具；「**通用**」标签页显示两项权限和授权按钮，以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选（`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`，或 `en`；删掉这一项就跟随系统）。agent 调用服务器时如果缺权限，服务器会打开这个窗口一次，并告诉 agent。
 
 ### 配置 AI 助手
 
@@ -250,6 +251,24 @@ apple-notes-mcp agents set-up claude-code codex --folder ~/code/app   # 只放�
 apple-notes-mcp skill                                                 # 打印技能，方便手动装到任何地方
 ```
 
+### 选择开放的工具
+
+窗口的「工具」标签页按名字列出 10 个工具，每个都写明用途并带一个标签：「只读」「修改」或「可删除」。勾上允许 AI 助手使用的工具。「全选」「全不选」「反选」「只读」（只开标着「只读」的工具）一次改动全部。选择立即保存在 `~/Library/Application Support/AppleNotesMCP/tools.json`，它在 App 之外，所以重启、更新、重装都不会丢：
+
+```json
+{
+  "tools" : {
+    "create_note" : true,
+    "delete_note" : false,
+    …
+  }
+}
+```
+
+改动立即生效。关掉的工具不会出现在工具列表里，硬要调用也会被拒绝，并告诉助手你可以在哪里重新打开。正在运行的助手会收到 `notifications/tools/list_changed`：2026-07-28 协议的客户端（Claude Code、Grok Build）在它们打开的 `subscriptions/listen` 流上收到，旧协议的客户端在初始化之后收到。Claude Code 会重新列出工具，同一个会话里就能看到变化；不理会这个通知的客户端要到新会话才会看到。这个版本之前启动的服务器不读这个文件，所以更新后把这些助手重启一次。
+
+以后版本新增的工具（文件里还没有它的名字）默认打开，除非你关掉了同一标签的其他工具：选过「只读」之后，新增的写入类工具也保持关闭。如果文件读不了（比如手动改坏了），在修好之前不开放任何工具；在标签页里重新选择会替换它，并把坏的那份保留为 `tools.json.bak-<日期>-<时间>`。`apple-notes-mcp --self-check` 会显示开放了几个工具。没有这个文件时，全部工具都开放。
+
 ### 从源码构建
 
 ```bash
@@ -302,11 +321,12 @@ App 的「AI 助手」标签页或 `apple-notes-mcp agents set-up` 会替你做�
 swift test
 ```
 
-`e2e.py` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 66 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment`，它会读你的一张图片。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
+`e2e.py` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 90 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment`，它会读你的一张图片。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
 - Markdown 转换，包括每种行都能原样读回；
 - 修改计划，以及存储正文的解码；
 - agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑、各 agent 设置的读写、各 agent 技能的位置；
-- 命令行参数如何从工具的输入 schema 读出。
+- 命令行参数如何从工具的输入 schema 读出；
+- 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
 ## 做不到的
 

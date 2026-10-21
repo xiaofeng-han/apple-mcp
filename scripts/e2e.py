@@ -2,20 +2,23 @@
 
 Writes are confined by the write guard to notes titled, and folders named, "agent test…". The
 script first removes what an interrupted run left behind and at the end deletes the folder it
-made, so only Recently Deleted keeps its notes. Usage:
+made, so only Recently Deleted keeps its notes. The choice of tools is read from a throwaway
+tools.json, so the user's own choice neither hides tools from the checks nor changes. Usage:
 
     /usr/bin/python3 -I scripts/e2e.py [path to the AppleNotesMCP executable]
 
 The app needs Full Disk Access and Automation → Notes (run it with `setup` once).
 """
-import json, os, re, subprocess, sys, tempfile, zipfile
+import json, os, re, select, subprocess, sys, tempfile, time, zipfile
 
 INSTALLED = [os.path.expanduser(p + "/AppleNotesMCP.app/Contents/MacOS/AppleNotesMCP") for p in ("/Applications", "~/Applications")]
 APP = sys.argv[1] if len(sys.argv) > 1 else next((p for p in INSTALLED if os.path.exists(p)), INSTALLED[0])
 GUARD = "agent test"
-env = dict(os.environ, APPLE_NOTES_MCP_WRITE_GUARD=GUARD)
+TOOLS_FILE = os.path.join(tempfile.mkdtemp(), "tools.json")
+env = dict(os.environ, APPLE_NOTES_MCP_WRITE_GUARD=GUARD, APPLE_NOTES_MCP_TOOLS_FILE=TOOLS_FILE)
 proc = subprocess.Popen([APP, "--stdio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
 seq = 0
+notices = []  # notifications from the server, in order
 
 
 def rpc(method, params=None):
@@ -23,7 +26,16 @@ def rpc(method, params=None):
     seq += 1
     proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": seq, "method": method, "params": params or {}}) + "\n")
     proc.stdin.flush()
-    return json.loads(proc.stdout.readline())
+    while True:
+        message = json.loads(proc.stdout.readline())
+        if "id" in message:
+            return message
+        notices.append(message["method"])
+
+
+def notify(method):
+    proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method}) + "\n")
+    proc.stdin.flush()
 
 
 def call(tool, **args):
@@ -59,8 +71,103 @@ def notes_in(folder):
 
 init = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "e2e", "version": "1"}})
 check("initialize", init["result"]["serverInfo"]["name"] == "apple-notes-mcp", init)
+notify("notifications/initialized")
+check("tools can change", init["result"]["capabilities"]["tools"]["listChanged"] is True, init)
 tools = [t["name"] for t in rpc("tools/list")["result"]["tools"]]
 check("10 tools", len(tools) == 10, tools)
+check("tools listed by name", tools == sorted(tools), tools)
+READING = ["overview", "read_attachment", "read_note", "search"]
+
+
+# Choosing the tools, as the settings window's Tools tab does: saved atomically, then edited in
+# place, then broken, then removed. Each change is announced and applies to the next call.
+def changed_since(mark):
+    time.sleep(0.5)
+    rpc("ping")
+    new = notices[mark:]
+    return len(new) > 0 and all(n == "notifications/tools/list_changed" for n in new)
+
+
+def listed():
+    return [t["name"] for t in rpc("tools/list")["result"]["tools"]]
+
+
+with open(TOOLS_FILE + ".new", "w") as f:
+    json.dump({"tools": {name: name != "delete_note" for name in tools}}, f)
+mark = len(notices)
+os.replace(TOOLS_FILE + ".new", TOOLS_FILE)
+check("atomic save announced", changed_since(mark), notices)
+check("turned-off tool not listed", listed() == [n for n in tools if n != "delete_note"])
+st, t, _ = call("delete_note", id="x"); check("turned-off tool refused", st == "RPCERR" and "turned off" in t and "Tools tab" in t, t)
+st, t, _ = call("overview"); check("other tools still run", st == "OK", t[:200])
+r = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "e2e", "version": "1"}})
+check("instructions say tools may be turned off", "A tool named here that is not in your tool list is turned off there." in r["result"]["instructions"], r)
+mark = len(notices)
+with open(TOOLS_FILE, "w") as f:
+    json.dump({"tools": {name: name in READING for name in tools}}, f)
+check("edit in place announced", changed_since(mark), notices)
+check("read-only choice lists the reading tools", listed() == READING)
+st, t, _ = call("create_note", markdown="# agent test 不该写入", folder="agent test"); check("writing refused when read-only", st == "RPCERR" and "turned off" in t, t)
+mark = len(notices)
+time.sleep(0.5)
+rpc("ping")
+check("no announcement without a change", len(notices) == mark, notices)
+selfcheck = subprocess.run([APP, "--self-check"], env=env, capture_output=True, text=True).stdout
+check("self-check counts the tools", "Tools offered to AI assistants: 4 of 10 (turned off: create_note," in selfcheck, selfcheck)
+mark = len(notices)
+with open(TOOLS_FILE, "w") as f:
+    f.write("{not json")
+check("broken file announced", changed_since(mark), notices)
+check("broken file offers nothing", listed() == [])
+st, t, _ = call("overview"); check("broken file refuses every tool", st == "RPCERR" and "can't be read" in t, t)
+mark = len(notices)
+os.remove(TOOLS_FILE)
+check("removed file announced", changed_since(mark), notices)
+check("no file offers every tool", listed() == tools)
+
+# A stateless (2026-07-28) client, as Claude Code and Grok Build are, is told on the
+# subscriptions/listen stream it opens.
+modern = subprocess.Popen([APP, "--stdio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
+META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientInfo": {"name": "e2e", "version": "1"},
+        "io.modelcontextprotocol/clientCapabilities": {}}
+
+
+def to_modern(message):
+    modern.stdin.write(json.dumps(message) + "\n")
+    modern.stdin.flush()
+
+
+def from_modern(wait=5):
+    if not select.select([modern.stdout], [], [], wait)[0]:
+        return None
+    return json.loads(modern.stdout.readline())
+
+
+to_modern({"jsonrpc": "2.0", "id": 1, "method": "server/discover", "params": {"_meta": META}}); m = from_modern()
+check("stateless: discover offers tool changes", m and m["result"]["capabilities"]["tools"].get("listChanged") is True, m)
+to_modern({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {"_meta": META}}); m = from_modern()
+check("stateless: list has caching hints", m and m["result"].get("ttlMs") == 0 and m["result"].get("cacheScope") == "private" and len(m["result"]["tools"]) == 10, m)
+to_modern({"jsonrpc": "2.0", "id": 3, "method": "subscriptions/listen", "params": {"_meta": META, "notifications": {"toolsListChanged": True}}}); m = from_modern()
+check("stateless: listen acknowledged", m and m.get("method") == "notifications/subscriptions/acknowledged"
+      and m["params"]["_meta"]["io.modelcontextprotocol/subscriptionId"] == 3 and m["params"]["notifications"] == {"toolsListChanged": True}, m)
+with open(TOOLS_FILE + ".new", "w") as f:
+    json.dump({"tools": {name: name != "delete_note" for name in tools}}, f)
+os.replace(TOOLS_FILE + ".new", TOOLS_FILE)
+m = from_modern()
+check("stateless: change sent on the stream", m and m.get("method") == "notifications/tools/list_changed"
+      and m["params"]["_meta"]["io.modelcontextprotocol/subscriptionId"] == 3, m)
+to_modern({"jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {"_meta": META}}); m = from_modern()
+check("stateless: list follows the change", m and len(m["result"]["tools"]) == 9, m)
+# Requests are handled in order, so the ping's reply shows the cancel has been handled.
+to_modern({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 3}})
+to_modern({"jsonrpc": "2.0", "id": 5, "method": "ping", "params": {"_meta": META}}); m = from_modern()
+check("stateless: cancel handled", m and m.get("id") == 5, m)
+os.remove(TOOLS_FILE)
+time.sleep(0.5)
+to_modern({"jsonrpc": "2.0", "id": 6, "method": "ping", "params": {"_meta": META}}); m = from_modern()
+check("stateless: nothing after cancelling", m and m.get("id") == 6, m)
+modern.stdin.close()
+modern.wait(timeout=10)
 
 # Leftovers of an interrupted run.
 st, t, _ = call("overview", depth=3)
@@ -224,7 +331,6 @@ proc.wait(timeout=10)
 
 # Another server (another agent's) reads only the database, which Notes writes lazily: it must
 # see the cleanup too.
-import time
 for attempt in range(10):
     fresh = subprocess.run([APP, "--stdio"], env=env, capture_output=True, text=True, input="\n".join(json.dumps(m) for m in [
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "e2e", "version": "1"}}},

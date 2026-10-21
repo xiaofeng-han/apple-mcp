@@ -105,6 +105,16 @@ case .check:
         } catch {
             print("Notes data:", error)
         }
+        if Settings.toolsFileOverride != nil {
+            print("Tools file:", Settings.exposure.file.path, "(from APPLE_NOTES_MCP_TOOLS_FILE)")
+        }
+        do {
+            let offered = Set(try Settings.exposure.offered(tools).map(\.name))
+            let off = tools.map(\.name).filter { !offered.contains($0) }.sorted()
+            print("Tools offered to AI assistants: \(offered.count) of \(tools.count)" + (off.isEmpty ? "" : " (turned off: \(off.joined(separator: ", ")))"))
+        } catch {
+            print("Tools offered to AI assistants: none, \(Settings.exposure.file.path) can't be read (\(error))")
+        }
         if let writeGuard { print("Write guard: \"\(writeGuard)\"") }
         return 0
     }
@@ -124,7 +134,7 @@ case .command:
     runThenExit { await Commands.run(words, tools: tools) }
 
 case .settings:
-    MainActor.assumeIsolated { SettingsPanel.show() }
+    MainActor.assumeIsolated { SettingsPanel.show(tools: tools) }
     exit(0)
 
 case .serve:
@@ -137,7 +147,8 @@ case .serve:
         ![…](attachment:…) placeholders where they are. To describe many notes: overview with undescribed: \
         true, then one describe_note call.
         """
-    let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions, tools: tools)
+    let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions,
+                          tools: tools, exposure: Settings.exposure)
     runThenExit {
         await StdioServer.run(service)
         return 0

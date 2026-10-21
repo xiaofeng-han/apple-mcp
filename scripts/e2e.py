@@ -395,6 +395,13 @@ code, out, err = cli("reminders", "find", "--bogus"); check("cli: an unknown fla
 code, out, err = cli("lists", "create", "Not allowed"); check("cli: a guarded write exits 1", code == 1 and "limited" in err, (code, out, err))
 code, out, err = cli("skill")
 check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-reminders\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
+# The choice of tools holds on the command line too, which the skill uses.
+with open(TOOLS_FILE + ".new", "w") as f: json.dump({"tools": {name: name not in ("list_tags", "manage_list") for name in tools}}, f)
+os.replace(TOOLS_FILE + ".new", TOOLS_FILE)
+code, out, err = cli("tags", "list"); check("cli: a turned-off tool exits 1", code == 1 and "tags is turned off" in err and "Tools tab" in err and out == "", (code, out, err))
+code, out, err = cli("call", "list_tags"); check("cli: call refuses a turned-off tool", code == 1 and "turned off" in err, (code, out, err))
+code, out, err = cli("lists", "list"); check("cli: other tools still run", code == 0 and "lists" in obj(out), (code, out, err))
+os.remove(TOOLS_FILE)
 code, out, err = cli("lists", "delete", "agent test 4", "--confirm-delete-reminders"); check("cli: lists delete --confirm-delete-reminders", code == 0, (code, out, err))
 st, t = call("find_reminders", limit=500); check("open count back to baseline", st == "OK" and obj(t)["count"] == baseline_open, t[:200])
 st, t = call("list_lists"); check("list count back to baseline", st == "OK" and len(obj(t)["lists"]) == baseline_lists, t[:200])

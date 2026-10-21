@@ -223,8 +223,10 @@ enum Commands {
         return await execute(tool, arguments, hint: "\(program) call \(name) --help", output: nil)
     }
 
-    /// Runs the tool and prints its answer.
+    /// Runs the tool and prints its answer. A tool turned off in the settings window's Tools tab is
+    /// refused here too: agents set up with the skill run these commands.
     static func execute(_ tool: Tool, _ arguments: [String: JSON], hint: String, output: String?) async -> Int32 {
+        if let refusal = Settings.exposure.refusal(tool, among: tools) { return fail(reword(refusal), status: 1) }
         let answer: ToolAnswer
         do {
             answer = try await tool.run(arguments)

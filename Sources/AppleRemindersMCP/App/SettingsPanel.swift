@@ -23,9 +23,33 @@ enum SettingsPanel {
         let closer = WindowCloser(state: state, agents: agents)
         window.delegate = closer
         app.delegate = closer
+        // Built again when the window's language changes; the publisher sends the new choice
+        // before it is stored.
+        let menu = state.$languageChoice.sink { choice in
+            MainActor.assumeIsolated { app.mainMenu = mainMenu(Language.resolve(choice)) }
+        }
         window.makeKeyAndOrderFront(nil)
         app.activate()
-        withExtendedLifetime((closer, state, agents)) { app.run() }
+        withExtendedLifetime((closer, state, agents, menu)) { app.run() }
+    }
+
+    /// The menu bar's app menu. Without it the app's name in the menu bar opens an empty menu and
+    /// ⌘Q does nothing. Quit goes through applicationShouldTerminate, like closing the window.
+    static func mainMenu(_ language: Language) -> NSMenu {
+        func text(_ english: String, _ chinese: String) -> String { language == .chinese ? chinese : english }
+        let name = "Apple Reminders MCP"
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: text("Hide \(name)", "隐藏 \(name)"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: text("Hide Others", "隐藏其他"), action: #selector(NSApplication.hideOtherApplications(_:)),
+                        keyEquivalent: "h").keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: text("Show All", "全部显示"), action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: text("Quit \(name)", "退出 \(name)"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let item = NSMenuItem()
+        item.submenu = appMenu
+        let bar = NSMenu()
+        bar.addItem(item)
+        return bar
     }
 
     /// Closing the window quits the app. Quitting while an agent is being installed or set up

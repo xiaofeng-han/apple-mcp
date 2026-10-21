@@ -295,6 +295,31 @@ st, t = call("delete_reminder", id=A["id"], version=Av); check("delete parent ta
 st, t = call("get_reminder", id=U["id"]); Uv = obj(t)["version"]
 st, t = call("delete_reminder", id=U["id"], version=Uv); check("delete urgent", st == "OK", t)
 st, t = call("manage_list", action="delete", list="agent test"); check("delete test list", st == "OK", t)
+
+# The command line runs the same tools: apple-reminders-mcp <noun> <verb> [flags]
+def cli(*args, stdin=None):
+    r = subprocess.run([APP, *args], input=stdin, capture_output=True, text=True, env=env, timeout=60)
+    return r.returncode, r.stdout, r.stderr
+code, out, err = cli("lists", "create", "agent test 4", "--color", "blue")
+check("cli: lists create", code == 0 and obj(out)["name"] == "agent test 4" and obj(out).get("color") == "blue", (code, out, err))
+code, out, err = cli("reminders", "create", "E2E 命令行 setup", "--list", "agent test 4", "--due", tomorrow, "--tag", "cli", "--tag", "#e2e", "--priority", "high")
+R = obj(out) if code == 0 else {}
+check("cli: reminders create (a title may say setup)", code == 0 and R["title"] == "E2E 命令行 setup" and sorted(R["tags"]) == ["cli", "e2e"]
+      and R["priority"] == "high" and R["due"] == tomorrow, (code, out, err))
+code, out, err = cli("reminders", "find", "命令行", "--list", "agent test 4"); check("cli: reminders find QUERY --list", code == 0 and obj(out)["count"] == 1, (code, out, err))
+code, out, err = cli("reminders", "update", R["id"], "--version", R["version"], "--completed", "--no-due")
+check("cli: update --completed --no-due", code == 0 and obj(out).get("completed") and "due" not in obj(out), (code, out, err))
+code, out, err = cli("reminders", "update", R["id"], "--version", R["version"], "--flagged")
+check("cli: a stale version exits 1, naming commands", code == 1 and "changed since" in err and "reminders get" in err and out == "", (code, out, err))
+code, out, err = cli("reminders", "create", "--json", "-", stdin=json.dumps({"title": "E2E 标准输入", "list": "agent test 4", "flagged": True}))
+check("cli: --json - from stdin", code == 0 and obj(out).get("flagged"), (code, out, err))
+code, out, err = cli("call", "find_reminders", json.dumps({"list": "agent test 4", "include_completed": True}))
+check("cli: call", code == 0 and obj(out)["count"] == 2, (code, out, err))
+code, out, err = cli("reminders", "find", "--bogus"); check("cli: an unknown flag exits 2", code == 2 and "--bogus" in err and out == "", (code, out, err))
+code, out, err = cli("lists", "create", "Not allowed"); check("cli: a guarded write exits 1", code == 1 and "limited" in err, (code, out, err))
+code, out, err = cli("skill")
+check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-reminders\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
+code, out, err = cli("lists", "delete", "agent test 4", "--confirm-delete-reminders"); check("cli: lists delete --confirm-delete-reminders", code == 0, (code, out, err))
 st, t = call("find_reminders", limit=500); check("open count back to baseline", st == "OK" and obj(t)["count"] == baseline_open, t[:200])
 st, t = call("list_lists"); check("list count back to baseline", st == "OK" and len(obj(t)["lists"]) == baseline_lists, t[:200])
 

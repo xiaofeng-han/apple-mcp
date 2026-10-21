@@ -22,9 +22,10 @@ public enum ConfigFile {
 
     /// Rewrites the file with what `change` makes of its text ("" for a missing file). If the file
     /// changes on disk meanwhile (the agent saved it), the change is made again on the new text.
-    /// Returns the backup, if one was made now.
+    /// Returns the backup, if one was made now; `backUp: false` makes none (for files this app
+    /// writes whole).
     @discardableResult
-    public static func update(_ url: URL, _ change: (String) throws -> String) throws -> URL? {
+    public static func update(_ url: URL, backUp: Bool = true, _ change: (String) throws -> String) throws -> URL? {
         let target = try resolve(url)
         let manager = FileManager.default
         for _ in 0..<3 {
@@ -36,7 +37,7 @@ public enum ConfigFile {
             var permissions = 0o600
             if original != nil {
                 permissions = (try? manager.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int) ?? permissions
-                backup = try backUp(target)
+                if backUp { backup = try Self.backUp(target) }
             }
             do {
                 try manager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

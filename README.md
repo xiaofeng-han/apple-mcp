@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) fully read and write Reminders on macOS. Its settings window finds the agents on your Mac and sets each one up with one click, installing the ones you are missing.
+An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) fully read and write Reminders on macOS. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
 Writes go through Apple's private ReminderKit framework, the same path Reminders.app itself uses. So everything below is native and shows up correctly on iPhone too:
 - Reminders: flags, real tags, subtasks, Urgent (rings like an alarm), repeats, early reminders, location and getting in or out of the car, "when messaging a person", links, images, assignment in shared lists, and ordering;
@@ -74,6 +74,110 @@ Rules:
 - Colors: red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or `#RRGGBB`. An icon is an emoji or a Reminders icon name (such as `nature2`).
 - Other people can see shared lists, so agents should ask the user before changing them.
 
+## Command line
+
+Every tool is also a command, so the app works from a terminal and from an agent's shell, which is what the [skill](#server-or-skill) uses. A command is a noun and a verb. Its flags come from the tool's input fields, so they are the fields in the tables above. `apple-reminders-mcp help` prints the whole tree:
+
+```text
+apple-reminders-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask for access to Reminders (alias: authorize)
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── reminders
+│   ├── find [QUERY]            Find reminders across lists, open ones first by due date; QUERY matches the title or notes
+│   │       --assigned-to string --due-after string --due-before string --[no-]flagged --[no-]has-location
+│   │       --[no-]include-completed --limit int --list string --[no-]repeating --section string
+│   │       --smart-list string --tag string --[no-]urgent
+│   ├── get ID                  Read one reminder in full: alarms, early alerts, images, subtasks, and its current version
+│   ├── create TITLE            Create a reminder; without --list it goes to the default list (or the parent's list)
+│   │       --add-image string… --after string --assigned-to string --before string --due string
+│   │       --early-alerts json --[no-]flagged --list string --location json|string --notes string
+│   │       --parent-id string --priority none|low|medium|high --repeat json --section string --start string
+│   │       --tag string… --[no-]urgent --url string --when-messaging json
+│   ├── update ID --version string  Change only the fields given; --no-FIELD clears one
+│   │       --add-image string… --after string --assigned-to string --before string --[no-]completed
+│   │       --due string --early-alerts json --[no-]flagged --list string --location json|string
+│   │       --notes string --parent-id string --priority none|low|medium|high --remove-image string…
+│   │       --repeat json --section string --start string --tag string… --title string --[no-]urgent
+│   │       --url string --when-messaging json
+│   ├── delete ID --version string  Move a reminder and its subtasks to Recently Deleted
+│   ├── deleted                 List reminders in Recently Deleted that restore can bring back, newest first
+│   ├── restore ID              Bring a reminder back from Recently Deleted, with the subtasks deleted along with it
+│   │       --list string
+│   └── image REMINDER_ID IMAGE_ID  Save an image on a reminder (ids from get) and print where; needs Full Disk Access
+│           --output string
+├── lists
+│   ├── list                    The lists (with counts, sections and the people on shared ones), groups, smart lists and templates (the default)
+│   ├── create NAME             Create a list
+│   │       --color string --icon string --group string --[no-]pinned --type standard|groceries --sort string
+│   │       --after string --before string
+│   ├── update LIST             Change a list's name, color, icon, group, pin, type, sort order or place in the sidebar
+│   │       --new-name string --color string --icon string --group string --[no-]pinned
+│   │       --type standard|groceries --sort string --after string --before string
+│   ├── clear-completed LIST    Move a list's completed reminders to Recently Deleted
+│   └── delete LIST             Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first)
+│           --[no-]confirm-delete-reminders
+├── groups
+│   ├── create NAME             Create a group, which holds lists in the sidebar (put lists in it with lists update --group)
+│   ├── rename GROUP NEW_NAME   Rename a group
+│   └── delete GROUP            Delete an empty group
+├── sections
+│   ├── create LIST NAME        Create a section in a list (put reminders in it with --section)
+│   ├── rename LIST SECTION NEW_NAME  Rename a section
+│   ├── move LIST SECTION (--after string | --before string)  Move a section next to another one
+│   └── delete LIST SECTION     Delete a section; its reminders stay in the list
+├── smart-lists
+│   ├── create NAME --filters json  Create a smart list, which shows the reminders matching its filters
+│   │       --match all|any --color string --icon string
+│   ├── update SMART_LIST       Change a smart list's name, color, icon, match or filters (--filters replaces them all)
+│   │       --new-name string --filters json --match all|any --color string --icon string
+│   └── delete SMART_LIST       Delete a smart list; no reminders are deleted
+├── tags
+│   ├── list                    Every tag in use, with how many open and how many reminders in all have it (the default)
+│   ├── rename TAG NEW_NAME     Rename a tag on every reminder that has it, merging into a tag of that name if there is one
+│   └── delete TAG              Remove a tag from every reminder
+├── templates
+│   ├── create NAME --list string  Save a list as a template (Reminders copies its reminders in the background)
+│   │       --[no-]include-completed
+│   ├── use TEMPLATE            Make a new list from a template
+│   │       --list string
+│   └── delete TEMPLATE         Delete a template
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+```
+
+- **Flag names:** a field's flag has dashes for underscores, so `due_before` is `--due-before`.
+- **True-or-false fields:** `--flagged` turns one on and `--no-flagged` turns it off.
+- **Clearing a field:** on an update, `--no-due` and the like clear a field (what `null` does in MCP).
+- **Lists:** a field that holds a list repeats its flag in the singular: `--tag work --tag home`.
+- **Objects:** an object field takes JSON: `--repeat '{"frequency":"weekly","days_of_week":["mon"]}'`. `--location` also takes `getting-in-car` or `getting-out-of-car`, and `--after ID` / `--before ID` set `position`.
+- **Fields as JSON:** `--json '{…}'` gives fields by their MCP names, and `--json -` reads them from stdin. Flags override them.
+- **Any tool:** `call TOOL '{…}'` runs a tool on its MCP arguments.
+- **Help:** `--help` after a command lists its flags and what each one takes.
+
+A command prints exactly what the tool answers: JSON, sometimes after a short lead such as `Created.`.
+- **Exit status 1:** the request failed (not found, changed since it was read, not allowed). The reason is on stderr.
+- **Exit status 2:** the command or a flag was wrong.
+
+`reminders image` saves the image to `--output`, or to a file in the temporary folder, and prints where. Only the first word decides what the program does, so a reminder may be called `setup`. Put `--` before a title that starts with `-`.
+
+```bash
+apple-reminders-mcp reminders find --due-before 2026-10-22
+apple-reminders-mcp reminders create "Buy milk" --list Groceries --due 2026-10-22T09:00 --tag errands
+apple-reminders-mcp reminders update <id> --version <version> --completed
+apple-reminders-mcp lists create Trips --color blue
+```
+
 ## Install
 
 Releases are built for Apple silicon and need macOS 26 or later. The default way to install and set up is with Homebrew:
@@ -83,6 +187,8 @@ brew install --cask xiaofeng-han/tap/apple-reminders-mcp
 apple-reminders-mcp setup                  # allow access to Reminders
 apple-reminders-mcp agents set-up --all    # register the server with the agents on this Mac
 ```
+
+To give the agents the skill instead of the server, add `--skill` to the last command (see [Server or skill](#server-or-skill)).
 
 Instead of the last two commands, you can open Apple Reminders MCP from Applications: set up your agents in its **AI Assistants** tab, and allow access to Reminders under **General**. Without Homebrew, install [from the package](#from-the-package).
 
@@ -171,6 +277,46 @@ apple-reminders-mcp agents install opencode    # installs, then sets up; --dry-r
 
 `agents set-up` leaves the Claude app alone while it is open, unless you add `--restart`.
 
+### Server or skill
+
+Above the list, **Set Up As** chooses how agents use this app:
+- **MCP Server** (the default): the agent starts `apple-reminders-mcp --stdio`, and its 16 tools are always loaded.
+- **Skill:** Set Up writes a skill, `apple-reminders/SKILL.md`, which teaches the agent the [command line](#command-line).
+  - The agent reads the skill only when reminders come up, and runs the commands in its shell, so no tool list sits in its context.
+  - The skill names this copy's command by its full path.
+  - After the app is upgraded, the button reads **Update** if the skill's text has changed.
+
+With no folder chosen, the skill goes in each agent's own skills folder and works in every project. **Choose…** picks a project folder instead, and the skill goes only there. **All Projects** switches back.
+
+| Agent | Skill for every project | Skill in a project folder |
+|---|---|---|
+| Claude Code, and the Claude app's Code tab | `~/.claude/skills/` (`$CLAUDE_CONFIG_DIR/skills/`) | `.claude/skills/` |
+| Codex CLI and the ChatGPT app, OpenCode and OpenCode Desktop, Gemini CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Grok Build | `~/.grok/skills/` | `.agents/skills/` |
+| Antigravity app | `~/.gemini/config/skills/` | `.agents/skills/` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | `.agents/skills/` |
+
+- **Shared folders:** agents that read the same folder share one file. pi reads `~/.agents/skills` too.
+- **Other skills of the same name:** a skill named `apple-reminders` that this app did not write is left alone, and the row shows **Another Skill**.
+- **Server and skill together:** setting up one way never changes the other. An agent can have both, and its row says so.
+- **Agents that cannot use the skill:** Grok Bot and the Gemini app cannot run commands on this Mac. The skill works in the Claude app's Code tab, but not in its chat.
+
+Some agents run shell commands in a sandbox. Codex does by default, and inside its sandbox macOS keeps every program away from Reminders. When that happens:
+1. The command says that it ran inside a sandbox.
+2. The skill tells the agent to run the command again outside the sandbox.
+3. Codex asks you to approve that.
+
+Agents that start the MCP server do not have this problem.
+
+The same in the terminal:
+
+```bash
+apple-reminders-mcp agents list --skill                                   # where each agent's skill is, and whether it is current
+apple-reminders-mcp agents set-up --all --skill                           # every installed agent, for every project
+apple-reminders-mcp agents set-up claude-code codex --folder ~/code/app   # one project (--folder implies --skill)
+apple-reminders-mcp skill                                                 # print the skill, to install it by hand anywhere
+```
+
 ### Build from source
 
 ```bash
@@ -228,6 +374,8 @@ The command is `/opt/homebrew/bin/apple-reminders-mcp` after a Homebrew install,
 - OpenCode (`~/.config/opencode/opencode.json`): `"mcp": {"servers": {"apple-reminders": {"type": "local", "command": ["<command>", "--stdio"]}}}`. OpenCode 1 before 1.18.24 only reads servers written directly under `mcp`, with `"enabled": true`.
 - pi (`mcpServers` in `~/.pi/agent/mcp.json`): `{"type": "stdio", "command": "<command>", "args": ["--stdio"]}`
 
+To install the skill by hand, save what `apple-reminders-mcp skill` prints as `apple-reminders/SKILL.md` in the agent's skills folder (see [Server or skill](#server-or-skill)).
+
 To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, set `APPLE_REMINDERS_MCP_WIRE_LOG=<file>` to log every message sent and received.
 
 ## Tests
@@ -236,9 +384,13 @@ To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, se
 /usr/bin/python3 -I scripts/e2e.py
 ```
 
-Runs every tool and rule over stdio, 129 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
+Runs every tool and rule over stdio, and the main command-line commands, 140 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
 
-`swift test` checks the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, and how each agent's settings are read and written, in throwaway folders.
+`swift test` checks the agent setup and the command line, in throwaway folders:
+- the JSON and TOML editing that keeps the rest of a file as it was;
+- how each agent's settings are read and written;
+- where each agent's skill goes;
+- how command-line flags are read from the tools' input schemas.
 
 ## Not possible
 

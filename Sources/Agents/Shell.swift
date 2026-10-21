@@ -68,6 +68,13 @@ public enum Shell {
         return value?.isEmpty == false ? value : nil
     }
 
+    /// Where a variable such as CODEX_HOME moves a config folder, when it is set here or in the
+    /// login shell. Only for the user's own home folder: a stand-in one (a test's) is left alone.
+    static func relocated(_ name: String, home: URL) -> URL? {
+        guard home.standardizedFileURL.path == Self.home.standardizedFileURL.path, let value = variable(name) else { return nil }
+        return URL(fileURLWithPath: (value as NSString).expandingTildeInPath, isDirectory: true)
+    }
+
     /// The login shell's PATH, followed by the usual install folders and the system folders.
     public static let path: String = {
         var folders = (loginEnvironment["PATH"] ?? "").split(separator: ":").map(String.init)

@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。它的设置窗口会找出 Mac 上的 agent，一键配好每一个，没装的也能直接安装。
+让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
 写入走苹果的私有框架 ReminderKit，和 Reminders.app 自己用的是同一条路。所以下面这些功能都是原生的，iPhone 上也显示正常：
 - 提醒本身：旗标、真标签、子任务、Urgent（像闹钟一样响）、重复、提前提醒、地点和上车/下车提醒、"给某人发消息时"、链接、图片、共享清单里的指派、排列顺序；
@@ -74,6 +74,110 @@
 - 颜色：red、orange、yellow、green、light-blue、blue、indigo、pink、purple、brown、gray、rose，或 `#RRGGBB`。图标是 emoji 或 Reminders 的图标名（如 `nature2`）。
 - 共享清单其他人能看到，agent 改动前应先问用户。
 
+## 命令行
+
+每个工具也是一条命令，所以在终端里、在 agent 的 shell 里都能用，[技能](#服务器还是技能)用的就是它。命令由名词加动词组成。参数来自工具的输入字段，也就是上面表格里的那些字段。`apple-reminders-mcp help` 打印整棵命令树：
+
+```text
+apple-reminders-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask for access to Reminders (alias: authorize)
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── reminders
+│   ├── find [QUERY]            Find reminders across lists, open ones first by due date; QUERY matches the title or notes
+│   │       --assigned-to string --due-after string --due-before string --[no-]flagged --[no-]has-location
+│   │       --[no-]include-completed --limit int --list string --[no-]repeating --section string
+│   │       --smart-list string --tag string --[no-]urgent
+│   ├── get ID                  Read one reminder in full: alarms, early alerts, images, subtasks, and its current version
+│   ├── create TITLE            Create a reminder; without --list it goes to the default list (or the parent's list)
+│   │       --add-image string… --after string --assigned-to string --before string --due string
+│   │       --early-alerts json --[no-]flagged --list string --location json|string --notes string
+│   │       --parent-id string --priority none|low|medium|high --repeat json --section string --start string
+│   │       --tag string… --[no-]urgent --url string --when-messaging json
+│   ├── update ID --version string  Change only the fields given; --no-FIELD clears one
+│   │       --add-image string… --after string --assigned-to string --before string --[no-]completed
+│   │       --due string --early-alerts json --[no-]flagged --list string --location json|string
+│   │       --notes string --parent-id string --priority none|low|medium|high --remove-image string…
+│   │       --repeat json --section string --start string --tag string… --title string --[no-]urgent
+│   │       --url string --when-messaging json
+│   ├── delete ID --version string  Move a reminder and its subtasks to Recently Deleted
+│   ├── deleted                 List reminders in Recently Deleted that restore can bring back, newest first
+│   ├── restore ID              Bring a reminder back from Recently Deleted, with the subtasks deleted along with it
+│   │       --list string
+│   └── image REMINDER_ID IMAGE_ID  Save an image on a reminder (ids from get) and print where; needs Full Disk Access
+│           --output string
+├── lists
+│   ├── list                    The lists (with counts, sections and the people on shared ones), groups, smart lists and templates (the default)
+│   ├── create NAME             Create a list
+│   │       --color string --icon string --group string --[no-]pinned --type standard|groceries --sort string
+│   │       --after string --before string
+│   ├── update LIST             Change a list's name, color, icon, group, pin, type, sort order or place in the sidebar
+│   │       --new-name string --color string --icon string --group string --[no-]pinned
+│   │       --type standard|groceries --sort string --after string --before string
+│   ├── clear-completed LIST    Move a list's completed reminders to Recently Deleted
+│   └── delete LIST             Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first)
+│           --[no-]confirm-delete-reminders
+├── groups
+│   ├── create NAME             Create a group, which holds lists in the sidebar (put lists in it with lists update --group)
+│   ├── rename GROUP NEW_NAME   Rename a group
+│   └── delete GROUP            Delete an empty group
+├── sections
+│   ├── create LIST NAME        Create a section in a list (put reminders in it with --section)
+│   ├── rename LIST SECTION NEW_NAME  Rename a section
+│   ├── move LIST SECTION (--after string | --before string)  Move a section next to another one
+│   └── delete LIST SECTION     Delete a section; its reminders stay in the list
+├── smart-lists
+│   ├── create NAME --filters json  Create a smart list, which shows the reminders matching its filters
+│   │       --match all|any --color string --icon string
+│   ├── update SMART_LIST       Change a smart list's name, color, icon, match or filters (--filters replaces them all)
+│   │       --new-name string --filters json --match all|any --color string --icon string
+│   └── delete SMART_LIST       Delete a smart list; no reminders are deleted
+├── tags
+│   ├── list                    Every tag in use, with how many open and how many reminders in all have it (the default)
+│   ├── rename TAG NEW_NAME     Rename a tag on every reminder that has it, merging into a tag of that name if there is one
+│   └── delete TAG              Remove a tag from every reminder
+├── templates
+│   ├── create NAME --list string  Save a list as a template (Reminders copies its reminders in the background)
+│   │       --[no-]include-completed
+│   ├── use TEMPLATE            Make a new list from a template
+│   │       --list string
+│   └── delete TEMPLATE         Delete a template
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+```
+
+- **参数名：**字段名里的下划线换成短横线，`due_before` 就是 `--due-before`。
+- **是非字段：**`--flagged` 打开，`--no-flagged` 关闭。
+- **清空字段：**修改时用 `--no-due` 这类参数清空一个字段（相当于 MCP 里的 `null`）。
+- **列表：**取列表的字段用单数形式重复写：`--tag work --tag home`。
+- **对象：**对象字段写 JSON：`--repeat '{"frequency":"weekly","days_of_week":["mon"]}'`。`--location` 也可以写 `getting-in-car` 或 `getting-out-of-car`，`--after ID` / `--before ID` 设置 `position`。
+- **用 JSON 传字段：**`--json '{…}'` 按 MCP 的字段名传参，`--json -` 从标准输入读；同时给的参数会覆盖它。
+- **任意工具：**`call TOOL '{…}'` 用 MCP 参数直接调用任意工具。
+- **帮助：**命令后面加 `--help`，列出它的参数和各自的写法。
+
+命令的输出就是工具的回答：JSON，有时前面带一句「Created.」之类的话。
+- **退出码 1：**请求失败（找不到、读取后被改过、不允许），原因写在 stderr。
+- **退出码 2：**命令或参数写错了。
+
+`reminders image` 把图片存到 `--output`（默认存进临时文件夹），并打印位置。只有第一个词决定做什么，所以提醒可以叫 `setup`。以 `-` 开头的标题前面加 `--`。
+
+```bash
+apple-reminders-mcp reminders find --due-before 2026-10-22
+apple-reminders-mcp reminders create "买牛奶" --list Groceries --due 2026-10-22T09:00 --tag errands
+apple-reminders-mcp reminders update <id> --version <version> --completed
+apple-reminders-mcp lists create Trips --color blue
+```
+
 ## 安装
 
 发布的包只支持 Apple 芯片，需要 macOS 26 或更新。默认用 Homebrew 安装和配置：
@@ -83,6 +187,8 @@ brew install --cask xiaofeng-han/tap/apple-reminders-mcp
 apple-reminders-mcp setup                  # 允许访问提醒事项
 apple-reminders-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 agent
 ```
+
+想给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`（见[服务器还是技能](#服务器还是技能)）。
 
 后两条命令也可以换成打开「应用程序」里的 Apple Reminders MCP：在「AI 助手」标签页配置 agent，在「通用」里允许访问提醒事项。不用 Homebrew 的话，见[用安装包](#用安装包)。
 
@@ -171,6 +277,46 @@ apple-reminders-mcp agents install opencode    # 安装后接着配置；加 --d
 
 Claude App 开着的时候，`agents set-up` 不会动它，除非加 `--restart`。
 
+### 服务器还是技能
+
+列表上方的「配置方式」决定 agent 怎么用这个 App：
+- **MCP 服务器**（默认）：agent 启动 `apple-reminders-mcp --stdio`，16 个工具一直加载着。
+- **技能：**「配置」会写入一个技能 `apple-reminders/SKILL.md`，教 agent 使用[命令行](#命令行)。
+  - agent 只在涉及提醒事项时才读它，并在自己的 shell 里运行命令，上下文里不会一直挂着工具列表。
+  - 技能里写的是这份副本命令的完整路径。
+  - App 升级后，如果技能内容有变，按钮会显示「更新」。
+
+不选文件夹时，技能放在每个 agent 自己的技能文件夹里，所有项目都能用。点「选择…」改选一个项目文件夹，技能就只放在那里；点「所有项目」改回来。
+
+| Agent | 所有项目都能用的技能 | 项目文件夹里的技能 |
+|---|---|---|
+| Claude Code，以及 Claude App 的 Code 标签页 | `~/.claude/skills/`（`$CLAUDE_CONFIG_DIR/skills/`） | `.claude/skills/` |
+| Codex CLI 和 ChatGPT App、OpenCode 和 OpenCode Desktop、Gemini CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Grok Build | `~/.grok/skills/` | `.agents/skills/` |
+| Antigravity App | `~/.gemini/config/skills/` | `.agents/skills/` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | `.agents/skills/` |
+
+- **共用文件夹：**读同一个文件夹的 agent 共用一个文件。pi 也读 `~/.agents/skills`。
+- **同名技能：**不是本 App 写的同名技能 `apple-reminders` 不会被改动，那一行显示「已有同名技能」。
+- **服务器和技能并存：**用一种方式配置，永远不会改动另一种。一个 agent 可以两种都配，那一行会注明。
+- **用不了技能的 agent：**Grok Bot 和 Gemini App 不能在这台 Mac 上运行命令。Claude App 的 Code 标签页能用技能，聊天里不能。
+
+有些 agent 在沙盒里运行 shell 命令。Codex 默认就这样，而在它的沙盒里，macOS 不让任何程序碰「提醒事项」。这种情况下：
+1. 命令会说明它是在沙盒里运行的。
+2. 技能会让 agent 在沙盒外重新运行这条命令。
+3. Codex 会请你批准。
+
+启动 MCP 服务器的 agent 没有这个问题。
+
+终端里也能做：
+
+```bash
+apple-reminders-mcp agents list --skill                                   # 每个 agent 的技能在哪、是否最新
+apple-reminders-mcp agents set-up --all --skill                           # 所有已安装的 agent，所有项目都能用
+apple-reminders-mcp agents set-up claude-code codex --folder ~/code/app   # 只放进一个项目（--folder 隐含 --skill）
+apple-reminders-mcp skill                                                 # 打印技能，方便手动装到任何地方
+```
+
 ### 从源码构建
 
 ```bash
@@ -228,6 +374,8 @@ App 的「AI 助手」标签页或 `apple-reminders-mcp agents set-up` 会替你
 - OpenCode（`~/.config/opencode/opencode.json`）：`"mcp": {"servers": {"apple-reminders": {"type": "local", "command": ["<命令>", "--stdio"]}}}`。1.18.24 之前的 OpenCode 1 只读直接写在 `mcp` 下的服务器，并且要 `"enabled": true`。
 - pi（`~/.pi/agent/mcp.json` 的 `mcpServers`）：`{"type": "stdio", "command": "<命令>", "args": ["--stdio"]}`
 
+手动装技能：把 `apple-reminders-mcp skill` 的输出存成 agent 技能文件夹里的 `apple-reminders/SKILL.md`（见[服务器还是技能](#服务器还是技能)）。
+
 验证：`claude mcp list`、`grok mcp doctor`、`pi mcp list`。调试时设 `APPLE_REMINDERS_MCP_WIRE_LOG=<文件>` 可以记录收发的每条消息。
 
 ## 测试
@@ -236,9 +384,13 @@ App 的「AI 助手」标签页或 `apple-reminders-mcp agents set-up` 会替你
 /usr/bin/python3 -I scripts/e2e.py
 ```
 
-通过 stdio 把所有工具和规则走一遍，共 129 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。
+通过 stdio 把所有工具和规则走一遍，再跑一遍主要的命令行命令，共 140 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。
 
-`swift test` 检查 agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑，以及各 agent 设置的读写（都在临时目录里进行）。
+`swift test` 检查 agent 配置和命令行，都在临时目录里进行：
+- 保持文件其余部分原样的 JSON 和 TOML 编辑；
+- 各 agent 设置的读写；
+- 各 agent 的技能放在哪里；
+- 命令行参数如何按工具的输入 schema 解析。
 
 ## 做不到的
 

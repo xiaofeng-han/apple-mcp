@@ -1,6 +1,7 @@
 import EventKit
 import ImageIO
 import Foundation
+import Launcher
 import ReminderKitShim
 
 /// Everything the tools need, on top of RKBridge: the permission check, the write guard,
@@ -27,12 +28,19 @@ final class RemindersStore: @unchecked Sendable {
         Apple Reminders MCP in Applications once and click Allow.
         """
 
+    static let sandboxHelp = """
+        Apple Reminders MCP ran inside a sandbox (Codex runs commands in one), where macOS keeps it from \
+        Reminders. Run the same command again outside the sandbox, which the user may have to approve.
+        """
+
     /// Asks for access the first time (the system dialog appears on the Mac) and fails with
-    /// instructions when it was refused.
+    /// instructions when it was refused, or when a sandbox keeps the permission out of reach.
     func ensureAccess() async throws {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess:
             return
+        case _ where launcher_is_sandboxed() != 0:
+            throw StoreError(Self.sandboxHelp)
         case .notDetermined:
             let granted = (try? await EKEventStore().requestFullAccessToReminders()) ?? false
             if !granted { throw StoreError(Self.permissionHelp) }

@@ -138,7 +138,7 @@ func organizeTools(_ store: RemindersStore) -> [Tool] {
              summary: """
                  Smart lists show the reminders matching their filters; list_lists shows them with their \
                  filters. create one, update its name, color, icon, match or filters (filters replaces them \
-                 all), or delete it (no reminders are deleted). find_reminders can show roughly what one holds.
+                 all), or delete it (no reminders are deleted). find_reminders with smart_list shows what one holds.
                  """,
              input: Schema.object([
                  "action": Schema.choice(["create", "update", "delete"], "What to do"),

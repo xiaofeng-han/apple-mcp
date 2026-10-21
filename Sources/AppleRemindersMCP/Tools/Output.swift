@@ -43,8 +43,10 @@ enum Output {
         }
     }
 
-    static func reminder(_ r: ReminderInfo, in list: ListInfo, detail: Bool = false) -> JSON {
+    /// `smartLists`: the names of the smart lists that show it.
+    static func reminder(_ r: ReminderInfo, in list: ListInfo, detail: Bool = false, smartLists: [String] = []) -> JSON {
         var o: [String: JSON] = ["id": .string(r.id), "version": .string(r.version), "list": .string(list.name), "title": .string(r.title)]
+        if !smartLists.isEmpty { o["smart_lists"] = .array(smartLists.map { .string($0) }) }
         if let due = r.due { o["due"] = .string(Due.format(due)) }
         if let start = r.start { o["start"] = .string(Due.format(start)) }
         if let rule = r.repeatRule { o["repeat"] = repeatRule(rule) }

@@ -106,6 +106,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSString *)createSmartListNamed:(NSString *)name changes:(NSDictionary<NSString *, id> *)changes error:(NSError **)error NS_SWIFT_NAME(createSmartList(named:changes:));
 - (BOOL)updateSmartList:(NSString *)smartListID changes:(NSDictionary<NSString *, id> *)changes error:(NSError **)error NS_SWIFT_NAME(updateSmartList(_:changes:));
 - (BOOL)deleteSmartList:(NSString *)smartListID error:(NSError **)error NS_SWIFT_NAME(deleteSmartList(_:));
+/// What each custom smart list shows, as Reminders computes it from the filter: smart list id →
+/// reminder ids, a matching subtask on its own. Completed reminders only with includeCompleted.
+- (nullable NSDictionary<NSString *, NSArray<NSString *> *> *)smartListContentsIncludingCompleted:(BOOL)includeCompleted error:(NSError **)error NS_SWIFT_NAME(smartListContents(includingCompleted:));
 
 - (nullable NSString *)createSectionNamed:(NSString *)name inList:(NSString *)listID error:(NSError **)error NS_SWIFT_NAME(createSection(named:inList:));
 - (BOOL)renameSection:(NSString *)sectionID inList:(NSString *)listID to:(NSString *)name error:(NSError **)error NS_SWIFT_NAME(renameSection(_:inList:to:));

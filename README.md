@@ -35,7 +35,7 @@ Checked on 2026-10-20 against each project's source code and Apple's documentati
 | Tool | What it does |
 |---|---|
 | `list_lists` | Lists (open and total counts, default, pinned, kind, group, color, icon, sort order, sections, members of shared lists), groups, smart lists (with their filters), and templates |
-| `find_reminders` | Searches across lists: by list, section, keyword, completed, flagged, urgent, repeating, has a location alert, assignee, tags, and due window (`due_before` excludes that day) |
+| `find_reminders` | Searches across lists: by list, smart list (what it shows, as Reminders computes it), section, keyword, completed, flagged, urgent, repeating, has a location alert, assignee, tags, and due window (`due_before` excludes that day). Each reminder appears once and names the smart lists that show it |
 | `get_reminder` | Everything about one reminder: alarms, early reminders, images, subtasks |
 | `read_image` | Returns an image on a reminder to the model (needs Full Disk Access) |
 | `list_tags` | All tags and how many reminders use each |
@@ -236,7 +236,7 @@ To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, se
 /usr/bin/python3 -I scripts/e2e.py
 ```
 
-Runs every tool and rule over stdio, 121 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
+Runs every tool and rule over stdio, 129 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
 
 `swift test` checks the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, and how each agent's settings are read and written, in throwaway folders.
 

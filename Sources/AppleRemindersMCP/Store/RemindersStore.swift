@@ -453,6 +453,11 @@ final class RemindersStore: @unchecked Sendable {
         throw StoreError("Several smart lists are named \"\(nameOrID)\"; pass one of these ids: \(named.map(\.id).joined(separator: ", ")).")
     }
 
+    /// Smart list id → the ids of the reminders it shows, as Reminders computes them.
+    func smartListContents(includingCompleted: Bool) throws -> [String: Set<String>] {
+        try withBridge { try $0.smartListContents(includingCompleted: includingCompleted).mapValues { Set($0) } }
+    }
+
     /// `changes`: filter (stored JSON), color (bridge dictionary), icon.
     func createSmartList(_ name: String, changes: [String: Any]) throws -> SmartListInfo {
         try checkWritable(name)

@@ -46,10 +46,12 @@ func readTools(_ store: RemindersStore) -> [Tool] {
         Tool("find_reminders", title: "Find reminders",
              summary: """
                  Finds reminders across lists, open ones first by due date. Filters combine. due_before is \
-                 exclusive: due_before tomorrow gives everything due today or overdue.
+                 exclusive: due_before tomorrow gives everything due today or overdue. Each reminder appears \
+                 once, with smart_lists naming the smart lists that show it.
                  """,
              input: Schema.object([
                  "list": Schema.text("List name or id; default all lists"),
+                 "smart_list": Schema.text("Only what this smart list shows (name or id), as Reminders computes it"),
                  "section": Schema.text("Only this section"),
                  "query": Schema.text("Text in the title or notes"),
                  "include_completed": Schema.flag("Default false"),
@@ -64,7 +66,8 @@ func readTools(_ store: RemindersStore) -> [Tool] {
                  "limit": Schema.whole("Default 100, at most 500"),
              ]), effect: .reads) { fields in
             let input = Input(fields)
-            let listName = try input.text("list"), section = try input.text("section"), query = try input.text("query")
+            let listName = try input.text("list"), smartListName = try input.text("smart_list")
+            let section = try input.text("section"), query = try input.text("query")
             let includeCompleted = try input.flag("include_completed") ?? false
             let flagged = try input.flag("flagged") ?? false, urgent = try input.flag("urgent") ?? false
             let repeating = try input.flag("repeating") ?? false, located = try input.flag("has_location") ?? false
@@ -74,6 +77,20 @@ func readTools(_ store: RemindersStore) -> [Tool] {
             let limit = try input.number("limit", 1...500) ?? 100
             return try await withStore(store) {
                 let lists = try listName.map { [try store.resolveList($0)] } ?? store.lists()
+                let smartLists = try store.smartLists()
+                let onlySmartList = try smartListName.map(store.resolveSmartList)
+                // Smart list id → what it shows. Without a smart_list filter, a failed fetch only
+                // costs the smart_lists field.
+                var shownBy: [String: Set<String>] = [:]
+                var note: String?
+                if !smartLists.isEmpty {
+                    do {
+                        shownBy = try store.smartListContents(includingCompleted: includeCompleted)
+                    } catch let error as StoreError where onlySmartList == nil {
+                        note = "Which smart lists show each reminder is unavailable: \(error.description)"
+                    }
+                }
+                let onlyIDs = onlySmartList.map { shownBy[$0.id] ?? [] }
                 var matches: [(ReminderInfo, ListInfo)] = []
                 for list in lists {
                     let sectionIDs = section.map { name in Set(list.sections.filter { $0.name == name || $0.id == name }.map(\.id)) }
@@ -84,6 +101,7 @@ func readTools(_ store: RemindersStore) -> [Tool] {
                     }
                     for r in try store.reminders(in: list.id) {
                         if r.completed && !includeCompleted { continue }
+                        if let onlyIDs, !onlyIDs.contains(r.id) { continue }
                         if flagged && !r.flagged { continue }
                         if urgent && !r.urgent { continue }
                         if repeating && r.repeatRule == nil { continue }
@@ -107,9 +125,13 @@ func readTools(_ store: RemindersStore) -> [Tool] {
                 let shown = matches.prefix(limit)
                 var result: [String: JSON] = [
                     "now": .string(Due.now()), "time_zone": .string(TimeZone.current.identifier),
-                    "count": .int(shown.count), "reminders": .array(shown.map { Output.reminder($0.0, in: $0.1) }),
+                    "count": .int(shown.count),
+                    "reminders": .array(shown.map { r, list in
+                        Output.reminder(r, in: list, smartLists: smartLists.filter { shownBy[$0.id]?.contains(r.id) ?? false }.map(\.name))
+                    }),
                 ]
                 if matches.count > shown.count { result["more"] = .int(matches.count - shown.count) }
+                if let note { result["note"] = .string(note) }
                 return ToolAnswer(JSON.object(result).text)
             }
         },

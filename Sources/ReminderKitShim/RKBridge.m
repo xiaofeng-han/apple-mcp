@@ -734,6 +734,66 @@ static id MakeBadge(NSString *icon) {
     }
 }
 
+// remindd evaluates a smart list's filter itself, through ReminderKitInternal's Swift invocation
+// REMRemindersListDataView_CustomSmartListInvocation. Its parameters are a binary property list
+// of the Codable keys below (each one is required), and the storages must carry the smart list's
+// and its account's storage, keyed by object id. The result's model.reminders lists what the
+// smart list shows, subtasks that match on their own rows; fetchSubtasks on would add every
+// subtask of a matching parent, matching or not, so it stays off.
+- (NSDictionary *)smartListContentsIncludingCompleted:(BOOL)includeCompleted error:(NSError **)error {
+    @try {
+        [[NSBundle bundleWithPath:@"/System/Library/PrivateFrameworks/ReminderKitInternal.framework"] load];
+        Class invocationClass = NSClassFromString(@"REMRemindersListDataView_CustomSmartListInvocation");
+        if (!invocationClass) {
+            if (error) *error = RKError(@"ReminderKitInternal has no custom smart list fetch");
+            return nil;
+        }
+        NSArray *smartLists = [self rawSmartListsWithError:error];
+        if (!smartLists) return nil;
+        NSMutableDictionary *result = [NSMutableDictionary dictionary];
+        for (id smartList in smartLists) {
+            NSString *smartListID = UUIDOf(Send(smartList, "objectID"));
+            NSDictionary *parameters = @{
+                @"smartList": @{@"objectIDUUID": smartListID},
+                @"sortingStyle": @{@"base": @"default"},
+                @"showCompleted": @{@"base": includeCompleted ? @"on" : @"off"},
+                @"countCompleted": @NO,
+                @"remindersPrefetch": @{@"base": @"none"},
+                @"fetchSubtasks": @"off",
+                @"shouldFetchManualOrderingID": @NO,
+            };
+            NSData *data = [NSPropertyListSerialization dataWithPropertyList:parameters format:NSPropertyListBinaryFormat_v1_0 options:0 error:error];
+            if (!data) return nil;
+            NSMutableDictionary *storages = [NSMutableDictionary dictionary];
+            storages[Send(smartList, "objectID")] = Send(smartList, "storage");
+            id account = Get(smartList, "account");
+            if (account) storages[Send(account, "objectID")] = Send(account, "storage");
+            id invocation = Send1([invocationClass alloc], "initWithFetchResultTokenToDiffAgainst:", nil);
+            id answer = ((id (*)(id, SEL, id, id, id, NSError **))objc_msgSend)(
+                _store, sel_registerName("resultFromPerformingSwiftInvocation:parametersData:storages:error:"), invocation, data, storages, error);
+            if (!answer) return nil;
+            NSDictionary *decoded = [NSPropertyListSerialization propertyListWithData:Send(answer, "resultData") options:0 format:nil error:error];
+            NSDictionary *model = [decoded isKindOfClass:[NSDictionary class]] ? decoded[@"model"] : nil;
+            NSArray *rows = [model isKindOfClass:[NSDictionary class]] ? model[@"reminders"] : nil;
+            if (![rows isKindOfClass:[NSArray class]]) {
+                if (error) *error = RKError(@"The custom smart list fetch returned no reminders model");
+                return nil;
+            }
+            NSMutableArray *reminderIDs = [NSMutableArray array];
+            for (NSDictionary *row in rows) {
+                NSDictionary *objectID = [row isKindOfClass:[NSDictionary class]] ? row[@"objectID"] : nil;
+                NSString *uuid = [objectID isKindOfClass:[NSDictionary class]] ? objectID[@"uuid"] : nil;
+                if ([uuid isKindOfClass:[NSString class]]) [reminderIDs addObject:uuid.uppercaseString];
+            }
+            result[smartListID] = reminderIDs;
+        }
+        return result;
+    } @catch (NSException *exception) {
+        if (error) *error = ExceptionError(exception);
+        return nil;
+    }
+}
+
 #pragma mark - Sections
 
 - (NSString *)createSectionNamed:(NSString *)name inList:(NSString *)listID error:(NSError **)error {

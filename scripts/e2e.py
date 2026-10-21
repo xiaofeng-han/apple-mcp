@@ -11,7 +11,7 @@ The app needs the Reminders permission (run it with `setup` once).
 import json, os, struct, subprocess, sys, tempfile, zlib, datetime
 
 APP = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP")
-env = dict(os.environ, APPLE_REMINDERS_MCP_WRITE_GUARD="agent test,agent test 2,agent test 3,agent test 4,agent test group,agent test smart e2e,agent test template")
+env = dict(os.environ, APPLE_REMINDERS_MCP_WRITE_GUARD="agent test,agent test 2,agent test 3,agent test 4,agent test group,agent test smart e2e,agent test smart e2e 2,agent test template")
 proc = subprocess.Popen([APP, "--stdio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
 seq = 0
 def rpc(method, params=None):
@@ -57,7 +57,7 @@ for g in obj(t).get("groups", []):
 for tp in obj(t).get("templates", []):
     if tp["name"] == "agent test template": print("cleanup:", call("manage_template", action="delete", template=tp["id"]))
 for sl in obj(t).get("smart_lists", []):
-    if sl["name"] == "agent test smart e2e": print("cleanup:", call("manage_smart_list", action="delete", smart_list=sl["id"]))
+    if sl["name"] in ("agent test smart e2e", "agent test smart e2e 2"): print("cleanup:", call("manage_smart_list", action="delete", smart_list=sl["id"]))
 st, t = call("list_lists"); lists = obj(t)["lists"]
 check("list_lists", st == "OK" and any(l.get("default") for l in lists), t[:300])
 baseline_lists = len(lists)
@@ -236,6 +236,35 @@ check("date range and car filter", st == "OK" and obj(t)["filters"] == {"date": 
 st, t = call("manage_smart_list", action="update", smart_list="agent test smart e2e", filters={"weather": "sunny"}); check("unknown filter is invalid params", st == "RPCERR", t)
 st, t = call("manage_smart_list", action="create", smart_list="Not allowed", filters={"flagged": True}); check("guard blocks other smart list", st == "ERR" and "limited" in t, t)
 st, t = call("list_lists"); check("list_lists shows smart list", any(x["name"] == "agent test smart e2e" for x in obj(t).get("smart_lists", [])), t[:200])
+
+# What smart lists show, as Reminders computes it: a parent and one subtask match two overlapping
+# smart lists, a completed subtask only matches with completed shown, and another open subtask
+# and an unrelated reminder match neither.
+P = obj(call("create_reminder", title="E2E 智能父任务", list="agent test", tags=["e2esmart"], flagged=True)[1])
+PS = obj(call("create_reminder", title="E2E 智能子任务", parent_id=P["id"], tags=["e2esmart"], flagged=True)[1])
+PR = obj(call("create_reminder", title="E2E 普通子任务", parent_id=P["id"])[1])
+PD = obj(call("create_reminder", title="E2E 已完成子任务", parent_id=P["id"], tags=["e2esmart"])[1])
+call("update_reminder", id=PD["id"], version=PD["version"], completed=True)
+PO = obj(call("create_reminder", title="E2E 无关", list="agent test")[1])
+call("manage_smart_list", action="update", smart_list="agent test smart e2e", filters={"tags": {"include": ["e2esmart"]}})
+st, t = call("manage_smart_list", action="create", smart_list="agent test smart e2e 2", filters={"flagged": True, "lists": {"include": ["agent test"]}})
+check("create a second smart list", st == "OK", t); SL2 = obj(t)
+ids = lambda t: sorted(r["id"] for r in obj(t)["reminders"])
+st, t = call("find_reminders", smart_list="agent test smart e2e"); check("smart_list shows the matching parent and subtask", st == "OK" and ids(t) == sorted([P["id"], PS["id"]]), t)
+st, t = call("find_reminders", smart_list="agent test smart e2e", include_completed=True)
+check("smart_list with completed", st == "OK" and ids(t) == sorted([P["id"], PS["id"], PD["id"]]), t)
+st, t = call("find_reminders", smart_list=SL2["id"], query="智能子"); check("smart_list by id combines with other filters", st == "OK" and ids(t) == [PS["id"]], t)
+st, t = call("find_reminders", smart_list="agent test smart none"); check("unknown smart list fails", st == "ERR" and "No smart list" in t, t)
+both = {"agent test smart e2e", "agent test smart e2e 2"}
+st, t = call("find_reminders", list="agent test"); rows = obj(t)["reminders"]; R = {r["id"]: set(r.get("smart_lists", [])) for r in rows}
+check("each reminder once, naming the smart lists that show it", st == "OK" and len(rows) == len(R) and both <= R[P["id"]] and both <= R[PS["id"]]
+      and not both & R[PR["id"]] and not both & R[PO["id"]], t)
+st, t = call("find_reminders", smart_list="agent test smart e2e"); st2, t2 = call("find_reminders", smart_list="agent test smart e2e 2")
+check("overlapping smart lists give one id and version", {(r["id"], r["version"]) for r in obj(t)["reminders"]}
+      == {(r["id"], r["version"]) for r in obj(t2)["reminders"] if r["id"] in (P["id"], PS["id"])}, (t, t2))
+st, t = call("get_reminder", id=P["id"]); call("delete_reminder", id=P["id"], version=obj(t)["version"])
+call("delete_reminder", id=PO["id"], version=PO["version"])
+st, t = call("manage_smart_list", action="delete", smart_list="agent test smart e2e 2"); check("delete the second smart list", st == "OK", t)
 st, t = call("manage_smart_list", action="delete", smart_list="agent test smart e2e"); check("delete smart list", st == "OK", t)
 
 # Recently Deleted

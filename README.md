@@ -73,6 +73,7 @@ Rules:
 - Completing a repeating reminder works as it does in the app: a completed copy is left behind and the reminder moves on to its next occurrence. This can be turned off in the settings.
 - Colors: red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or `#RRGGBB`. An icon is an emoji or a Reminders icon name (such as `nature2`).
 - Other people can see shared lists, so agents should ask the user before changing them.
+- Any tool can be turned off for all AI assistants in the settings window (see [Choosing the tools](#choosing-the-tools)).
 
 ## Command line
 
@@ -232,7 +233,7 @@ apple-reminders-mcp setup
 apple-reminders-mcp --self-check
 ```
 
-Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. It shows the status of both permissions, a switch (on by default) that allows AI assistants to complete repeating reminders, and the window's language: English or Simplified Chinese, following the system unless you pick one. Both settings can also be set from the command line:
+Opening the app directly (double-clicking it, or starting it with `--settings`) shows the settings window. Its **General** tab shows the status of both permissions, a switch (on by default) that allows AI assistants to complete repeating reminders, and the window's language: English or Simplified Chinese, following the system unless you pick one. Both settings can also be set from the command line:
 
 ```bash
 defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminders -bool NO
@@ -317,6 +318,24 @@ apple-reminders-mcp agents set-up claude-code codex --folder ~/code/app   # one 
 apple-reminders-mcp skill                                                 # print the skill, to install it by hand anywhere
 ```
 
+### Choosing the tools
+
+The window's **Tools** tab lists the 16 tools by name, each with what it does and a label: **Read-only**, **Writes**, or **Can delete**. Tick the ones AI assistants may use. **All**, **None**, **Invert** and **Read-Only** (only the tools labelled Read-only) change them all at once. The choice is saved as soon as you make it, in `~/Library/Application Support/AppleRemindersMCP/tools.json`, outside the app, so restarts, updates and reinstalls keep it:
+
+```json
+{
+  "tools" : {
+    "create_reminder" : true,
+    "delete_reminder" : false,
+    …
+  }
+}
+```
+
+It applies at once. A turned-off tool is left out of the tool list, and calling it anyway is refused with a message that tells the assistant where you can turn it back on. Running assistants are told with `notifications/tools/list_changed`: clients of the 2026-07-28 protocol (Claude Code, Grok Build) on the `subscriptions/listen` stream they open, older ones after they initialize. Claude Code lists the tools again and the change shows up in the same session; a client that ignores the notice sees it in its next session. Servers started by a version before this one don't read the file, so restart those assistants once after updating.
+
+A tool that a later version adds, and that the file therefore doesn't name yet, starts on, unless you turned off another tool with the same label: after Read-Only, new tools that write stay off. If the file can't be read (after a hand edit that broke it, say), no tools are offered until it is fixed; choosing again in the tab replaces it and keeps the broken one as `tools.json.bak-<date>-<time>`. `apple-reminders-mcp --self-check` prints how many tools are offered. With no file, every tool is.
+
 ### Build from source
 
 ```bash
@@ -384,13 +403,14 @@ To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, se
 /usr/bin/python3 -I scripts/e2e.py
 ```
 
-Runs every tool and rule over stdio, and the main command-line commands, 140 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes.
+Runs every tool and rule over stdio, and the main command-line commands, 164 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes. The choice of tools comes from a throwaway file (`APPLE_REMINDERS_MCP_TOOLS_FILE`), so yours is neither used nor changed.
 
 `swift test` checks the agent setup and the command line, in throwaway folders:
 - the JSON and TOML editing that keeps the rest of a file as it was;
 - how each agent's settings are read and written;
 - where each agent's skill goes;
-- how command-line flags are read from the tools' input schemas.
+- how command-line flags are read from the tools' input schemas;
+- the choice of tools: the rule for tools the file doesn't name, saving, reading and watching the file, and what the server lists, refuses and announces.
 
 ## Not possible
 

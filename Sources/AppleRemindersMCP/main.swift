@@ -98,6 +98,16 @@ case .check:
     }
     print("Full Disk Access (optional):", DeletedDatabase.available ? "yes" : "no")
     print("Agents may complete repeating reminders:", Settings.allowCompletingRecurring ? "yes" : "no")
+    if Settings.toolsFileOverride != nil {
+        print("Tools file:", Settings.exposure.file.path, "(from APPLE_REMINDERS_MCP_TOOLS_FILE)")
+    }
+    do {
+        let offered = Set(try Settings.exposure.offered(tools).map(\.name))
+        let off = tools.map(\.name).filter { !offered.contains($0) }.sorted()
+        print("Tools offered to AI assistants: \(offered.count) of \(tools.count)" + (off.isEmpty ? "" : " (turned off: \(off.joined(separator: ", ")))"))
+    } catch {
+        print("Tools offered to AI assistants: none, \(Settings.exposure.file.path) can't be read (\(error))")
+    }
     if let writeGuard { print("Write guard:", writeGuard.sorted().map { "\"\($0)\"" }.joined(separator: ", ")) }
     exit(0)
 
@@ -116,7 +126,7 @@ case .command:
     runThenExit { await Commands.run(words, tools: tools) }
 
 case .settings:
-    SettingsPanel.show()
+    SettingsPanel.show(tools: tools)
     exit(0)
 
 case .serve:
@@ -130,7 +140,8 @@ case .serve:
         with the user before adding to or changing them, and assign with assigned_to. Deleted reminders \
         go to Recently Deleted; list_deleted and restore_reminder bring them back.
         """
-    let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions, tools: tools)
+    let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions,
+                          tools: tools, exposure: Settings.exposure)
     runThenExit {
         await StdioServer.run(service)
         return 0

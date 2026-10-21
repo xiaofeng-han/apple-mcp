@@ -2,21 +2,23 @@ import AppKit
 import Combine
 import EventKit
 import SwiftUI
+import Wire
 
-/// The window shown when the app is opened by hand: what it may access, its settings, and the AI
-/// assistants it can be set up with, in English or Chinese. (Plain ObservableObject and Binding,
+/// The window shown when the app is opened by hand: what it may access, its settings, the AI
+/// assistants it can be set up with, and the tools they are offered, in English or Chinese. (Plain ObservableObject and Binding,
 /// no SwiftUI macros: the Command Line Tools ship without the macro plugins.)
 @MainActor
 enum SettingsPanel {
     static let remindersPrivacy = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders")!
     static let fullDiskPrivacy = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
 
-    static func show() {
+    static func show(tools: [Tool]) {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let state = PanelState()
         let agents = AgentsState { [unowned state] in state.language }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state, agents: agents)))
+        let toolsState = ToolsState(tools: tools)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state, agents: agents, tools: toolsState)))
         window.title = "Apple Reminders MCP"
         window.styleMask = [.titled, .closable]
         window.center()
@@ -30,7 +32,7 @@ enum SettingsPanel {
         }
         window.makeKeyAndOrderFront(nil)
         app.activate()
-        withExtendedLifetime((closer, state, agents, menu)) { app.run() }
+        withExtendedLifetime((closer, state, agents, toolsState, menu)) { app.run() }
     }
 
     /// The menu bar's app menu. Without it the app's name in the menu bar opens an empty menu and
@@ -152,15 +154,17 @@ final class PanelState: ObservableObject {
 }
 
 struct PanelView: View {
-    enum Tab { case agents, general }
+    enum Tab { case agents, tools, general }
 
     @ObservedObject var state: PanelState
     @ObservedObject var agents: AgentsState
+    @ObservedObject var tools: ToolsState
     @State private var tab = Tab.agents
 
     var body: some View {
         TabView(selection: $tab) {
             AgentsView(state: state, agents: agents).tabItem { Text(state.text("AI Assistants", "AI 助手")) }.tag(Tab.agents)
+            ToolsView(state: state, tools: tools).tabItem { Text(state.text("Tools", "工具")) }.tag(Tab.tools)
             GeneralView(state: state).tabItem { Text(state.text("General", "通用")) }.tag(Tab.general)
         }
         .frame(width: 580, height: 660)

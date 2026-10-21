@@ -73,6 +73,7 @@
 - 勾完成重复提醒时，和 App 一样留下一条已完成的副本，并把提醒推到下一次；可以在设置里关掉。
 - 颜色：red、orange、yellow、green、light-blue、blue、indigo、pink、purple、brown、gray、rose，或 `#RRGGBB`。图标是 emoji 或 Reminders 的图标名（如 `nature2`）。
 - 共享清单其他人能看到，agent 改动前应先问用户。
+- 任何工具都可以在设置窗口里对所有 AI 助手关掉（见[选择开放的工具](#选择开放的工具)）。
 
 ## 命令行
 
@@ -232,7 +233,7 @@ apple-reminders-mcp setup
 apple-reminders-mcp --self-check
 ```
 
-直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口里能看到两项权限的状态、「允许 AI 助手勾完成重复提醒」开关（默认打开），以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选。这两项设置也可以用命令改：
+直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。「通用」标签页里能看到两项权限的状态、「允许 AI 助手勾完成重复提醒」开关（默认打开），以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选。这两项设置也可以用命令改：
 
 ```bash
 defaults write com.xiaofeng.apple-reminders-mcp AllowCompletingRecurringReminders -bool NO
@@ -317,6 +318,24 @@ apple-reminders-mcp agents set-up claude-code codex --folder ~/code/app   # 只�
 apple-reminders-mcp skill                                                 # 打印技能，方便手动装到任何地方
 ```
 
+### 选择开放的工具
+
+窗口的「工具」标签页按名字列出 16 个工具，每个都写明用途并带一个标签：「只读」「修改」或「可删除」。勾上允许 AI 助手使用的工具。「全选」「全不选」「反选」「只读」（只开标着「只读」的工具）一次改动全部。选择立即保存在 `~/Library/Application Support/AppleRemindersMCP/tools.json`，它在 App 之外，所以重启、更新、重装都不会丢：
+
+```json
+{
+  "tools" : {
+    "create_reminder" : true,
+    "delete_reminder" : false,
+    …
+  }
+}
+```
+
+改动立即生效。关掉的工具不会出现在工具列表里，硬要调用也会被拒绝，并告诉助手你可以在哪里重新打开。正在运行的助手会收到 `notifications/tools/list_changed`：2026-07-28 协议的客户端（Claude Code、Grok Build）在它们打开的 `subscriptions/listen` 流上收到，旧协议的客户端在初始化之后收到。Claude Code 会重新列出工具，同一个会话里就能看到变化；不理会这个通知的客户端要到新会话才会看到。这个版本之前启动的服务器不读这个文件，所以更新后把这些助手重启一次。
+
+以后版本新增的工具（文件里还没有它的名字）默认打开，除非你关掉了同一标签的其他工具：选过「只读」之后，新增的写入类工具也保持关闭。如果文件读不了（比如手动改坏了），在修好之前不开放任何工具；在标签页里重新选择会替换它，并把坏的那份保留为 `tools.json.bak-<日期>-<时间>`。`apple-reminders-mcp --self-check` 会显示开放了几个工具。没有这个文件时，全部工具都开放。
+
 ### 从源码构建
 
 ```bash
@@ -384,13 +403,14 @@ App 的「AI 助手」标签页或 `apple-reminders-mcp agents set-up` 会替你
 /usr/bin/python3 -I scripts/e2e.py
 ```
 
-通过 stdio 把所有工具和规则走一遍，再跑一遍主要的命令行命令，共 140 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。
+通过 stdio 把所有工具和规则走一遍，再跑一遍主要的命令行命令，共 164 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。工具选择读的是一个临时文件（`APPLE_REMINDERS_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。
 
 `swift test` 检查 agent 配置和命令行，都在临时目录里进行：
 - 保持文件其余部分原样的 JSON 和 TOML 编辑；
 - 各 agent 设置的读写；
 - 各 agent 的技能放在哪里；
-- 命令行参数如何按工具的输入 schema 解析。
+- 命令行参数如何按工具的输入 schema 解析；
+- 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
 ## 做不到的
 

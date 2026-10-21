@@ -1,26 +1,35 @@
+import Agents
 import EventKit
 import Foundation
 import Launcher
 import Wire
 
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
-let arguments = Set(CommandLine.arguments.dropFirst())
+let words = Array(CommandLine.arguments.dropFirst())
 
-/// What to do: `--stdio` (or input from a pipe or socket) serves MCP; `setup` asks for the
-/// Reminders permission in the terminal; `--self-check` prints a diagnosis; `agents` lists, sets
-/// up and installs AI agents; `--settings` (or a double-click in Finder) opens the settings window.
-enum Mode { case serve, setup, check, agents, settings }
+/// What to do, by the first word: `--stdio` (or, with no words, input from a pipe or socket)
+/// serves MCP; `setup` asks for the Reminders permission in the terminal; `--self-check` prints a
+/// diagnosis; `agents` lists, sets up and installs AI agents; `skill` prints the skill;
+/// `--settings` (or, with no words, a double-click in Finder) opens the settings window; anything
+/// else is a command (see Commands). Only the first word counts, so a reminder may be called setup.
+enum Mode { case serve, setup, check, agents, skill, version, settings, command }
 
 let mode: Mode = {
-    if CommandLine.arguments.dropFirst().first == "agents" { return .agents }
-    if arguments.contains("setup") || arguments.contains("authorize") { return .setup }
-    if arguments.contains("--self-check") { return .check }
-    if arguments.contains("--settings") { return .settings }
-    if arguments.contains("--stdio") { return .serve }
-    var info = stat()
-    fstat(STDIN_FILENO, &info)
-    let kind = info.st_mode & S_IFMT
-    return kind == S_IFIFO || kind == S_IFSOCK ? .serve : .settings
+    switch words.first {
+    case "--stdio": return .serve
+    case "setup", "authorize": return .setup
+    case "--self-check": return .check
+    case "agents": return .agents
+    case "skill": return .skill
+    case "--version": return .version
+    case "--settings": return .settings
+    case nil:
+        var info = stat()
+        fstat(STDIN_FILENO, &info)
+        let kind = info.st_mode & S_IFMT
+        return kind == S_IFIFO || kind == S_IFSOCK ? .serve : .settings
+    default: return .command
+    }
 }()
 
 // Only the app bundle has an identity worth holding the Reminders permission; a bare build runs
@@ -48,6 +57,8 @@ let writeGuard: Set<String>? = ProcessInfo.processInfo.environment["APPLE_REMIND
     return names.isEmpty ? nil : names
 }
 let store = RemindersStore(writeGuard: writeGuard)
+/// What the server offers and the commands run.
+let tools = readTools(store) + writeTools(store) + organizeTools(store)
 
 /// Runs `work` on the main actor and exits with what it returns. The top-level code itself stays
 /// synchronous: async top-level code runs as one long job on the main queue, and the settings
@@ -75,6 +86,7 @@ case .setup:
 case .check:
     print("Apple Reminders MCP \(version) (\(Bundle.main.bundleIdentifier ?? "development build"))")
     print("Reminders access:", describe(EKEventStore.authorizationStatus(for: .reminder)))
+    if launcher_is_sandboxed() != 0 { print("Sandbox: yes, so macOS keeps Reminders out of reach; run this outside the sandbox") }
     if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
         do {
             let lists = try store.lists()
@@ -90,7 +102,18 @@ case .check:
     exit(0)
 
 case .agents:
-    runThenExit { await AgentsCommand.run(Array(CommandLine.arguments.dropFirst(2))) }
+    runThenExit { await AgentsCommand.run(Array(words.dropFirst())) }
+
+case .skill:
+    print(Skill.text(for: Installation.detect()), terminator: "")
+    exit(0)
+
+case .version:
+    print("apple-reminders-mcp \(version)")
+    exit(0)
+
+case .command:
+    runThenExit { await Commands.run(words, tools: tools) }
 
 case .settings:
     SettingsPanel.show()
@@ -107,8 +130,7 @@ case .serve:
         with the user before adding to or changing them, and assign with assigned_to. Deleted reminders \
         go to Recently Deleted; list_deleted and restore_reminder bring them back.
         """
-    let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions,
-                          tools: readTools(store) + writeTools(store) + organizeTools(store))
+    let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions, tools: tools)
     runThenExit {
         await StdioServer.run(service)
         return 0

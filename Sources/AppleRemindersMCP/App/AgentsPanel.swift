@@ -3,7 +3,8 @@ import AppKit
 import SwiftUI
 
 /// The AI assistants on this Mac, for the settings window: which are installed, whether each one
-/// starts this server, and one click to install or set one up. Looked up when the window opens.
+/// starts this server (or has the skill, in skill mode), and one click to install or set one up.
+/// Looked up when the window opens.
 @MainActor
 final class AgentsState: ObservableObject {
     /// Text in both of the window's languages.
@@ -17,11 +18,16 @@ final class AgentsState: ObservableObject {
         case done(Message)
     }
 
+    /// What Set Up writes: the server's entry in the assistant's settings, or the skill.
+    enum Mode { case server, skill }
+
     struct Row: Identifiable {
         let agent: Agent
         /// nil while looking.
         var presence: Presence?
         var registration: Registration?
+        /// The skill, in `folder` or the agent's own skills folder.
+        var skill: Registration?
         var activity = Activity.idle
         var id: String { agent.id }
 
@@ -34,6 +40,11 @@ final class AgentsState: ObservableObject {
     @Published private(set) var installation: Installation?
     @Published private(set) var rows = Agent.all.map { Row(agent: $0) }
     @Published private(set) var looking = false
+    @Published var mode = Mode.server {
+        didSet { clearMessages() }
+    }
+    /// The project folder skills go in; nil puts them in each assistant's own skills folder.
+    @Published private(set) var folder: URL?
     private let language: () -> Language
 
     init(language: @escaping () -> Language) {
@@ -61,13 +72,51 @@ final class AgentsState: ObservableObject {
 
     func readConfigs() {
         guard let installation else { return }
+        let skill = Skill.text(for: installation)
         var read: [ConfigTarget: Registration] = [:]
+        var skills: [String: Registration] = [:]
         for index in rows.indices {
-            guard let target = rows[index].agent.target else { continue }
-            let registration = read[target] ?? target.registration(for: installation)
-            read[target] = registration
-            rows[index].registration = registration
+            let agent = rows[index].agent
+            if let target = agent.target {
+                let registration = read[target] ?? target.registration(for: installation)
+                read[target] = registration
+                rows[index].registration = registration
+            }
+            if let target = agent.skills {
+                let file = target.file(project: folder).path
+                let registration = skills[file] ?? target.registration(of: skill, project: folder)
+                skills[file] = registration
+                rows[index].skill = registration
+            }
         }
+    }
+
+    /// The row's state in the current mode.
+    func status(_ row: Row) -> Registration? {
+        mode == .server ? row.registration : row.skill
+    }
+
+    /// Asks for the project folder skills go in.
+    func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = text("Choose", "选择")
+        panel.message = text("Choose the project folder for the skill.", "选择要放技能的项目文件夹。")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        setFolder(url)
+    }
+
+    func setFolder(_ url: URL?) {
+        folder = url
+        clearMessages()
+        readConfigs()
+    }
+
+    /// Messages about the last action belong to the mode and folder it was done in.
+    private func clearMessages() {
+        for index in rows.indices where !rows[index].isWorking { rows[index].activity = .idle }
     }
 
     private func update(_ id: String, _ change: (inout Row) -> Void) {
@@ -79,6 +128,7 @@ final class AgentsState: ObservableObject {
     }
 
     func setUp(_ id: String) async {
+        guard mode == .server else { return setUpSkill(id) }
         guard let installation, let row = rows.first(where: { $0.id == id }), let presence = row.presence else { return }
         let agent = row.agent
         let mayQuit = agent.mustQuit
@@ -88,6 +138,20 @@ final class AgentsState: ObservableObject {
             try await agent.setUp(installation, presence: presence, mayQuit: mayQuit)
             readConfigs()
             update(id) { $0.activity = .done(Self.hint(agent, restarted: mayQuit)) }
+        } catch {
+            readConfigs()
+            update(id) { $0.activity = .failed(("Setting up failed:", "配置失败："), Self.describe(error)) }
+        }
+    }
+
+    /// Writes the skill where the agent reads it.
+    func setUpSkill(_ id: String) {
+        guard let installation, let target = rows.first(where: { $0.id == id })?.agent.skills else { return }
+        update(id) { $0.activity = .working(("Setting up…", "正在配置…")) }
+        do {
+            try target.install(Skill.text(for: installation), project: folder)
+            readConfigs()
+            update(id) { $0.activity = .done(("New sessions will have it.", "新开的会话即可使用。")) }
         } catch {
             readConfigs()
             update(id) { $0.activity = .failed(("Setting up failed:", "配置失败："), Self.describe(error)) }
@@ -142,28 +206,30 @@ final class AgentsState: ObservableObject {
             return
         }
         readConfigs()
-        guard agent.target != nil, rows.first(where: { $0.id == id })?.registration != .current else {
+        guard let row = rows.first(where: { $0.id == id }), canSetUp(row) else {
             update(id) { $0.activity = .done(("Installed.", "已安装。")) }
             return
         }
         await setUp(id)
     }
 
-    /// Sets up every installed agent that is not set up yet, each config once.
+    /// Sets up every installed agent that is not set up yet, each config or skill file once.
     func setUpAll() async {
-        var done = Set<ConfigTarget>()
-        for row in rows where Self.canSetUp(row) {
-            guard let target = row.agent.target, done.insert(target).inserted else { continue }
+        var done = Set<String>()
+        for row in rows where canSetUp(row) {
+            let file = mode == .server ? row.agent.target?.rawValue : row.agent.skills?.file(project: folder).path
+            guard let file, done.insert(file).inserted else { continue }
             await setUp(row.id)
         }
     }
 
-    var needsSetUp: Bool { rows.contains(where: Self.canSetUp) }
+    var needsSetUp: Bool { rows.contains { canSetUp($0) } }
 
-    /// Installed, able to use the server, and not set up in a way this app leaves alone.
-    static func canSetUp(_ row: Row) -> Bool {
-        guard row.presence?.path != nil, row.agent.target != nil else { return false }
-        switch row.registration {
+    /// Installed, able to use the server (or, for the skill, to run commands), and not set up in a
+    /// way this app leaves alone.
+    func canSetUp(_ row: Row) -> Bool {
+        guard row.presence?.path != nil, (mode == .server ? row.agent.target != nil : row.agent.skills != nil) else { return false }
+        switch status(row) {
         case .current, .notEditable, nil: return false
         default: return true
         }
@@ -182,7 +248,7 @@ struct AgentsView: View {
                 }
                 if let installation = agents.installation {
                     LabeledContent(state.text("Command", "命令")) {
-                        Text(([installation.command] + installation.arguments).joined(separator: " "))
+                        Text(([installation.command] + (agents.mode == .server ? installation.arguments : [])).joined(separator: " "))
                             .font(.caption.monospaced()).textSelection(.enabled).multilineTextAlignment(.trailing)
                     }
                 }
@@ -201,6 +267,34 @@ struct AgentsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            Section {
+                Picker(state.text("Set Up As", "配置方式"), selection: $agents.mode) {
+                    Text(state.text("MCP Server", "MCP 服务器")).tag(AgentsState.Mode.server)
+                    Text(state.text("Skill", "技能")).tag(AgentsState.Mode.skill)
+                }
+                .pickerStyle(.segmented)
+                .disabled(agents.isWorking)
+                if agents.mode == .skill {
+                    LabeledContent(state.text("Folder", "文件夹")) {
+                        HStack {
+                            Text(agents.folder.map { Shell.abbreviate($0.path) } ?? state.text("All projects", "所有项目"))
+                                .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            Button(state.text("Choose…", "选择…")) { agents.chooseFolder() }.disabled(agents.isWorking)
+                            if agents.folder != nil {
+                                Button(state.text("All Projects", "所有项目")) { agents.setFolder(nil) }.disabled(agents.isWorking)
+                            }
+                        }
+                    }
+                }
+            } footer: {
+                Text(agents.mode == .server
+                     ? state.text("The assistant starts this app as an MCP server, so its tools are always at hand.",
+                                  "助手把本 App 当作 MCP 服务器启动，工具随时可用。")
+                     : state.text(
+                        "A skill teaches the assistant to run the apple-reminders-mcp command when reminders come up, instead of starting a server. Without a folder it goes in the assistant's own skills folder and works in every project; with one, only in that project (in .claude/skills for Claude, .agents/skills for the others).",
+                        "技能会教助手在用到提醒事项时运行 apple-reminders-mcp 命令，而不是启动服务器。不选文件夹时，它放在助手自己的技能文件夹里，所有项目都能用；选了文件夹，就只在那个项目里可用（Claude 用 .claude/skills，其他助手用 .agents/skills）。"))
+                    .foregroundStyle(.secondary)
+            }
             ForEach(vendors, id: \.self) { vendor in
                 Section(vendor) {
                     ForEach(agents.rows.filter { $0.agent.vendor == vendor }) { row in
@@ -215,9 +309,13 @@ struct AgentsView: View {
                         .disabled(agents.isWorking || !agents.needsSetUp)
                 }
             } footer: {
-                Text(state.text(
-                    "Set Up adds the server \"apple-reminders\" to the assistant's own settings file, and turns it on if the assistant had turned it off. Nothing else in the file changes. Before the first change of a day, the old file is kept next to it as <name>.bak-<date>-apple-reminders-mcp.",
-                    "「配置」会把服务器 apple-reminders 加进该助手自己的设置文件；如果助手把它关掉了，也会重新打开。文件里的其他内容不变。每天第一次修改前，旧文件会备份在旁边，名为 <文件名>.bak-<日期>-apple-reminders-mcp。"))
+                Text(agents.mode == .server
+                     ? state.text(
+                        "Set Up adds the server \"apple-reminders\" to the assistant's own settings file, and turns it on if the assistant had turned it off. Nothing else in the file changes. Before the first change of a day, the old file is kept next to it as <name>.bak-<date>-apple-reminders-mcp.",
+                        "「配置」会把服务器 apple-reminders 加进该助手自己的设置文件；如果助手把它关掉了，也会重新打开。文件里的其他内容不变。每天第一次修改前，旧文件会备份在旁边，名为 <文件名>.bak-<日期>-apple-reminders-mcp。")
+                     : state.text(
+                        "Set Up writes apple-reminders/SKILL.md, which names the command above. Assistants that read the same folder share one file. A skill of that name that this app did not write is left alone.",
+                        "「配置」会写入 apple-reminders/SKILL.md，其中写明上面的命令。读同一个文件夹的助手共用一个文件。同名但不是本 App 写的技能不会被改动。"))
                     .foregroundStyle(.secondary)
             }
         }
@@ -259,8 +357,11 @@ struct AgentRow: View {
                 if let detail {
                     Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
-                if let note = row.agent.note {
+                if let note = agents.mode == .skill ? row.agent.skillNote ?? row.agent.note : row.agent.note {
                     Text(state.text(note.0, note.1)).font(.caption).foregroundStyle(.secondary)
+                }
+                if let also {
+                    Text(also).font(.caption).foregroundStyle(.secondary)
                 }
                 switch row.activity {
                 case .idle: EmptyView()
@@ -271,6 +372,14 @@ struct AgentRow: View {
                         .font(.caption).foregroundStyle(.red).lineLimit(4).textSelection(.enabled).help(error)
                 }
             }
+        }
+    }
+
+    /// That the other way is set up too.
+    var also: String? {
+        switch agents.mode {
+        case .server: row.skill == .current ? state.text("Also set up as a skill.", "也已配置为技能。") : nil
+        case .skill: row.registration == .current ? state.text("Also set up as an MCP server.", "也已配置为 MCP 服务器。") : nil
         }
     }
 
@@ -295,18 +404,24 @@ struct AgentRow: View {
                 let requirement = row.agent.installRequirement
                 Text(state.text(requirement.0, requirement.1)).font(.caption).foregroundStyle(.secondary)
             }
-        } else if row.agent.target == nil {
+        } else if agents.mode == .server ? row.agent.target == nil : row.agent.skills == nil {
             Text(state.text("Not supported", "不支持")).foregroundStyle(.secondary)
         } else {
-            switch row.registration {
+            let skill = agents.mode == .skill
+            // For a skill, where it is.
+            let file = skill ? row.agent.skills.map { Shell.abbreviate($0.file(project: agents.folder).path) } ?? "" : ""
+            switch agents.status(row) {
             case nil: ProgressView().controlSize(.small)
             case .current:
-                Label(state.text("Configured", "已配置"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                Label(state.text("Configured", "已配置"), systemImage: "checkmark.circle.fill").foregroundStyle(.green).help(file)
             case .missing:
-                Button(state.text("Set Up", "配置")) { Task { await agents.setUp(row.id) } }.disabled(busy)
+                Button(state.text("Set Up", "配置")) { Task { await agents.setUp(row.id) } }.disabled(busy).help(file)
             case .different(let command):
                 Button(state.text("Update", "更新")) { Task { await agents.setUp(row.id) } }.disabled(busy)
-                    .help(command.isEmpty ? state.text("Written in a form this app does not change", "写法不是本 App 能改的")
+                    .help(skill ? (command == agents.installation?.command
+                                   ? state.text("Written by another version of this app: \(file)", "由本 App 的其他版本写入：\(file)")
+                                   : state.text("Written for another copy, \(command): \(file)", "为另一份副本写入（\(command)）：\(file)"))
+                          : command.isEmpty ? state.text("Written in a form this app does not change", "写法不是本 App 能改的")
                           : state.text("Now starts: \(command)", "现在启动的是：\(command)"))
             case .broken(let command):
                 Button(state.text("Repair", "修复")) { Task { await agents.setUp(row.id) } }.disabled(busy)
@@ -318,7 +433,7 @@ struct AgentRow: View {
                 Label(state.text("Can't Read Settings", "读不了设置"), systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange).help(error)
             case .notEditable(let reason):
-                Label(state.text("Set Up by Hand", "已手动配置"), systemImage: "hand.raised.fill")
+                Label(skill ? state.text("Another Skill", "已有同名技能") : state.text("Set Up by Hand", "已手动配置"), systemImage: "hand.raised.fill")
                     .foregroundStyle(.secondary).help(reason)
             }
         }

@@ -26,4 +26,9 @@ void launcher_become_responsible(const char *marker);
 int launcher_spawn_disclaimed(const char *path, char *const argv[], char *const envp[], const char *directory, int output_fd,
                               pid_t *pid);
 
+/// Whether this process runs in a sandbox (an agent's, such as Codex's seatbelt profile). There,
+/// macOS hides the Reminders permission: it reads as never asked, and asking fails. 0 when the
+/// check is unavailable.
+int launcher_is_sandboxed(void);
+
 #endif

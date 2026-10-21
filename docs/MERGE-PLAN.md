@@ -19,6 +19,10 @@
 | 服务器 | 仍按组件分开注册：`apple-notes`、`apple-reminders`（以后 `apple-calendar`、`apple-contacts`）；合并成一个服务器只作为以后的可选项 |
 | 命令名 | 旧命令 `apple-notes-mcp`、`apple-reminders-mcp` 在 Homebrew 里保留为包装脚本，现有 agent 配置一字不改继续有效 |
 | 发版 | 两边不再单独发版（没有 Notes 0.2.0 / Reminders 0.3.0）。命令行、技能和工具标签页随 Apple MCP 1.0.0 第一次发出；在那之前 Notes 停在 0.1.0，Reminders 停在 0.2.4（2026-10-21 定） |
+| 版本 | 从 1.0.0 开始（2026-10-21 定） |
+| 设置窗口 | 左边一栏切换 App（备忘录、提醒事项，以后的日历、通讯录……），右边整块显示所选 App 的设置（第 5 节，2026-10-21 定） |
+| 图标 | 新图标：背景是一个苹果，右下角是今天两个图标里的机器人头像（第 7 节，2026-10-21 定） |
+| 完全磁盘访问的探测 | 读系统权限数据库 `TCC.db` 的开头，与组件无关（2.2，2026-10-21 定） |
 
 ## 1. 现状调查
 
@@ -127,7 +131,7 @@ public enum Permission: Hashable, Sendable {
 public struct PermissionNeed: Sendable { public let permission: Permission; public let required: Bool }
 public enum PermissionState: Equatable { case granted, denied, notAsked, unknown }
 
-/// 组件自己的一个布尔设置，由「通用」标签页统一渲染。
+/// 组件自己的一个布尔设置，由该组件的「权限与设置」标签页统一渲染。
 public struct ComponentSetting: Sendable {
     public let key: String          // UserDefaults 键，如 "AllowCompletingRecurringReminders"
     public let defaultValue: Bool
@@ -170,7 +174,7 @@ extension Component {  // 默认：settings = [], routes = [], defaultVerbs = [:
 
 权限的探测与申请在 `AppCore/Permission.swift` 实现一次，组件只声明需要什么：
 
-- `.fullDiskAccess`：读一个受 FDA 保护、总是存在的文件的开头（候选 `~/Library/Application Support/com.apple.TCC/TCC.db`；或沿用 Notes 现在读 `NoteStore.sqlite` 的做法，待定）；申请 = 打开 `Privacy_AllFiles` 并在访达里选中 App（Notes `main.swift` 现有逻辑）。
+- `.fullDiskAccess`：读 `~/Library/Application Support/com.apple.TCC/TCC.db` 的开头。它受 FDA 保护，每台 Mac 都有，和用户用不用备忘录无关（2026-10-21 定）。Notes 打不开自己的数据库时（比如从没开过备忘录）仍报它自己的错误，不算缺权限；申请 = 打开 `Privacy_AllFiles` 并在访达里选中 App（Notes `main.swift` 现有逻辑）。
 - `.automation(bundleID:)`：Notes 的 `Permissions.automation(ask:)` + `startNotesHidden()` 推广到任意 bundle id（`Store/System.swift:42-64`），含 20 × 250 ms 的重试。
 - `.reminders` / `.calendars`：`EKEventStore.authorizationStatus(for:)` + `requestFullAccessToReminders()` / `requestFullAccessToEvents()`；`.contacts`：`CNContactStore`。
 - 每个权限带 `name`（中英）、`settingsURL`（现有的 `x-apple.systempreferences:` 地址）、`help(product:)` 文案（Notes 的 `fullDiskHelp`/`automationHelp`、Reminders 的 `permissionHelp`，产品名换成 Apple MCP）。
@@ -248,7 +252,7 @@ Store 的改动：`NotesStore.init(writeGuard:supportDirectory:)`，`Writing.swi
 | `Tests/NoteModelTests/*` | Notes |
 | `Tests/AppCoreTests/*`、`Tests/RegistryTests/*` | 新写 |
 | `Resources/Info.plist`、`Resources/AppleMCP.entitlements`、`Resources/{en,zh-Hans}.lproj/InfoPlist.strings`、`Resources/Installer/conclusion.html` | Reminders，按第 7 节改 |
-| `Resources/AppIcon.icon`、`AppIcon-compiled` | 新图标 |
+| `Resources/AppIcon.icon`、`AppIcon-compiled` | 新图标（第 7 节） |
 | `scripts/{build-app,build-pkg,update-cask,build-icon}.sh`、`flatten-icon.swift`、`compose-icon.swift` | Reminders（+ Notes 的 `compose-icon.swift`） |
 | `scripts/e2e.py`、`scripts/e2e/{harness,notes,reminders}.py` | 两个 `e2e.py` 拆分（第 8 节） |
 | `docs/notes.md`、`docs/reminders.md`（+ `.zh-CN`）、`docs/RE-FINDINGS.md` | 两个 README 的组件章节；Notes 的 `docs/RE-FINDINGS.md` |
@@ -287,7 +291,7 @@ apple-mcp [<component>] [<mode>…]
 6. `runThenExit`（RunLoop 版）里按模式分发：
    - `.serve`：`Service(name: c.spec.commandName, version:, instructions: c.instructions, tools: c.makeTools(ctx), exposure: ctx.exposure)`，`StdioServer.run`，日志变量 `APPLE_MCP_WIRE_LOG`（回退旧名）。`serverInfo.name` 仍是 `apple-notes-mcp` / `apple-reminders-mcp`，客户端和 e2e 看不出变化。
    - `.setup`：每个组件打印 `== Notes ==` 再 `c.setup(ctx)`；任一失败则退出码 1。顶部横幅（当有组件带 `legacy` 时）：「授予 Apple Notes MCP / Apple Reminders MCP 的权限不会转到 Apple MCP，请再授一次。」
-   - `.check`：`Apple MCP <版本> (<bundle id>)`，然后每个组件一段 `c.selfCheck(ctx)`；关掉的组件打印 `Contacts: off (General tab)`。
+   - `.check`：`Apple MCP <版本> (<bundle id>)`，然后每个组件一段 `c.selfCheck(ctx)`；关掉的组件打印 `Contacts: off (turned off in the settings window)`。
    - `.agents`：`AgentsCommand.run(args, components: 选中的, installation:)`。
    - `.skill`：`Skill.text(component:installation:)`，组件没有技能则报错。
    - `.command`：`Commands.run(words, component:, tools:, exposure:, program: c.spec.commandName)`。
@@ -356,12 +360,30 @@ extension Installation {
 
 ## 5. 设置窗口
 
-仍用普通 `ObservableObject` 与 `Binding`（Command Line Tools 没有 SwiftUI 宏插件）。`SettingsPanel.show(components:preselect:)`，标题与菜单 Apple MCP。
+布局（2026-10-21 定）：左边一栏列出各个 App，右边整块显示所选 App 的设置。以后加日历、通讯录，就是左栏多一行。
 
-- **PanelState**：`components`、`enabled: Set<String>`（绑定 `Settings.enabledComponents`）、`permissionStates: [Permission: PermissionState]`——每秒轮询的是已启用组件权限的**并集**（按 `Permission` 分组；任一组件必需即必需；页脚列出需要它的组件）、Notes 那套 `asking` 标志、语言、各组件 `ComponentSetting` 的绑定。
-- **AI 助手**：`rows` 的每行带 `registrations: [组件 id: Registration]` 与 `skills: [组件 id: Registration]`；`readConfigs()` 遍历「已启用组件 × 助手」，每个 `(ConfigTarget, spec)` 只读一次。列表上方加一个**组件分段选择**（只启用一个组件时隐藏），决定每行显示哪个组件的状态与按钮；「配置方式：MCP 服务器 / 技能」保留（两个组件都有技能；以后没有技能的组件禁用技能项）。**全部配置**对每个已启用组件 × 每个已安装助手各写一条，页脚说明。「命令」行显示所选组件的 `ServerSpec`。页脚文案用 `spec.serverName` 和 `.bak-<日期>-apple-mcp`。（备选布局：每组件一列，两个组件时可行，四个会挤。）
-- **工具**：每个已启用组件一个 Section（段头：显示名 + 它自己的 全选/全不选/反选/只读 + 「已开放 n / m」），各自的 `ToolExposure`（`Settings.exposure(for:)`）与 `FileWatch`；`ToolRow` 的中文标题取自 `component.chineseToolTitles`。工具在窗口打开时在主 actor 上 `makeTools` 一次。两个组件今天各有一个工具标签页，合并只是把它们放进同一页。
-- **通用**：权限按并集渲染（可申请的给「允许…」，FDA 给「系统设置…」「在访达中显示」，不必需的加「（可选）」）；语言；每个已启用组件的 `ComponentSetting` 开关；**组件**一节：每个组件一个开关（至少留一个开着），页脚：「关掉的组件在这里隐藏，全部配置、`apple-mcp setup`、`--self-check` 跳过它；已经注册的服务器仍能工作。」
+```
+┌──────────────┬───────────────────────────────────────────────┐
+│ 备忘录     ● │   AI 助手 │ 工具 │ 权限与设置                     │
+│ 提醒事项     │                                               │
+│ （日历）     │   所选 App 的内容，与今天各自窗口里的标签页相同      │
+│              │                                               │
+│ ──────────── │                                               │
+│ 通用         │                                               │
+└──────────────┴───────────────────────────────────────────────┘
+```
+
+仍用普通 `ObservableObject` 与 `Binding`（Command Line Tools 没有 SwiftUI 宏插件）。`SettingsPanel.show(components:preselect:)`，窗口标题与菜单 Apple MCP。
+
+- **左栏**：`NavigationSplitView` 的侧栏，`List(selection:)`（macOS 13 起就有，不需要宏）。每行是组件的 SF Symbol（`note.text`、`checklist`）和显示名；必需权限没授，或一个助手都没配置时，名字后面带一个橙点。关掉的组件仍然列出，变灰。最下面一行是**通用**。
+- **右边，选中一个 App 时**：三个标签页，内容就是今天各自窗口里的标签页，只针对这一个组件。
+  - **AI 助手**：配置方式（MCP 服务器 / 技能）、项目文件夹、每个助手一行、**全部配置**，与今天相同。只读写所选组件的 `ServerSpec` 和技能；「命令」行显示它的 `ServerSpec`；页脚用 `spec.serverName` 和 `.bak-<日期>-apple-mcp`。没有技能的组件（以后可能有）禁用技能项。
+  - **工具**：今天的工具标签页，用这个组件自己的 `ToolExposure`（`Settings.exposure(for:)`）与 `FileWatch`，中文标题取自 `component.chineseToolTitles`。
+  - **权限与设置**：顶部是「启用备忘录」这样的开关（至少留一个组件开着）；然后是这个组件需要的权限，可申请的给「允许…」，FDA 给「系统设置…」「在访达中显示」，不必需的标「（可选）」；最后是它的 `ComponentSetting`（如「允许 AI 助手勾完成重复提醒」）。几个组件共用的权限（完全磁盘访问）在每个需要它的组件里都显示，授一次全都生效。
+- **右边，选中「通用」时**：整个 App 的设置——窗口语言、版本与 bundle id，以及检测到旧 App 时的「移到废纸篓并 `pkgutil --forget`」（第 6 节）。
+- **打开时选中谁**：`apple-mcp notes --settings` 预选备忘录；否则是上次看的那一项（defaults 键 `SettingsSelection`），第一次打开选第一个启用的组件；右边停在「AI 助手」。服务器因缺权限打开窗口（`SettingsWindow.openOnce()`）时，选中该组件的「权限与设置」。
+- **关掉的组件**：它的「全部配置」不可用，`apple-mcp setup`、`--self-check`、`apple-mcp agents set-up --all` 跳过它；已经注册的服务器照样能工作。
+- **状态**：`PanelState` 持有 `components`、`selection`（组件 id 或「通用」）、`enabled: Set<String>`（绑定 `Settings.enabledComponents`）、语言、各组件 `ComponentSetting` 的绑定，以及 `permissionStates: [Permission: PermissionState]`——每秒轮询所有已启用组件权限的并集，一个权限只查一次，各组件页面共用结果；Notes 那套 `asking` 标志也在这里。每个组件的 `AgentsState`、`ToolsState` 在第一次选中时建立，之后切换不重建，正在进行的安装和列表位置都保留。工具在第一次选中该组件时在主 actor 上 `makeTools` 一次。
 
 ## 6. 数据、设置与环境变量的迁移
 
@@ -374,13 +396,13 @@ extension Installation {
 | `tools.json` | 两边各一份 | 每组件一份：`AppleMCP/<id>/tools.json`；覆盖变量 `APPLE_MCP_<ID>_TOOLS_FILE` | 随目录复制；没有文件 = 全部工具 |
 | 环境变量 | `APPLE_NOTES_MCP_*`、`APPLE_REMINDERS_MCP_*` | `APPLE_MCP_RELAUNCHED`、`APPLE_MCP_WIRE_LOG`、`APPLE_MCP_<ID>_WRITE_GUARD`、`APPLE_MCP_<ID>_TOOLS_FILE` | `Env.scoped/global` 新名优先、旧名回退，1.x 内保留，文档写明移除版本 |
 | 技能文件 | `apple-notes/SKILL.md`、`apple-reminders/SKILL.md`，`command:` 指向旧可执行文件 | 同名同 marker | Homebrew 用户：包装路径不变 → `.current`；pkg 用户：命令路径变了 → 显示「更新」一次。frontmatter 只在有参数时加 `args: ["notes"]` / `args: ["reminders"]`。两个技能都不会在合并前发版（1.3） |
-| 权限 | 授给两个旧 bundle id | 授给 `com.xiaofeng.apple-mcp` | 必须重授一次：`apple-mcp setup` 横幅说明并一次走完所有组件；通用标签页显示未授项；服务器第一次被拒时打开设置窗口一次（`SettingsWindow.openOnce()`，两个组件都有）。文档给出可选的清理：`tccutil reset All com.xiaofeng.apple-notes-mcp`、`tccutil reset All com.xiaofeng.apple-reminders-mcp` |
+| 权限 | 授给两个旧 bundle id | 授给 `com.xiaofeng.apple-mcp` | 必须重授一次：`apple-mcp setup` 横幅说明并一次走完所有组件；设置窗口左栏用橙点标出缺权限的组件，各组件的「权限与设置」页列出未授项；服务器第一次被拒时打开设置窗口一次（`SettingsWindow.openOnce()`，两个组件都有）。文档给出可选的清理：`tccutil reset All com.xiaofeng.apple-notes-mcp`、`tccutil reset All com.xiaofeng.apple-reminders-mcp` |
 | 旧 App | `/Applications`、`~/Applications` 下的 `AppleNotesMCP.app`、`AppleRemindersMCP.app` | — | 设置窗口检测到就提供「移到废纸篓并 `pkgutil --forget`」；Homebrew 用户由 cask 迁移自动卸载 |
 
 ## 7. 构建、发布、Homebrew 与文档
 
 - 脚本：`build-app.sh` 的 `BUNDLE_ID=com.xiaofeng.apple-mcp`、`APP=dist/AppleMCP.app`、`--product AppleMCP`、entitlements `Resources/AppleMCP.entitlements`；`build-pkg.sh` 的 `PKG_ID=com.xiaofeng.apple-mcp.pkg`、`OUT=dist/AppleMCP-$VERSION.pkg`、标题 Apple MCP；`update-cask.sh` 的 `CASK=Casks/apple-mcp.rb`、`PKG=AppleMCP-$VERSION.pkg`、`-R xiaofeng-han/apple-mcp`。
-- `Info.plist`：名字、可执行文件、bundle id、版本 1.0.0；usage string 放全：`NSAppleEventsUsageDescription`、`NSRemindersFullAccessUsageDescription`、`NSRemindersUsageDescription`，并提前放 `NSCalendarsFullAccessUsageDescription`、`NSContactsUsageDescription`（多出的字串无害，以后加组件不用再碰 plist）。`InfoPlist.strings` 中英各五条。`AppleMCP.entitlements`：`com.apple.security.automation.apple-events` + `com.apple.security.personal-information.calendars`。`conclusion.html` 改文案（命令 `AppleMCP.app/Contents/MacOS/AppleMCP <component> --stdio`）。新图标；保留 `build-icon.sh`、`flatten-icon.swift`、`compose-icon.swift`。
+- `Info.plist`：名字、可执行文件、bundle id、版本 1.0.0；usage string 放全：`NSAppleEventsUsageDescription`、`NSRemindersFullAccessUsageDescription`、`NSRemindersUsageDescription`，并提前放 `NSCalendarsFullAccessUsageDescription`、`NSContactsUsageDescription`（多出的字串无害，以后加组件不用再碰 plist）。`InfoPlist.strings` 中英各五条。`AppleMCP.entitlements`：`com.apple.security.automation.apple-events` + `com.apple.security.personal-information.calendars`。`conclusion.html` 改文案（命令 `AppleMCP.app/Contents/MacOS/AppleMCP <component> --stdio`）。新图标（2026-10-21 定）：背景是一个苹果，右下角是今天两个图标里那个蓝色机器人头像，位置和大小与现在相同，看得出是同一系列。苹果画成水果的样子（带梗和叶子、不带咬口），不能像 Apple 的标志，以免商标问题。做法：苹果背景另做一张 1024 px 的图（画或生成）；机器人从 Reminders 现有图稿里抠出来，最好在 Icon Composer 里放成单独一层叠在背景上；`compose-icon.swift` 改成「背景 + 机器人」合成，再跑 `build-icon.sh`。`flatten-icon.swift` 保留，用来处理带圆角白底的源图。
 - **tap**（`homebrew-tap`）：
 
   ```ruby
@@ -435,24 +457,24 @@ extension Installation {
 | 0 仓库 | GitHub 改名 `apple-reminders-mcp` → `apple-mcp`；并入 Notes 历史（见附录）；按 2.5 的映射把两边文件放进一棵树 | 仓库能 clone，旧地址重定向 |
 | 1 共享 target | `Wire` 取 Notes 版（已是并集）、`Launcher` 取任一边、`Agents` 按第 4 节参数化；两个旧可执行文件 `AppleNotesMCP`、`AppleRemindersMCP` 保留，各自传旧的 `Product`/`ServerSpec`/`SkillSpec`/旧 bundle id，行为不变 | `swift build`；`swift test`（三套）；两个旧 `e2e.py` 分别打 `.build/debug/<可执行文件>`（开发构建用父进程的权限） |
 | 2 单一可执行文件 | `AppCore`、`NotesComponent`、`RemindersComponent`、`Registry`、新 `main.swift`（RunLoop 版）、通用 CLI 与 `AgentsCommand`；删掉两个旧可执行文件；设置窗口先用 Reminders 现有的指向一个组件也可 | `swift test` 含 `RegistryTests`；`e2e.py notes`、`e2e.py reminders` 打 `.build/debug/AppleMCP`；`--self-check`、`agents list`、`agents set-up --all`（临时 `HOME`）；`apple-mcp reminders reminders find`、`apple-mcp reminders help`、`apple-mcp notes notes search`、`apple-mcp notes help`、两个 `skill` 的输出与从前一致 |
-| 3 设置窗口 | 第 5 节 | 手工：只开 Reminders 时 Notes 处处隐藏；全部配置给每个助手写两条；工具标签改对文件，运行中的服务器收到 `list_changed` |
+| 3 设置窗口 | 第 5 节 | 手工：左栏切换备忘录 / 提醒事项，右边只显示所选 App；关掉一个 App 后它在左栏变灰，`setup`、`agents set-up --all` 跳过它；一个 App 的「全部配置」只写它自己的服务器；工具标签改对文件，运行中的服务器收到 `list_changed`；缺权限时窗口打开在该 App 的「权限与设置」 |
 | 4 迁移、tap、文档 | 第 6、7 节；`HARDENED=1` 构建 | 与旧 App 并存安装：数据已复制、defaults 带过来、旧注册显示更新/修复、Homebrew 包装的注册显示已配置、权限引导出现；本地 tap 演练两种升级；`brew audit --cask --strict`、`brew style` |
 | 5 发布 | `gh release create v1.0.0`、`update-cask.sh`、tap 的 `cask_renames.json`；两个旧仓库各发一条「已合并到 apple-mcp」的 release 说明；归档 `apple-notes-mcp` | 从旧 cask 名 `brew upgrade` 成功；旧 release 链接仍可下载 |
 
 ## 10. 风险与待定
 
-- **R1 重新授权**不可避免（新 bundle id、新 designated requirement）。缓解：`setup` 横幅、通用标签页、服务器被拒时打开设置窗口一次。现在用户最少，越早做代价越小。
+- **R1 重新授权**不可避免（新 bundle id、新 designated requirement）。缓解：`setup` 横幅、设置窗口左栏的橙点和各组件的「权限与设置」页、服务器被拒时打开设置窗口一次。现在用户最少，越早做代价越小。
 - **R2 Homebrew 两→一迁移**要在本地 tap 演练；旧 pkg 收据会残留（文档写 `pkgutil --forget`）。
 - **R3 两个旧 App 并存**：注册显示「更新」而不是「已配置」；支持目录复制后两边分叉；`wrapperRuns` 防止把指向旧 App 的包装脚本误判为 `.current`。
 - **R4 RunLoop 取代 `dispatchMain()`** 对 EventKit/ReminderKit 路径要在真机确认（阶段 2 的 `e2e.py reminders`）。Notes 的服务器和命令行都已在 RunLoop 版 `runThenExit` 下跑过 e2e；Reminders 两者都只在 `dispatchMain()` 下验证过。
 - **R5 技能文本变化**让已装技能显示「更新」：Homebrew 用户因 marker 与命令路径都不变而不受影响，pkg 用户显示一次。两个组件的技能都一样处理。
 - **R6 合并服务器**（`apple-mcp --stdio`）需要复合 `ToolExposure`（几份 `tools.json`、各一个 `FileWatch`）；先拒绝并提示，以后再做。
-- 待定：
-  - FDA 探测文件（通用的 `TCC.db` 还是各组件自己的数据文件）。
-  - AI 助手标签的布局（分段选择还是每组件一列）。
-  - 图标。
-  - 版本号从 1.0.0 开始。
+- 待定：无。
 - 已定（原待定）：
+  - 完全磁盘访问的探测读 `TCC.db`（2.2）。
+  - 设置窗口：左栏切换 App，右边显示所选 App 的设置（第 5 节）。「通用」作为左栏最后一项放整个 App 的设置，这一点是按这个决定补的细节。
+  - 图标：苹果背景，右下角是现在的机器人头像（第 7 节）。
+  - 版本号从 1.0.0 开始。
   - Notes 也提供命令行与技能：PR #1 已实现，路由与技能正文直接搬进 `NotesComponent`。
   - 命令行不省略与组件同名的名词：`apple-mcp notes notes search` 必须写全，`apple-mcp notes search` 报错并提示全写（3.1，2026-10-21 定）。
   - 合并前不单独发版：命令行、技能和工具标签页随 Apple MCP 1.0.0 一起发（2026-10-21 定）。代价是用户晚一点用上这三项；好处是少一次升级，迁移不必处理已发版的技能和 `tools.json`。

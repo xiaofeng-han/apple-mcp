@@ -76,15 +76,19 @@ Rules:
 
 ## Install
 
-Releases are built for Apple silicon and need macOS 26 or later. Install with Homebrew or from the package.
-
-### With Homebrew
+Releases are built for Apple silicon and need macOS 26 or later. The default way to install and set up is with Homebrew:
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-reminders-mcp
+apple-reminders-mcp setup                  # allow access to Reminders
+apple-reminders-mcp agents set-up --all    # register the server with the agents on this Mac
 ```
 
-Naming the cask in full adds the tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap) and trusts only this cask. Since Homebrew 6, items from taps outside Homebrew have to be trusted before Homebrew loads them. After that, `brew upgrade` picks up new releases.
+Instead of the last two commands, you can open Apple Reminders MCP from Applications: set up your agents in its **AI Assistants** tab, and allow access to Reminders under **General**. Without Homebrew, install [from the package](#from-the-package).
+
+### With Homebrew
+
+Naming the cask in full, as above, adds the tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap) and trusts only this cask. Since Homebrew 6, items from taps outside Homebrew have to be trusted before Homebrew loads them. After that, `brew upgrade` picks up new releases.
 
 Homebrew installs the same package described below, but for all users and through the macOS installer. So it asks for an administrator password, and it puts the app in `/Applications`. It also adds the command `apple-reminders-mcp` (`/opt/homebrew/bin/apple-reminders-mcp`), a small script that starts the app; the steps below use it. `brew uninstall --cask apple-reminders-mcp` removes the app. Adding `--zap` also moves its settings and its record of deleted reminders to the Trash.
 
@@ -97,7 +101,7 @@ pkgutil --volume ~ --forget com.xiaofeng.apple-reminders-mcp.pkg
 
 ### From the package
 
-Download `AppleRemindersMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) and open it, or install it from the terminal:
+Without Homebrew, download `AppleRemindersMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) and open it, or install it from the terminal:
 
 ```bash
 gh release download v0.2.3 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'

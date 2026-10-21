@@ -76,15 +76,19 @@
 
 ## 安装
 
-发布的包只支持 Apple 芯片，需要 macOS 26 或更新。可以用 Homebrew 装，也可以用安装包装。
-
-### 用 Homebrew
+发布的包只支持 Apple 芯片，需要 macOS 26 或更新。默认用 Homebrew 安装和配置：
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-reminders-mcp
+apple-reminders-mcp setup                  # 允许访问提醒事项
+apple-reminders-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 agent
 ```
 
-写全名会自动添加 tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap)，并且只信任这一个 cask。Homebrew 6 起，第三方 tap 里的内容要先信任才会加载。之后 `brew upgrade` 就能收到新版本。
+后两条命令也可以换成打开「应用程序」里的 Apple Reminders MCP：在「AI 助手」标签页配置 agent，在「通用」里允许访问提醒事项。不用 Homebrew 的话，见[用安装包](#用安装包)。
+
+### 用 Homebrew
+
+像上面那样写全名，会自动添加 tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap)，并且只信任这一个 cask。Homebrew 6 起，第三方 tap 里的内容要先信任才会加载。之后 `brew upgrade` 就能收到新版本。
 
 Homebrew 装的就是下面那个安装包，只是用 macOS 的安装器为所有用户安装，所以会要管理员密码，App 装在 `/Applications`。它还会添加命令 `apple-reminders-mcp`（`/opt/homebrew/bin/apple-reminders-mcp`），这是一个启动 App 的小脚本，下面的步骤都用它。`brew uninstall --cask apple-reminders-mcp` 卸载 App，加上 `--zap` 还会把它的设置和删除记录移到废纸篓。
 
@@ -97,7 +101,7 @@ pkgutil --volume ~ --forget com.xiaofeng.apple-reminders-mcp.pkg
 
 ### 用安装包
 
-从 [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) 下载 `AppleRemindersMCP-<版本>.pkg` 打开安装，或者在终端里装：
+不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) 下载 `AppleRemindersMCP-<版本>.pkg` 打开安装，或者在终端里装：
 
 ```bash
 gh release download v0.2.3 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'

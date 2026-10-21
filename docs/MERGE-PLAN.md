@@ -275,7 +275,7 @@ apple-mcp [<component>] [<mode>…]
 | `apple-mcp --stdio` | 先拒绝，提示 `apple-mcp notes --stdio`。「合并服务器」需要能同时看几个 `tools.json` 的复合 `ToolExposure`，列为以后的可选项（R6） |
 | `apple-mcp help` | 产品级帮助：组件列表、全局模式、「`apple-mcp <component> help` 看它的命令」 |
 
-两个组件都有一个和组件同名的名词，所以写全是 `notes notes search`、`reminders reminders find`。经包装命令就是 `apple-notes-mcp notes search`，和今天一样。直接用 `apple-mcp` 时能不能省掉名词，列在第 10 节待定。
+两个组件都有一个和组件同名的名词，所以写全是 `notes notes search`、`reminders reminders find`。经包装命令就是 `apple-notes-mcp notes search`，和今天一样。直接用 `apple-mcp` 时必须写全，不省略与组件同名的名词：`apple-mcp notes search` 是错误（`notes` 组件没有名词 `search`），退出码 2，提示写成 `apple-mcp notes notes search`。这样组件词后面永远是「名词 动词」，解析没有特例，帮助和技能里的命令也只有一种写法（2026-10-21 定）。
 
 ### 3.2 `main.swift` 的顺序
 
@@ -422,7 +422,7 @@ extension Installation {
 ## 8. 测试
 
 - `swift test` 一个 package：`AgentsTests`（新夹具 + 新测试）、`WireTests`、`NoteModelTests`。
-- 新 `AppCoreTests`：`Invocation.parse` 的表（组件前缀、包装命令传来的形式、不带组件时的错误、管道与设置窗口）；`Env` 新名优先于旧名；`Settings.supportDirectory(for:)` 在临时 `HOME` 下的路径；`Migration.run` 只复制一次、defaults 只迁一次（临时 `HOME` + `UserDefaults(suiteName:)`）；`Commands.tree/help` 用注入的路由表；`Skill.text` 只在有参数时带 `args:`。
+- 新 `AppCoreTests`：`Invocation.parse` 的表（组件前缀、包装命令传来的形式、不带组件时的错误、省略同名名词时的错误、管道与设置窗口）；`Env` 新名优先于旧名；`Settings.supportDirectory(for:)` 在临时 `HOME` 下的路径；`Migration.run` 只复制一次、defaults 只迁一次（临时 `HOME` + `UserDefaults(suiteName:)`）；`Commands.tree/help` 用注入的路由表；`Skill.text` 只在有参数时带 `args:`。
 - 新 `RegistryTests`（`@MainActor`，用临时 `ComponentContext` 调 `makeTools`）：所有组件的工具名全局唯一；`spec` 三个字段各自唯一；每条 route 和每个中文标题都指向该组件真实存在的工具；每个组件的 `Service` 回答 `tools/list` 时恰好只有自己的工具；每个组件至少声明一个权限。
 - `scripts/e2e.py <notes|reminders> [可执行文件]` 分发到 `scripts/e2e/{harness,notes,reminders}.py`：harness 启动 `[APP, component, "--stdio"]`，设 `APPLE_MCP_<ID>_WRITE_GUARD` 与 `_TOOLS_FILE`，提供 `rpc/notify/call/check`、`cli(component, …)`，以及 `tools.json` 变更通知检查和无状态协议检查（两个 `e2e.py` 现在各有一份几乎逐行相同的，合并后只写一份，参数是组件的工具表和只读工具名）；`notes.py` 是 Notes 现在的检查（93 项，`serverInfo.name == "apple-notes-mcp"`、10 个工具，命令行部分调 `[APP, "notes", 名词, 动词…]`）；`reminders.py` 是 Reminders 现在的检查（167 项，16 个工具，命令行部分调 `[APP, "reminders", 名词, 动词…]`）。去掉共用部分后两边的项数会少一些，总数按实跑结果写进 README。
 
@@ -452,9 +452,9 @@ extension Installation {
   - AI 助手标签的布局（分段选择还是每组件一列）。
   - 图标。
   - 版本号从 1.0.0 开始。
-  - `apple-mcp` 直接调用时能否省掉与组件同名的名词：组件词后面若不是该组件的名词，而是同名名词的动词，就当省略了名词（`apple-mcp notes search` = `apple-mcp notes notes search`）。`Invocation.parse` 里加一条规则，有单测。省略后若与某个全局模式同名（`setup`、`skill`、`help`），仍按全局模式。
 - 已定（原待定）：
   - Notes 也提供命令行与技能：PR #1 已实现，路由与技能正文直接搬进 `NotesComponent`。
+  - 命令行不省略与组件同名的名词：`apple-mcp notes notes search` 必须写全，`apple-mcp notes search` 报错并提示全写（3.1，2026-10-21 定）。
   - 合并前不单独发版：命令行、技能和工具标签页随 Apple MCP 1.0.0 一起发（2026-10-21 定）。代价是用户晚一点用上这三项；好处是少一次升级，迁移不必处理已发版的技能和 `tools.json`。
 
 ## 附录：仓库操作

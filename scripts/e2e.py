@@ -1,4 +1,4 @@
-"""End-to-end check of the MCP server over stdio, against the real Notes data.
+"""End-to-end check of the MCP server over stdio, and of the command line, against the real Notes data.
 
 Writes are confined by the write guard to notes titled, and folders named, "agent test…". The
 script first removes what an interrupted run left behind and at the end deletes the folder it
@@ -169,6 +169,42 @@ st, t, _ = call("overview", limit=5)
 real = re.findall(r"^([0-9A-F]{8}) \| (?!agent test)", t, re.M)
 if real:
     check("guard blocks real notes", call("edit_note", id=real[0], insert="x")[0] == "ERR")
+
+# The command line runs the same tools: apple-notes-mcp <noun> <verb> [flags]. Each command is
+# its own process, so this also checks that a write is in the store when one exits.
+def cli(*args, stdin=None):
+    r = subprocess.run([APP, *args], input=stdin, capture_output=True, text=True, env=env, timeout=120)
+    return r.returncode, r.stdout, r.stderr
+typed = "# agent test 命令行 setup\nfrom the command line\n- [ ] first"
+code, out, err = cli("notes", "create", "-", "--folder", "agent test", stdin=typed)
+check("cli: notes create - reads stdin (a title may say setup)", code == 0 and "Created" in out, (code, out, err))
+C = field(out, "id")
+code, out, err = cli("notes", "read", C or "none"); check("cli: notes read", code == 0 and body(out) == typed + "\n", (code, out, err))
+code, out, err = cli("notes", "edit", C or "none", "--insert", "- [ ] second", "--at", "end")
+check("cli: notes edit --insert", code == 0 and "Updated" in out, (code, out, err))
+code, out, err = cli("notes", "read", C or "none"); check("cli: the edit is in the store", code == 0 and body(out).endswith("- [ ] first\n- [ ] second\n"), (code, out, err))
+code, out, err = cli("notes", "search", "命令行", "--folder", "agent test"); check("cli: notes search QUERY --folder", code == 0 and C in out, (code, out, err))
+code, out, err = cli("notes", "edit", C or "none", "--rewrite", "# agent test x", "--version", "000000000000")
+check("cli: a stale version exits 1", code == 1 and "changed after" in err and out == "", (code, out, err))
+code, out, err = cli("notes", "create", "--json", "-", stdin=json.dumps({"markdown": "# agent test JSON 标准输入", "folder": "agent test"}))
+check("cli: --json - from stdin", code == 0 and "Created" in out, (code, out, err))
+J = field(out, "id")
+code, out, err = cli("notes", "--folder", "agent test"); check("cli: notes lists by default", code == 0 and C in out and J in out, (code, out, err))
+code, out, err = cli("folders"); check("cli: folders lists by default", code == 0 and re.search(r"^agent test \(", out, re.M), (code, out, err))
+code, out, err = cli("call", "overview", json.dumps({"folder": "agent test"})); check("cli: call", code == 0 and C in out, (code, out, err))
+code, out, err = cli("notes", "delete", J or "none"); check("cli: notes delete", code == 0 and "Recently Deleted" in out, (code, out, err))
+code, out, err = cli("notes", "move", J or "none", "agent test"); check("cli: notes move restores", code == 0 and "Restored" in out, (code, out, err))
+code, out, err = cli("notes", "list", "--bogus"); check("cli: an unknown flag exits 2", code == 2 and "--bogus" in err and out == "", (code, out, err))
+code, out, err = cli("folders", "create", "Not allowed"); check("cli: a guarded write exits 1", code == 1 and "write guard" in err, (code, out, err))
+code, out, err = cli("folders", "delete", "agent test", "--recursive")
+check("cli: messages name flags", code == 2 and "--recursive needs --expected-notes" in err, (code, out, err))
+if image:
+    folder = tempfile.mkdtemp()
+    code, out, err = cli("attachments", "read", image, "--output-dir", folder)
+    saved = re.findall(r"^Saved to (.+)$", out, re.M)
+    check("cli: attachments read saves the image", code == 0 and saved and all(os.path.exists(p) for p in saved), (code, out, err))
+code, out, err = cli("skill")
+check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-notes\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
 
 # Export, then delete everything.
 out = os.path.join(tempfile.mkdtemp(), "agent test export.zip")

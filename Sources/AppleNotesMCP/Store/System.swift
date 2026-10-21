@@ -76,6 +76,11 @@ enum Permissions {
         and delete notes and folders. Ask the user to turn on Notes under "Apple Notes MCP" in System \
         Settings → Privacy & Security → Automation, or to open Apple Notes MCP and click Allow.
         """
+    static let sandboxHelp = """
+        Apple Notes MCP ran inside a sandbox (Codex runs commands in one), where macOS keeps it from the \
+        Notes database and from controlling Notes. Run the same command again outside the sandbox, which \
+        the user may have to approve.
+        """
 }
 
 /// Notes' AppleScript, run in this process. NSAppleScript is not thread-safe, hence the main actor.

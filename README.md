@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) read and edit Apple Notes on macOS, with native formatting. Its settings window finds the agents on your Mac and sets each one up with one click, installing the ones you are missing.
+An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) read and edit Apple Notes on macOS, with native formatting. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
 - **Reading** goes through Notes' own data model, with its database opened read-only: titles, headings, lists, checklists (ticked or not), tables, links, highlights and attachments all come out as Markdown.
 - **Editing** happens in place, through Notes' private NotesShared framework, the way Notes itself edits: only what changed is written, character by character, so everything Markdown cannot show (colors, fonts, alignment) stays as it was, and edits made on other devices merge. Every change is rehearsed on a copy first and read back afterwards.
@@ -50,6 +50,83 @@ One note paragraph is one Markdown line, so a model can change a line without an
 - `delete_note` and a recursive folder delete only move notes to Recently Deleted, and refuse a note already there (deleting it again would erase it for good). A recursive delete needs `expected_notes`, the number of notes the caller saw, and checks everything before it changes anything.
 - An export goes only to a path that does not exist yet, outside `~/Library`.
 
+## Command line
+
+Every tool is also a command, so the app works from a terminal and from an agent's shell, which is what the [skill](#server-or-skill) uses. A command is a noun and a verb. Its flags come from the tool's input fields, so they are the fields of the tools above. `apple-notes-mcp help` prints the whole tree:
+
+```text
+apple-notes-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask to control Notes, and show where to give Full Disk Access
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── notes
+│   ├── list                    List notes, newest first, one line each (id | title | date | size | description) (the default)
+│   │       --folder string --modified-after string --modified-before string --created-after string
+│   │       --created-before string --sort modified|created|title --[no-]undescribed --limit int
+│   ├── search QUERY            Full-text search of titles and text, best matches first, with the text around each match
+│   │       --match all|any --folder string --modified-after string --modified-before string
+│   │       --created-after string --created-before string --sort modified|created|title --limit int
+│   ├── read [ID]               Print notes as Markdown, each with the version that notes edit takes
+│   │       --id string… --title string --section string --[no-]outline
+│   ├── create MARKDOWN         Create a note from Markdown; its first line is the title
+│   │       --folder string
+│   ├── edit ID                 Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note
+│   │       --version string --replace json --insert string --at string --rewrite string
+│   ├── delete ID               Move a note to Recently Deleted (notes move brings it back)
+│   ├── move ID FOLDER          Move a note to another folder, or back from Recently Deleted
+│   │       --[no-]allow-shared
+│   └── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
+├── attachments
+│   └── read ID                 Open an attachment from a ![…](attachment:ID) placeholder: print its text, save its images, audio and files
+│           --[no-]text-only --output-dir string
+├── folders
+│   ├── list                    The folders, with how many notes each holds (the default)
+│   │       --depth int
+│   ├── create PATH             Create a folder; a path such as Projects/Ideas makes it inside another
+│   ├── rename FOLDER NAME      Rename a folder
+│   │       --[no-]allow-shared
+│   ├── delete FOLDER           Delete an empty folder, or with --recursive --expected-notes N everything in it (ask the user first)
+│   │       --[no-]recursive --expected-notes int
+│   └── export FOLDER TO        Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+```
+
+- **Flag names:** a field's flag has dashes for underscores, so `modified_after` is `--modified-after`.
+- **True-or-false fields:** `--outline` turns one on and `--no-outline` turns it off.
+- **Lists:** a field that holds a list repeats its flag in the singular: `notes read --id 1A2B3C4D --id 5E6F7A8B`.
+- **Objects:** a field of objects takes JSON: `--replace '[{"old":"- [ ] Milk","new":"- [x] Milk"}]'`.
+- **Markdown from stdin:** `-` as the Markdown of `notes create`, or as `--insert` or `--rewrite`, reads it from stdin, for notes of many lines.
+- **Fields as JSON:** `--json '{…}'` gives fields by their MCP names, and `--json -` reads them from stdin. Flags override them.
+- **Any tool:** `call TOOL '{…}'` runs a tool on its MCP arguments.
+- **Help:** `--help` after a command lists its flags and what each one takes.
+
+A command prints exactly what the tool answers, which is text, often Markdown.
+- **Exit status 1:** the request failed (not found, changed since it was read, not allowed). The reason is on stderr.
+- **Exit status 2:** the command or a flag was wrong.
+
+`notes list` without filters lists the newest notes; `folders list` gives the folder tree, which `overview` gives without arguments. `attachments read` prints what can be read from an attachment, and saves its images, audio and files to `--output-dir`, or to the temporary folder, printing where. Only the first word decides what the program does, so you can search for `setup`. Put `--` before a word that starts with `-`.
+
+```bash
+apple-notes-mcp notes search "tax return" --folder Finance
+apple-notes-mcp notes read 1A2B3C4D
+apple-notes-mcp notes edit 1A2B3C4D --insert "- [ ] Call the bank" --at "To do"
+apple-notes-mcp notes create - --folder Projects <<'EOF'
+# Trip plan
+- [ ] Book the train
+EOF
+```
+
 ## Install
 
 Releases are built for Apple silicon and need macOS 26 or later. The default way to install and set up is with Homebrew:
@@ -59,6 +136,8 @@ brew install --cask xiaofeng-han/tap/apple-notes-mcp
 apple-notes-mcp setup                  # allow it to control Notes; shows where to give Full Disk Access
 apple-notes-mcp agents set-up --all    # register the server with the agents on this Mac
 ```
+
+To give the agents the skill instead of the server, add `--skill` to the last command (see [Server or skill](#server-or-skill)).
 
 Instead of the last two commands, you can open Apple Notes MCP from Applications: set up your agents in its **AI Assistants** tab, and give it its permissions under **General**. Without Homebrew, install [from the package](#from-the-package).
 
@@ -131,6 +210,46 @@ apple-notes-mcp agents install opencode    # installs, then sets up; --dry-run o
 
 `agents set-up` leaves the Claude app alone while it is open, unless you add `--restart`.
 
+### Server or skill
+
+Above the list, **Set Up As** chooses how agents use this app:
+- **MCP Server** (the default): the agent starts `apple-notes-mcp --stdio`, and its 10 tools are always loaded.
+- **Skill:** Set Up writes a skill, `apple-notes/SKILL.md`, which teaches the agent the [command line](#command-line).
+  - The agent reads the skill only when notes come up, and runs the commands in its shell, so no tool list sits in its context.
+  - The skill names this copy's command by its full path.
+  - After the app is upgraded, the button reads **Update** if the skill's text has changed.
+
+With no folder chosen, the skill goes in each agent's own skills folder and works in every project. **Choose…** picks a project folder instead, and the skill goes only there. **All Projects** switches back.
+
+| Agent | Skill for every project | Skill in a project folder |
+|---|---|---|
+| Claude Code, and the Claude app's Code tab | `~/.claude/skills/` (`$CLAUDE_CONFIG_DIR/skills/`) | `.claude/skills/` |
+| Codex CLI and the ChatGPT app, OpenCode and OpenCode Desktop, Gemini CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Grok Build | `~/.grok/skills/` | `.agents/skills/` |
+| Antigravity app | `~/.gemini/config/skills/` | `.agents/skills/` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | `.agents/skills/` |
+
+- **Shared folders:** agents that read the same folder share one file. pi reads `~/.agents/skills` too.
+- **Other skills of the same name:** a skill named `apple-notes` that this app did not write is left alone, and the row shows **Another Skill**.
+- **Server and skill together:** setting up one way never changes the other. An agent can have both, and its row says so.
+- **Agents that cannot use the skill:** Grok Bot and the Gemini app cannot run commands on this Mac. The skill works in the Claude app's Code tab, but not in its chat.
+
+Some agents run shell commands in a sandbox. Codex does by default, and inside its sandbox macOS keeps every program away from the Notes database and from controlling Notes. When that happens:
+1. The command says that it ran inside a sandbox.
+2. The skill tells the agent to run the command again outside the sandbox.
+3. Codex asks you to approve that.
+
+Agents that start the MCP server do not have this problem.
+
+The same in the terminal:
+
+```bash
+apple-notes-mcp agents list --skill                                   # where each agent's skill is, and whether it is current
+apple-notes-mcp agents set-up --all --skill                           # every installed agent, for every project
+apple-notes-mcp agents set-up claude-code codex --folder ~/code/app   # one project (--folder implies --skill)
+apple-notes-mcp skill                                                 # print the skill, to install it by hand anywhere
+```
+
 ### Build from source
 
 ```bash
@@ -171,6 +290,8 @@ The app's AI Assistants tab, or `apple-notes-mcp agents set-up`, does this for y
 - OpenCode (`~/.config/opencode/opencode.json`): `"mcp": {"servers": {"apple-notes": {"type": "local", "command": ["<command>", "--stdio"]}}}`
 - pi (`mcpServers` in `~/.pi/agent/mcp.json`): `{"type": "stdio", "command": "<command>", "args": ["--stdio"]}`
 
+To install the skill by hand, save what `apple-notes-mcp skill` prints as `apple-notes/SKILL.md` in the agent's skills folder (see [Server or skill](#server-or-skill)).
+
 For debugging, set `APPLE_NOTES_MCP_WIRE_LOG=<file>` to log every message sent and received.
 
 ## Tests
@@ -181,7 +302,11 @@ For debugging, set `APPLE_NOTES_MCP_WIRE_LOG=<file>` to log every message sent a
 swift test
 ```
 
-`e2e.py` runs every tool over stdio, 52 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment`. `swift test` checks the Markdown conversion (including that every kind of line reads back the same), the planning of edits, the stored-body decoder, and the agent setup.
+`e2e.py` runs every tool over stdio, and the main command-line commands, 66 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment`. `swift test` checks, in throwaway folders where files are involved:
+- the Markdown conversion, including that every kind of line reads back the same;
+- the planning of edits, and the stored-body decoder;
+- the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, how each agent's settings are read and written, and where each agent's skill goes;
+- how command-line flags are read from the tools' input schemas.
 
 ## Limits
 

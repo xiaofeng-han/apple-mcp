@@ -15,6 +15,7 @@ let package = Package(
         .target(name: "Agents", dependencies: ["Launcher"]),
         .executableTarget(name: "AppleNotesMCP", dependencies: ["Wire", "Launcher", "NotesShim", "NoteModel", "Agents"]),
         .testTarget(name: "AgentsTests", dependencies: ["Agents"]),
+        .testTarget(name: "WireTests", dependencies: ["Wire"]),
         .testTarget(name: "NoteModelTests", dependencies: ["NoteModel"]),
     ]
 )

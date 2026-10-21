@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Launcher
 import NoteModel
 import Wire
 
@@ -21,8 +22,11 @@ enum Output {
     private static var settingsOpened = false
 
     /// A missing permission also opens the settings window on the Mac, once per server: a window
-    /// already open (another copy of the app, with a Dock icon) is brought forward instead.
+    /// already open (another copy of the app, with a Dock icon) is brought forward instead. In a
+    /// sandbox the permissions are out of reach whatever the settings say, so it asks for the
+    /// command to be run outside instead.
     static func explain(_ error: NotesError) -> String {
+        if case .noAccess = error, launcher_is_sandboxed() != 0 { return Permissions.sandboxHelp }
         guard case .noAccess = error, !settingsOpened, Bundle.main.bundleURL.pathExtension == "app" else { return error.description }
         settingsOpened = true
         let window = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")

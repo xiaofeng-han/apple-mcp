@@ -40,11 +40,7 @@ public enum ConfigTarget: String, Sendable, CaseIterable {
     /// here or in the login shell, unless `home` is another folder than the user's (a test's).
     public func file(home: URL = Shell.home) -> URL {
         let manager = FileManager.default
-        let ownHome = home.standardizedFileURL.path == Shell.home.standardizedFileURL.path
-        func variable(_ name: String) -> URL? {
-            guard ownHome, let value = Shell.variable(name) else { return nil }
-            return URL(fileURLWithPath: (value as NSString).expandingTildeInPath, isDirectory: true)
-        }
+        func variable(_ name: String) -> URL? { Shell.relocated(name, home: home) }
         func folder(_ name: String, _ fallback: String) -> URL {
             variable(name) ?? home.appendingPathComponent(fallback, isDirectory: true)
         }

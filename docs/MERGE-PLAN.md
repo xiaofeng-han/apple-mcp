@@ -6,7 +6,7 @@
 
 ## 结论
 
-可以合并，而且现在是代价最低的时候：两个仓库是同一骨架的两份拷贝，共享部分（`Wire`、`Launcher`、`Agents`，约 3,200 行）除产品字串外逐字相同，设置窗口与命令行的机制也已对齐；两个项目都在今天刚发版，命令行等新功能都还没发出去，受影响的用户最少。再拖下去，两边会再次分叉：Reminders 今天加的三项功能，Notes 要专门补一轮才跟上。
+可以合并，而且现在是代价最低的时候：两个仓库是同一骨架的两份拷贝，共享部分（`Wire`、`Launcher`、`Agents`，约 3,200 行）除产品字串外逐字相同，设置窗口与命令行的机制也已对齐；两个项目都在今天刚发版，命令行等新功能都还没发出去，而且定了不再单独发（见下表「发版」），受影响的用户最少。再拖下去，两边会再次分叉：Reminders 今天加的三项功能，Notes 要专门补一轮才跟上。
 
 方案一句话：**一个仓库、一个 Swift package、一个 App（`AppleMCP.app`，bundle id `com.xiaofeng.apple-mcp`）、一个设置窗口，但 agent 里注册的仍是按组件分开的 MCP 服务器**——`apple-notes` 只给备忘录的工具，`apple-reminders` 只给提醒事项的工具。权限授给这一个 App，所有组件共用。每个组件是一个独立 target，实现一个 `Component` 协议；以后加 Calendar、Contacts 就是再加一个 target、在注册表里加一行。
 
@@ -18,6 +18,7 @@
 | 仓库 | GitHub 上把 `apple-reminders-mcp` 改名为 `apple-mcp`（旧地址自动重定向，stars/issues/releases 保留），把 `apple-notes-mcp` 的历史并进去；`apple-notes-mcp` 归档，README 指向新仓库 |
 | 服务器 | 仍按组件分开注册：`apple-notes`、`apple-reminders`（以后 `apple-calendar`、`apple-contacts`）；合并成一个服务器只作为以后的可选项 |
 | 命令名 | 旧命令 `apple-notes-mcp`、`apple-reminders-mcp` 在 Homebrew 里保留为包装脚本，现有 agent 配置一字不改继续有效 |
+| 发版 | 两边不再单独发版（没有 Notes 0.2.0 / Reminders 0.3.0）。命令行、技能和工具标签页随 Apple MCP 1.0.0 第一次发出；在那之前 Notes 停在 0.1.0，Reminders 停在 0.2.4（2026-10-21 定） |
 
 ## 1. 现状调查
 
@@ -68,7 +69,7 @@ Notes 有 5 个提交（0.1.0 一个 squash 提交，加 PR #1 的三个提交�
 | pkg | `~/Applications/AppleNotesMCP.app/Contents/MacOS/AppleNotesMCP --stdio`（或 `/Applications/…`） | pkg 收据 |
 | 两者 | 服务器名 `apple-notes`、`apple-reminders`；TCC 授权记在 bundle id + 签名要求上（Notes：完全磁盘访问 + 自动化→备忘录；Reminders：提醒事项，完全磁盘访问可选）；支持目录与 defaults（见 1.2） | |
 
-命令行、技能和工具开关在两边都还没发版：装着 0.1.0 / 0.2.4 的用户没有 `apple-notes/SKILL.md`、`apple-reminders/SKILL.md` 或 `tools.json`。从 main 自己构建的人（目前是作者本机）可能都有，技能 frontmatter 的 `command:` 指向旧可执行文件。若合并版之前不再单独发版（见第 10 节），迁移这些只是为了这些人，但代码一样要写。
+命令行、技能和工具开关在两边都还没发版：装着 0.1.0 / 0.2.4 的用户没有 `apple-notes/SKILL.md`、`apple-reminders/SKILL.md` 或 `tools.json`。从 main 自己构建的人（目前是作者本机）可能都有，技能 frontmatter 的 `command:` 指向旧可执行文件。因为合并前不再单独发版（见「已定决策」），迁移这些只是为了这些人；代码照样要写，但不必为已发版的旧技能文本或旧 `tools.json` 格式另做兼容。
 
 ### 1.4 已查证的外部事实
 
@@ -372,7 +373,7 @@ extension Installation {
 | defaults | 域 `com.xiaofeng.apple-notes-mcp`、`com.xiaofeng.apple-reminders-mcp` | 域 `com.xiaofeng.apple-mcp` | `Settings.bool/string(key, legacyDomains:)`：新域没有该键时用 `CFPreferencesCopyAppValue(key, 旧域)` 读，读到就写入新域一次。键：`InterfaceLanguage`（两边都有时 Reminders 优先）、`AllowCompletingRecurringReminders`；新键 `EnabledComponents`（缺省 = 全部） |
 | `tools.json` | 两边各一份 | 每组件一份：`AppleMCP/<id>/tools.json`；覆盖变量 `APPLE_MCP_<ID>_TOOLS_FILE` | 随目录复制；没有文件 = 全部工具 |
 | 环境变量 | `APPLE_NOTES_MCP_*`、`APPLE_REMINDERS_MCP_*` | `APPLE_MCP_RELAUNCHED`、`APPLE_MCP_WIRE_LOG`、`APPLE_MCP_<ID>_WRITE_GUARD`、`APPLE_MCP_<ID>_TOOLS_FILE` | `Env.scoped/global` 新名优先、旧名回退，1.x 内保留，文档写明移除版本 |
-| 技能文件 | `apple-notes/SKILL.md`、`apple-reminders/SKILL.md`，`command:` 指向旧可执行文件 | 同名同 marker | Homebrew 用户：包装路径不变 → `.current`；pkg 用户：命令路径变了 → 显示「更新」一次。frontmatter 只在有参数时加 `args: ["notes"]` / `args: ["reminders"]`。两个技能都还没发版（1.3） |
+| 技能文件 | `apple-notes/SKILL.md`、`apple-reminders/SKILL.md`，`command:` 指向旧可执行文件 | 同名同 marker | Homebrew 用户：包装路径不变 → `.current`；pkg 用户：命令路径变了 → 显示「更新」一次。frontmatter 只在有参数时加 `args: ["notes"]` / `args: ["reminders"]`。两个技能都不会在合并前发版（1.3） |
 | 权限 | 授给两个旧 bundle id | 授给 `com.xiaofeng.apple-mcp` | 必须重授一次：`apple-mcp setup` 横幅说明并一次走完所有组件；通用标签页显示未授项；服务器第一次被拒时打开设置窗口一次（`SettingsWindow.openOnce()`，两个组件都有）。文档给出可选的清理：`tccutil reset All com.xiaofeng.apple-notes-mcp`、`tccutil reset All com.xiaofeng.apple-reminders-mcp` |
 | 旧 App | `/Applications`、`~/Applications` 下的 `AppleNotesMCP.app`、`AppleRemindersMCP.app` | — | 设置窗口检测到就提供「移到废纸篓并 `pkgutil --forget`」；Homebrew 用户由 cask 迁移自动卸载 |
 
@@ -427,7 +428,7 @@ extension Installation {
 
 ## 9. 分阶段实施
 
-每一阶段都能独立验证；前两阶段不发版。
+每一阶段都能独立验证；阶段 5 之前不发任何版本，包括两个旧仓库（见「已定决策」的发版一行）。
 
 | 阶段 | 内容 | 验证 |
 |---|---|---|
@@ -451,9 +452,10 @@ extension Installation {
   - AI 助手标签的布局（分段选择还是每组件一列）。
   - 图标。
   - 版本号从 1.0.0 开始。
-  - 合并前要不要先单独发 Notes 0.2.0 / Reminders 0.3.0，把命令行、技能和工具开关发出去。先发：用户早一点用上，但多一次升级，迁移要真正处理已装的技能和 `tools.json`。不发：合并版 1.0.0 一次带上，迁移只照顾从 main 构建的人。倾向不发，理由同「结论」。
   - `apple-mcp` 直接调用时能否省掉与组件同名的名词：组件词后面若不是该组件的名词，而是同名名词的动词，就当省略了名词（`apple-mcp notes search` = `apple-mcp notes notes search`）。`Invocation.parse` 里加一条规则，有单测。省略后若与某个全局模式同名（`setup`、`skill`、`help`），仍按全局模式。
-- 已定（原待定）：Notes 也提供命令行与技能——PR #1 已实现，路由与技能正文直接搬进 `NotesComponent`。
+- 已定（原待定）：
+  - Notes 也提供命令行与技能：PR #1 已实现，路由与技能正文直接搬进 `NotesComponent`。
+  - 合并前不单独发版：命令行、技能和工具标签页随 Apple MCP 1.0.0 一起发（2026-10-21 定）。代价是用户晚一点用上这三项；好处是少一次升级，迁移不必处理已发版的技能和 `tools.json`。
 
 ## 附录：仓库操作
 

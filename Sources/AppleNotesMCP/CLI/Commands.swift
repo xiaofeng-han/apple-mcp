@@ -193,8 +193,10 @@ enum Commands {
     }
 
     /// Runs the tool and prints its answer; images, audio and files in it are saved, and printed
-    /// as where they went.
+    /// as where they went. A tool turned off in the settings window's Tools tab is refused here
+    /// too: agents set up with the skill run these commands.
     static func execute(_ tool: Tool, _ arguments: [String: JSON], hint: String, output: String?) async -> Int32 {
+        if let refusal = Settings.exposure.refusal(tool, among: tools) { return fail(reword(refusal), status: 1) }
         let answer: ToolAnswer
         do {
             answer = try await tool.run(arguments)

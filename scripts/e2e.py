@@ -312,6 +312,14 @@ if image:
     check("cli: attachments read saves the image", code == 0 and saved and all(os.path.exists(p) for p in saved), (code, out, err))
 code, out, err = cli("skill")
 check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-notes\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
+# The choice of tools holds on the command line too, which the skill uses.
+with open(TOOLS_FILE + ".new", "w") as f:
+    json.dump({"tools": {name: name not in ("read_note", "manage_folder") for name in tools}}, f)
+os.replace(TOOLS_FILE + ".new", TOOLS_FILE)
+code, out, err = cli("notes", "read", C or "none"); check("cli: a turned-off tool exits 1", code == 1 and "notes read is turned off" in err and "Tools tab" in err and out == "", (code, out, err))
+code, out, err = cli("call", "read_note", json.dumps({"id": C})); check("cli: call refuses a turned-off tool", code == 1 and "turned off" in err, (code, out, err))
+code, out, err = cli("notes", "search", "命令行", "--folder", "agent test"); check("cli: other tools still run", code == 0 and C in out, (code, out, err))
+os.remove(TOOLS_FILE)
 
 # Export, then delete everything.
 out = os.path.join(tempfile.mkdtemp(), "agent test export.zip")

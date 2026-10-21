@@ -267,11 +267,7 @@ public final class Service: Sendable {
     func call(_ params: [String: JSON]) async throws -> JSON {
         guard let toolName = params["name"]?.string else { throw BadInput("tools/call needs a tool name") }
         guard let tool = tools.first(where: { $0.name == toolName }) else { throw BadInput("There is no tool named \(toolName)") }
-        if let exposure {
-            let (offered, problem) = offered()
-            if let problem { throw BadInput(problem) }
-            guard offered.contains(where: { $0.name == toolName }) else { throw BadInput(exposure.turnedOff(toolName)) }
-        }
+        if let refusal = exposure?.refusal(tool, among: tools) { throw BadInput(refusal) }
         let arguments: [String: JSON]
         switch params["arguments"] {
         case nil, .null?: arguments = [:]

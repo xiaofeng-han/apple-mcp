@@ -154,6 +154,16 @@ extension Service {
         #expect(await service.send("tools/call", ["name": "nothing"])?["error"]?["message"]?.string == "There is no tool named nothing")
     }
 
+    @Test func refusalSaysWhy() throws {
+        let box = try Box()
+        let readA = sample.first { $0.name == "read_a" }!
+        #expect(box.exposure.refusal(readA, among: sample) == nil)
+        try box.exposure.save(["read_a": false])
+        #expect(box.exposure.refusal(readA, among: sample) == "read_a is turned off. The user can turn it on in the Tools tab.")
+        try box.write("{")
+        #expect(box.exposure.refusal(readA, among: sample)?.contains("can't be read") == true)
+    }
+
     @Test func withoutExposureNothingChanges() async {
         let service = Service(name: "test", version: "1", instructions: "Base.", tools: sample)
         let initialized = await service.send("initialize", ["protocolVersion": "2025-06-18"])

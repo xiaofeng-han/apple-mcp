@@ -111,6 +111,16 @@ public struct ToolExposure: Sendable {
         return tools.filter { Self.exposes($0, among: tools, choices: choices) }
     }
 
+    /// Why `tool` may not run now, or nil when it is offered: for the server and the command line,
+    /// which both re-read the file first.
+    public func refusal(_ tool: Tool, among tools: [Tool]) -> String? {
+        do {
+            return try offered(tools).contains { $0.name == tool.name } ? nil : turnedOff(tool.name)
+        } catch {
+            return unreadable(error)
+        }
+    }
+
     func turnedOff(_ name: String) -> String {
         "\(name) is turned off. The user can turn it on in \(changedIn)."
     }

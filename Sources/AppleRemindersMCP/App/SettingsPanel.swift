@@ -128,23 +128,16 @@ final class PanelState: ObservableObject {
 }
 
 struct PanelView: View {
-    enum Tab { case general, agents }
+    enum Tab { case agents, general }
 
     @ObservedObject var state: PanelState
     @ObservedObject var agents: AgentsState
-    @State private var tab: Tab
-
-    init(state: PanelState, agents: AgentsState) {
-        self.state = state
-        self.agents = agents
-        // The assistants come first once Reminders access is settled.
-        _tab = State(initialValue: state.reminders == .fullAccess ? .agents : .general)
-    }
+    @State private var tab = Tab.agents
 
     var body: some View {
         TabView(selection: $tab) {
-            GeneralView(state: state).tabItem { Text(state.text("General", "通用")) }.tag(Tab.general)
             AgentsView(state: state, agents: agents).tabItem { Text(state.text("AI Assistants", "AI 助手")) }.tag(Tab.agents)
+            GeneralView(state: state).tabItem { Text(state.text("General", "通用")) }.tag(Tab.general)
         }
         .frame(width: 580, height: 660)
     }

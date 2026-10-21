@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）读写 macOS「备忘录」的 MCP 服务器，格式都是原生的。它的设置窗口会找出 Mac 上的 agent，一键配好每一个，没装的也能直接安装。
+让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）读写 macOS「备忘录」的 MCP 服务器，格式都是原生的。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
 - **读**：经「备忘录」自己的数据模型，以只读方式打开它的数据库：标题、小标题、列表、清单（含勾选状态）、表格、链接、高亮和附件都转成 Markdown。
 - **改**：经私有框架 NotesShared 原地修改，和「备忘录」自己改的方式一样：只写变化的部分，逐字修改，所以 Markdown 表达不了的东西（颜色、字体、对齐）保持原样，其他设备上的修改也能合并。每次修改先在副本上演练一遍，写完再读回来核对。
@@ -49,6 +49,84 @@
 - 加锁的笔记不能读也不能改。共享的笔记可以编辑（与其他人的修改合并），但这里不删除；移进或移出共享文件夹要 `allow_shared`（先问用户）。
 - `delete_note` 和递归删除文件夹只把笔记移到「最近删除」；已经在那里的笔记会被拒绝（再删一次就永久删除了）。递归删除要传 `expected_notes`（调用方看到的笔记数），并且在动手之前把所有条件检查完。
 - 导出只能写到还不存在的路径，且不能在 `~/Library` 里。
+- 任何工具都可以在设置窗口里对所有 AI 助手关掉（见[选择开放的工具](#选择开放的工具)）。
+
+## 命令行
+
+每个工具也是一条命令，所以在终端里、在 agent 的 shell 里都能用，[技能](#服务器还是技能)用的就是它。命令由名词加动词组成。参数来自工具的输入字段，也就是上面那些工具的字段。`apple-notes-mcp help` 打印整棵命令树：
+
+```text
+apple-notes-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask to control Notes, and show where to give Full Disk Access
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── notes
+│   ├── list                    List notes, newest first, one line each (id | title | date | size | description) (the default)
+│   │       --folder string --modified-after string --modified-before string --created-after string
+│   │       --created-before string --sort modified|created|title --[no-]undescribed --limit int
+│   ├── search QUERY            Full-text search of titles and text, best matches first, with the text around each match
+│   │       --match all|any --folder string --modified-after string --modified-before string
+│   │       --created-after string --created-before string --sort modified|created|title --limit int
+│   ├── read [ID]               Print notes as Markdown, each with the version that notes edit takes
+│   │       --id string… --title string --section string --[no-]outline
+│   ├── create MARKDOWN         Create a note from Markdown; its first line is the title
+│   │       --folder string
+│   ├── edit ID                 Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note
+│   │       --version string --replace json --insert string --at string --rewrite string
+│   ├── delete ID               Move a note to Recently Deleted (notes move brings it back)
+│   ├── move ID FOLDER          Move a note to another folder, or back from Recently Deleted
+│   │       --[no-]allow-shared
+│   └── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
+├── attachments
+│   └── read ID                 Open an attachment from a ![…](attachment:ID) placeholder: print its text, save its images, audio and files
+│           --[no-]text-only --output-dir string
+├── folders
+│   ├── list                    The folders, with how many notes each holds (the default)
+│   │       --depth int
+│   ├── create PATH             Create a folder; a path such as Projects/Ideas makes it inside another
+│   ├── rename FOLDER NAME      Rename a folder
+│   │       --[no-]allow-shared
+│   ├── delete FOLDER           Delete an empty folder, or with --recursive --expected-notes N everything in it (ask the user first)
+│   │       --[no-]recursive --expected-notes int
+│   └── export FOLDER TO        Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+```
+
+- **参数名：**字段名里的下划线换成短横线，`modified_after` 就是 `--modified-after`。
+- **是非字段：**`--outline` 打开，`--no-outline` 关闭。
+- **列表：**取列表的字段用单数形式重复写：`notes read --id 1A2B3C4D --id 5E6F7A8B`。
+- **对象：**对象字段写 JSON：`--replace '[{"old":"- [ ] Milk","new":"- [x] Milk"}]'`。
+- **从标准输入读 Markdown：**`notes create` 的 Markdown，或 `--insert`、`--rewrite` 写成 `-`，就从标准输入读，适合多行的笔记。
+- **用 JSON 传字段：**`--json '{…}'` 按 MCP 的字段名传参，`--json -` 从标准输入读；同时给的参数会覆盖它。
+- **任意工具：**`call TOOL '{…}'` 用 MCP 参数直接调用任意工具。
+- **帮助：**命令后面加 `--help`，列出它的参数和各自的写法。
+
+命令的输出就是工具的回答，是文本，常常是 Markdown。
+- **退出码 1：**请求失败（找不到、读取后被改过、不允许），原因写在 stderr。
+- **退出码 2：**命令或参数写错了。
+
+`notes list` 不加筛选时列出最新的笔记；文件夹树用 `folders list`（也就是不带参数的 `overview`）。`attachments read` 打印附件里能读出的文字，把其中的图片、音频和文件存到 `--output-dir`（默认存进临时文件夹），并打印位置。只有第一个词决定做什么，所以可以搜索 `setup`。以 `-` 开头的词前面加 `--`。
+
+```bash
+apple-notes-mcp notes search "报税" --folder Finance
+apple-notes-mcp notes read 1A2B3C4D
+apple-notes-mcp notes edit 1A2B3C4D --insert "- [ ] 给银行打电话" --at "待办"
+apple-notes-mcp notes create - --folder Projects <<'EOF'
+# 旅行计划
+- [ ] 订火车票
+EOF
+```
 
 ## 安装
 
@@ -59,6 +137,8 @@ brew install --cask xiaofeng-han/tap/apple-notes-mcp
 apple-notes-mcp setup                  # 允许它控制「备忘录」，并打开完全磁盘访问的设置
 apple-notes-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 agent
 ```
+
+想给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`（见[服务器还是技能](#服务器还是技能)）。
 
 后两条命令也可以换成打开「应用程序」里的 Apple Notes MCP：在「AI 助手」标签页配置 agent，在「通用」里授予权限。不用 Homebrew 的话，见[用安装包](#用安装包)。
 
@@ -97,7 +177,7 @@ apple-notes-mcp --self-check   # 显示两项权限，并数一下笔记
 
 完全磁盘访问要手动打开：系统设置 → 隐私与安全性 → 完全磁盘访问，打开 Apple Notes MCP；列表里没有就点 ＋ 添加（用安装包「仅为我安装」的在 `~/Applications`，其他情况在 `/Applications`）。
 
-直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口会出现在最前面，停在「**AI 助手**」标签页；「**通用**」标签页显示两项权限和授权按钮，以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选（`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`，或 `en`；删掉这一项就跟随系统）。agent 调用服务器时如果缺权限，服务器会打开这个窗口一次，并告诉 agent。
+直接双击 App（或用 `--settings` 参数启动）会打开设置窗口。窗口会出现在最前面，停在「**AI 助手**」标签页；「**工具**」标签页选择 AI 助手能用哪些工具；「**通用**」标签页显示两项权限和授权按钮，以及窗口的语言：英文或简体中文，默认跟随系统，也可以自己选（`defaults write com.xiaofeng.apple-notes-mcp InterfaceLanguage -string zh-Hans`，或 `en`；删掉这一项就跟随系统）。agent 调用服务器时如果缺权限，服务器会打开这个窗口一次，并告诉 agent。
 
 ### 配置 AI 助手
 
@@ -130,6 +210,64 @@ apple-notes-mcp agents install opencode    # 安装后接着配置；加 --dry-r
 ```
 
 Claude App 开着的时候，`agents set-up` 不会动它，除非加 `--restart`。
+
+### 服务器还是技能
+
+列表上方的「配置方式」决定 agent 怎么用这个 App：
+- **MCP 服务器**（默认）：agent 启动 `apple-notes-mcp --stdio`，10 个工具一直加载着。
+- **技能：**「配置」会写入一个技能 `apple-notes/SKILL.md`，教 agent 使用[命令行](#命令行)。
+  - agent 只在涉及备忘录时才读它，并在自己的 shell 里运行命令，上下文里不会一直挂着工具列表。
+  - 技能里写的是这份副本命令的完整路径。
+  - App 升级后，如果技能内容有变，按钮会显示「更新」。
+
+不选文件夹时，技能放在每个 agent 自己的技能文件夹里，所有项目都能用。点「选择…」改选一个项目文件夹，技能就只放在那里；点「所有项目」改回来。
+
+| Agent | 所有项目都能用的技能 | 项目文件夹里的技能 |
+|---|---|---|
+| Claude Code，以及 Claude App 的 Code 标签页 | `~/.claude/skills/`（`$CLAUDE_CONFIG_DIR/skills/`） | `.claude/skills/` |
+| Codex CLI 和 ChatGPT App、OpenCode 和 OpenCode Desktop、Gemini CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Grok Build | `~/.grok/skills/` | `.agents/skills/` |
+| Antigravity App | `~/.gemini/config/skills/` | `.agents/skills/` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/` | `.agents/skills/` |
+
+- **共用文件夹：**读同一个文件夹的 agent 共用一个文件。pi 也读 `~/.agents/skills`。
+- **同名技能：**不是本 App 写的同名技能 `apple-notes` 不会被改动，那一行显示「已有同名技能」。
+- **服务器和技能并存：**用一种方式配置，永远不会改动另一种。一个 agent 可以两种都配，那一行会注明。
+- **用不了技能的 agent：**Grok Bot 和 Gemini App 不能在这台 Mac 上运行命令。Claude App 的 Code 标签页能用技能，聊天里不能。
+
+有些 agent 在沙盒里运行 shell 命令。Codex 默认就这样，而在它的沙盒里，macOS 不让任何程序读「备忘录」的数据库、也不让控制「备忘录」。这种情况下：
+1. 命令会说明它是在沙盒里运行的。
+2. 技能会让 agent 在沙盒外重新运行这条命令。
+3. Codex 会请你批准。
+
+启动 MCP 服务器的 agent 没有这个问题。
+
+终端里也能做：
+
+```bash
+apple-notes-mcp agents list --skill                                   # 每个 agent 的技能在哪、是否最新
+apple-notes-mcp agents set-up --all --skill                           # 所有已安装的 agent，所有项目都能用
+apple-notes-mcp agents set-up claude-code codex --folder ~/code/app   # 只放进一个项目（--folder 隐含 --skill）
+apple-notes-mcp skill                                                 # 打印技能，方便手动装到任何地方
+```
+
+### 选择开放的工具
+
+窗口的「工具」标签页按名字列出 10 个工具，每个都写明用途并带一个标签：「只读」「修改」或「可删除」。勾上允许 AI 助手使用的工具。「全选」「全不选」「反选」「只读」（只开标着「只读」的工具）一次改动全部。选择立即保存在 `~/Library/Application Support/AppleNotesMCP/tools.json`，它在 App 之外，所以重启、更新、重装都不会丢：
+
+```json
+{
+  "tools" : {
+    "create_note" : true,
+    "delete_note" : false,
+    …
+  }
+}
+```
+
+改动立即生效。关掉的工具不会出现在工具列表里，硬要调用也会被拒绝，并告诉助手你可以在哪里重新打开。它对应的[命令](#命令行)也会被拒绝（退出码 1），所以用技能配置的 agent，以及你自己的终端，同样受这个选择约束。正在运行的助手会收到 `notifications/tools/list_changed`：2026-07-28 协议的客户端（Claude Code、Grok Build）在它们打开的 `subscriptions/listen` 流上收到，旧协议的客户端在初始化之后收到。Claude Code 会重新列出工具，同一个会话里就能看到变化；不理会这个通知的客户端要到新会话才会看到。这个版本之前启动的服务器不读这个文件，所以更新后把这些助手重启一次。
+
+以后版本新增的工具（文件里还没有它的名字）默认打开，除非你关掉了同一标签的其他工具：选过「只读」之后，新增的写入类工具也保持关闭。如果文件读不了（比如手动改坏了），在修好之前不开放任何工具；在标签页里重新选择会替换它，并把坏的那份保留为 `tools.json.bak-<日期>-<时间>`。`apple-notes-mcp --self-check` 会显示开放了几个工具。没有这个文件时，全部工具都开放。
 
 ### 从源码构建
 
@@ -171,6 +309,8 @@ App 的「AI 助手」标签页或 `apple-notes-mcp agents set-up` 会替你做�
 - OpenCode（`~/.config/opencode/opencode.json`）：`"mcp": {"servers": {"apple-notes": {"type": "local", "command": ["<命令>", "--stdio"]}}}`
 - pi（`~/.pi/agent/mcp.json` 的 `mcpServers`）：`{"type": "stdio", "command": "<命令>", "args": ["--stdio"]}`
 
+手动装技能：把 `apple-notes-mcp skill` 的输出存成 agent 技能文件夹里的 `apple-notes/SKILL.md`（见[服务器还是技能](#服务器还是技能)）。
+
 调试时设 `APPLE_NOTES_MCP_WIRE_LOG=<文件>`，会记下收发的每条消息。
 
 ## 测试
@@ -181,7 +321,12 @@ App 的「AI 助手」标签页或 `apple-notes-mcp agents set-up` 会替你做�
 swift test
 ```
 
-`e2e.py` 经 stdio 跑遍所有工具，共 52 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment`，它会读你的一张图片。`swift test` 检查 Markdown 转换（包括每种行都能原样读回）、修改计划、存储正文的解码，以及 agent 配置。
+`e2e.py` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 93 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment`，它会读你的一张图片。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
+- Markdown 转换，包括每种行都能原样读回；
+- 修改计划，以及存储正文的解码；
+- agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑、各 agent 设置的读写、各 agent 技能的位置；
+- 命令行参数如何从工具的输入 schema 读出；
+- 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
 ## 做不到的
 

@@ -1,22 +1,24 @@
 import AppKit
 import Combine
 import SwiftUI
+import Wire
 
-/// The window shown when the app is opened by hand: the AI assistants it can be set up with, and
-/// what it may access, in English or Chinese. (Plain ObservableObject and Binding, no SwiftUI
-/// macros: the Command Line Tools ship without the macro plugins.)
+/// The window shown when the app is opened by hand: the AI assistants it can be set up with, the
+/// tools they are offered, and what it may access, in English or Chinese. (Plain ObservableObject
+/// and Binding, no SwiftUI macros: the Command Line Tools ship without the macro plugins.)
 ///
 /// The app is a regular app (no LSUIElement), so macOS brings the window to the front when it is
 /// opened from Finder, Spotlight or `open`: an agent app is not given the foreground, and asking
 /// for it afterwards (NSApp.activate) is only a request since macOS 14.
 @MainActor
 enum SettingsPanel {
-    static func show() {
+    static func show(tools: [Tool]) {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let state = PanelState()
         let agents = AgentsState { [unowned state] in state.language }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state, agents: agents)))
+        let toolsState = ToolsState(tools: tools)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: PanelView(state: state, agents: agents, tools: toolsState)))
         window.title = "Apple Notes MCP"
         window.styleMask = [.titled, .closable]
         window.center()
@@ -30,7 +32,7 @@ enum SettingsPanel {
         }
         window.makeKeyAndOrderFront(nil)
         app.activate()
-        withExtendedLifetime((closer, state, agents, menu)) { app.run() }
+        withExtendedLifetime((closer, state, agents, toolsState, menu)) { app.run() }
     }
 
     /// The menu bar's app menu. Without it the app's name in the menu bar opens an empty menu and
@@ -157,15 +159,17 @@ final class PanelState: ObservableObject {
 }
 
 struct PanelView: View {
-    enum Tab { case agents, general }
+    enum Tab { case agents, tools, general }
 
     @ObservedObject var state: PanelState
     @ObservedObject var agents: AgentsState
+    @ObservedObject var tools: ToolsState
     @State private var tab = Tab.agents
 
     var body: some View {
         TabView(selection: $tab) {
             AgentsView(state: state, agents: agents).tabItem { Text(state.text("AI Assistants", "AI 助手")) }.tag(Tab.agents)
+            ToolsView(state: state, tools: tools).tabItem { Text(state.text("Tools", "工具")) }.tag(Tab.tools)
             GeneralView(state: state).tabItem { Text(state.text("General", "通用")) }.tag(Tab.general)
         }
         .frame(width: 580, height: 660)

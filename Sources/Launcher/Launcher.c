@@ -94,6 +94,14 @@ void launcher_become_responsible(const char *marker) {
     _exit(128 + (WIFSIGNALED(status) ? WTERMSIG(status) : 1));
 }
 
+typedef int (*sandbox_check_fn)(pid_t pid, const char *operation, int type, ...);
+
+int launcher_is_sandboxed(void) {
+    // Private libsystem_sandbox SPI; with no operation it answers whether the process is sandboxed.
+    sandbox_check_fn check = (sandbox_check_fn)dlsym(RTLD_DEFAULT, "sandbox_check");
+    return check ? check(getpid(), NULL, 0) > 0 : 0;
+}
+
 int launcher_spawn_disclaimed(const char *path, char *const argv[], char *const envp[], const char *directory, int output_fd,
                               pid_t *pid) {
     posix_spawnattr_t attrs;

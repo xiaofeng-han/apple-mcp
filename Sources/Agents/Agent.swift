@@ -37,6 +37,11 @@ public struct Agent: Sendable, Identifiable {
     /// is deprecated).
     let homebrewFirst: Bool
     public let reload: Reload
+    /// Where it reads skills from; nil when it cannot run this Mac's commands.
+    public internal(set) var skills: SkillTarget? = nil
+    /// Something the user should know about it as a skill, when its `note` does not fit (English,
+    /// Chinese).
+    public internal(set) var skillNote: (String, String)? = nil
 
     /// Finds it on this Mac.
     public func locate(home: URL = Shell.home) -> Presence {
@@ -150,27 +155,29 @@ extension Agent {
               note: ("Also used by the Code tab of the Claude app.", "Claude App 的 Code 标签页也用这里的配置。"),
               commands: ["claude"], folders: [".local/bin", ".claude/local"], identify: nil, bundleIDs: [], appNames: [],
               installers: [.cask("claude-code"), .script(URL(string: "https://claude.ai/install.sh")!), .npm("@anthropic-ai/claude-code")],
-              homebrewFirst: true, reload: .newSession),
+              homebrewFirst: true, reload: .newSession, skills: .claude),
         Agent(id: "claude", name: "Claude", vendor: "Anthropic", kind: .app, target: .claudeDesktop,
               note: ("Chat and the Code tab. Claude is restarted to load the server.", "聊天和 Code 标签页。配置时会重启 Claude 来加载。"),
               commands: [], folders: [], identify: nil, bundleIDs: ["com.anthropic.claudefordesktop"], appNames: ["Claude"],
               installers: [.cask("claude"), .app(bundleID: "com.anthropic.claudefordesktop", team: "Q6L2SF6YDW", site: "downloads.claude.ai", latest: Feeds.claude)],
-              homebrewFirst: true, reload: .quitFirst),
+              homebrewFirst: true, reload: .quitFirst, skills: .claude,
+              skillNote: ("The skill works in the Code tab, which shares Claude Code's skills; chat cannot run commands.",
+                          "技能在 Code 标签页里可用（和 Claude Code 共用技能）；聊天里不能运行命令。")),
         Agent(id: "codex", name: "Codex CLI", vendor: "OpenAI", kind: .commandLine, target: .codex, note: nil,
               commands: ["codex"], folders: [".local/bin"], identify: nil, bundleIDs: [], appNames: [],
               installers: [.cask("codex"), .script(URL(string: "https://chatgpt.com/codex/install.sh")!, shell: "/bin/sh"), .npm("@openai/codex")],
-              homebrewFirst: true, reload: .newSession),
+              homebrewFirst: true, reload: .newSession, skills: .agents),
         Agent(id: "chatgpt", name: "ChatGPT (Codex)", vendor: "OpenAI", kind: .app, target: .codex,
               note: ("The desktop app that Codex became; shares the Codex CLI's settings.", "Codex 并入后的桌面 App，和 Codex CLI 共用设置。"),
               commands: [], folders: [], identify: nil, bundleIDs: ["com.openai.codex"], appNames: ["ChatGPT", "Codex"],
               installers: [.cask("chatgpt"), .app(bundleID: "com.openai.codex", team: "2DC432GLL2", site: "persistent.oaistatic.com",
                                                   latest: Feeds.fixed("https://persistent.oaistatic.com/codex-app-prod/Codex.dmg"))],
-              homebrewFirst: true, reload: .restart),
+              homebrewFirst: true, reload: .restart, skills: .agents),
         Agent(id: "grok", name: "Grok Build", vendor: "xAI", kind: .commandLine, target: .grok, note: nil,
               // Homebrew's formula "grok" is an unrelated pattern matcher.
               commands: ["grok"], folders: [".grok/bin", ".local/bin"], identify: (["--help"], "Grok Build"), bundleIDs: [], appNames: [],
               installers: [.cask("grok-build"), .script(URL(string: "https://x.ai/cli/install.sh")!), .npm("@xai-official/grok")],
-              homebrewFirst: true, reload: .newSession),
+              homebrewFirst: true, reload: .newSession, skills: .grok),
         Agent(id: "grok-bot", name: "Grok Bot", vendor: "xAI", kind: .app, target: nil,
               note: ("Its MCP servers run on its cloud computer, so it cannot start this Mac's Notes server.",
                      "它的 MCP 服务器跑在云端电脑上，没法启动这台 Mac 上的备忘录服务器。"),
@@ -180,20 +187,20 @@ extension Agent {
         Agent(id: "opencode", name: "OpenCode", vendor: "OpenCode", kind: .commandLine, target: .opencode, note: nil,
               commands: ["opencode"], folders: [".opencode/bin", ".bun/bin"], identify: nil, bundleIDs: [], appNames: [],
               installers: [.formula("opencode"), .script(URL(string: "https://opencode.ai/v2/install")!), .npm("@opencode/cli")],
-              homebrewFirst: true, reload: .newSession),
+              homebrewFirst: true, reload: .newSession, skills: .agents),
         Agent(id: "opencode-desktop", name: "OpenCode Desktop", vendor: "OpenCode", kind: .app, target: .opencode,
               note: ("Shares the OpenCode command's settings.", "和 OpenCode 命令行共用设置。"),
               commands: [], folders: [], identify: nil, bundleIDs: ["ai.opencode.desktop"], appNames: ["OpenCode"],
               installers: [.cask("opencode-desktop"), .app(bundleID: "ai.opencode.desktop", team: nil, site: "opencode.ai",
                                                            latest: Feeds.fixed("https://opencode.ai/download/stable/darwin-aarch64-dmg"))],
-              homebrewFirst: true, reload: .restart),
+              homebrewFirst: true, reload: .restart, skills: .agents),
         Agent(id: "gemini", name: "Gemini CLI", vendor: "Google", kind: .commandLine, target: .gemini,
               note: ("Google no longer serves personal accounts in Gemini CLI; it needs an API key or a Code Assist license.",
                      "Gemini CLI 已不再支持个人账号登录，需要 API 密钥或 Code Assist 许可。"),
               commands: ["gemini"], folders: [], identify: nil, bundleIDs: [], appNames: [],
               // Homebrew's formula is deprecated and will be disabled.
               installers: [.npm("@google/gemini-cli")],
-              homebrewFirst: false, reload: .newSession),
+              homebrewFirst: false, reload: .newSession, skills: .gemini),
         Agent(id: "gemini-app", name: "Gemini", vendor: "Google", kind: .app, target: nil,
               note: ("Takes only remote MCP servers, added by URL on gemini.google.com. Antigravity, below, runs local ones.",
                      "只能用远程 MCP 服务器（在 gemini.google.com 按网址添加）。本地服务器请用下面的 Antigravity。"),
@@ -206,12 +213,12 @@ extension Agent {
               commands: [], folders: [], identify: nil, bundleIDs: ["com.google.antigravity"], appNames: ["Antigravity"],
               installers: [.cask("antigravity"), .app(bundleID: "com.google.antigravity", team: nil, site: "storage.googleapis.com",
                                                       latest: Feeds.homebrewCask("antigravity"))],
-              homebrewFirst: true, reload: .restart),
+              homebrewFirst: true, reload: .restart, skills: .antigravity),
         Agent(id: "agy", name: "Antigravity CLI", vendor: "Google", kind: .commandLine, target: .antigravity,
               note: ("The successor to Gemini CLI.", "Gemini CLI 的后继。"),
               commands: ["agy"], folders: [".local/bin"], identify: nil, bundleIDs: [], appNames: [],
               installers: [.cask("antigravity-cli"), .script(URL(string: "https://antigravity.google/cli/install.sh")!)],
-              homebrewFirst: true, reload: .newSession),
+              homebrewFirst: true, reload: .newSession, skills: .antigravityCLI),
     ]
 }
 

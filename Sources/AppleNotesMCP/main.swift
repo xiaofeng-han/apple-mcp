@@ -1,3 +1,4 @@
+import Agents
 import AppKit
 import Foundation
 import Launcher
@@ -5,23 +6,31 @@ import NoteModel
 import Wire
 
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
-let arguments = Set(CommandLine.arguments.dropFirst())
+let words = Array(CommandLine.arguments.dropFirst())
 
-/// What to do: `--stdio` (or input from a pipe or socket) serves MCP; `setup` checks and asks for
-/// the permissions from a terminal; `--self-check` prints a diagnosis; `agents` lists, sets up and
-/// installs AI agents; `--settings` (or a double-click in Finder) opens the settings window.
-enum Mode { case serve, setup, check, agents, settings }
+/// What to do, by the first word: `--stdio` (or, with no words, input from a pipe or socket)
+/// serves MCP; `setup` checks and asks for the permissions from a terminal; `--self-check` prints
+/// a diagnosis; `agents` lists, sets up and installs AI agents; `skill` prints the skill;
+/// `--settings` (or, with no words, a double-click in Finder) opens the settings window; anything
+/// else is a command (see Commands). Only the first word counts, so a search may be for "setup".
+enum Mode { case serve, setup, check, agents, skill, version, settings, command }
 
 let mode: Mode = {
-    if CommandLine.arguments.dropFirst().first == "agents" { return .agents }
-    if arguments.contains("setup") { return .setup }
-    if arguments.contains("--self-check") { return .check }
-    if arguments.contains("--settings") { return .settings }
-    if arguments.contains("--stdio") { return .serve }
-    var info = stat()
-    fstat(STDIN_FILENO, &info)
-    let kind = info.st_mode & S_IFMT
-    return kind == S_IFIFO || kind == S_IFSOCK ? .serve : .settings
+    switch words.first {
+    case "--stdio": return .serve
+    case "setup": return .setup
+    case "--self-check": return .check
+    case "agents": return .agents
+    case "skill": return .skill
+    case "--version": return .version
+    case "--settings": return .settings
+    case nil:
+        var info = stat()
+        fstat(STDIN_FILENO, &info)
+        let kind = info.st_mode & S_IFMT
+        return kind == S_IFIFO || kind == S_IFSOCK ? .serve : .settings
+    default: return .command
+    }
 }()
 
 // Only the app bundle has an identity worth holding the permissions; a bare build runs with
@@ -34,6 +43,9 @@ setvbuf(stdout, nil, _IOLBF, 0)
 /// APPLE_NOTES_MCP_WRITE_GUARD: while set (development and checks), only notes titled with this
 /// prefix, and folders named with it, may be changed.
 let writeGuard = ProcessInfo.processInfo.environment["APPLE_NOTES_MCP_WRITE_GUARD"].flatMap { $0.isEmpty ? nil : $0 }
+let store = MainActor.assumeIsolated { NotesStore(writeGuard: writeGuard) }
+/// What the server offers and the commands run.
+let tools = MainActor.assumeIsolated { readTools(store, Descriptions()) + attachmentTools(store) + writeTools(store) }
 
 func describe(_ state: Permissions.State) -> String {
     switch state {
@@ -86,21 +98,43 @@ case .check:
         print("Apple Notes MCP \(version) (\(Bundle.main.bundleIdentifier ?? "development build"))")
         print("Full Disk Access:", Permissions.fullDiskAccess ? "allowed" : "not allowed")
         print("Automation → Notes:", describe(Permissions.automation(ask: false)))
+        if launcher_is_sandboxed() != 0 { print("Sandbox: yes, so macOS keeps Notes out of reach; run this outside the sandbox") }
         do {
             let folders = try NotesStore(writeGuard: nil).folders()
             print("Notes data: OK, \(folders.reduce(0) { $0 + $1.noteCount }) notes in \(folders.count) folders")
         } catch {
             print("Notes data:", error)
         }
+        if Settings.toolsFileOverride != nil {
+            print("Tools file:", Settings.exposure.file.path, "(from APPLE_NOTES_MCP_TOOLS_FILE)")
+        }
+        do {
+            let offered = Set(try Settings.exposure.offered(tools).map(\.name))
+            let off = tools.map(\.name).filter { !offered.contains($0) }.sorted()
+            print("Tools offered to AI assistants: \(offered.count) of \(tools.count)" + (off.isEmpty ? "" : " (turned off: \(off.joined(separator: ", ")))"))
+        } catch {
+            print("Tools offered to AI assistants: none, \(Settings.exposure.file.path) can't be read (\(error))")
+        }
         if let writeGuard { print("Write guard: \"\(writeGuard)\"") }
         return 0
     }
 
 case .agents:
-    runThenExit { await AgentsCommand.run(Array(CommandLine.arguments.dropFirst(2))) }
+    runThenExit { await AgentsCommand.run(Array(words.dropFirst())) }
+
+case .skill:
+    print(Skill.text(for: Installation.detect()), terminator: "")
+    exit(0)
+
+case .version:
+    print("apple-notes-mcp \(version)")
+    exit(0)
+
+case .command:
+    runThenExit { await Commands.run(words, tools: tools) }
 
 case .settings:
-    MainActor.assumeIsolated { SettingsPanel.show() }
+    MainActor.assumeIsolated { SettingsPanel.show(tools: tools) }
     exit(0)
 
 case .serve:
@@ -113,11 +147,9 @@ case .serve:
         ![…](attachment:…) placeholders where they are. To describe many notes: overview with undescribed: \
         true, then one describe_note call.
         """
+    let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions,
+                          tools: tools, exposure: Settings.exposure)
     runThenExit {
-        let store = NotesStore(writeGuard: writeGuard)
-        let descriptions = Descriptions()
-        let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions,
-                              tools: readTools(store, descriptions) + attachmentTools(store) + writeTools(store))
         await StdioServer.run(service)
         return 0
     }

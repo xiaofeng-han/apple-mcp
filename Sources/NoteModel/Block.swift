@@ -79,16 +79,29 @@ public struct Run: Sendable, Equatable {
     public var text: String
     public var marks: Marks
     public var link: String?
+    /// The highlight's color, as Notes numbers them (`Highlight`); 0 without a highlight.
+    public var color: Int
 
-    public init(_ text: String, marks: Marks = [], link: String? = nil) {
+    public init(_ text: String, marks: Marks = [], link: String? = nil, color: Int = 0) {
         self.text = text
         self.marks = marks
         self.link = link
+        self.color = marks.contains(.highlight) ? max(color, Highlight.purple) : 0
     }
 }
 
-/// An attachment inside a paragraph, kept as an opaque placeholder. It is identified by its id;
-/// kind and label only describe it.
+/// Notes' highlight colors (TTEmphasis), in the order its Format menu and Shortcuts list them.
+public enum Highlight {
+    public static let purple = 1
+    public static let names = [1: "purple", 2: "pink", 3: "orange", 4: "mint", 5: "blue"]
+
+    public static func number(_ name: String) -> Int? { names.first { $0.value == name.lowercased() }?.key }
+}
+
+/// An attachment inside a paragraph. Most are opaque placeholders, identified by their id; kind
+/// and label only describe them. Those that are part of the text (`textKinds`: a tag "#name", a
+/// link to a note, a divider line) are what they show, so Markdown can write a new one, without
+/// an id.
 public struct Attachment: Sendable, Equatable {
     public var id: String
     public var kind: String
@@ -100,7 +113,33 @@ public struct Attachment: Sendable, Equatable {
         self.label = label
     }
 
-    public static func == (a: Attachment, b: Attachment) -> Bool { a.id == b.id }
+    public static func == (a: Attachment, b: Attachment) -> Bool {
+        if a.isText || b.isText { return a.kind == b.kind && a.label == b.label }
+        return a.id == b.id
+    }
+
+    /// Kinds that are part of the text, compared by what they show; and attachments Markdown
+    /// adds, from a file (the label is its path) or a web address, until they exist.
+    public static let textKinds: Set<String> = ["tag", "note link", "divider", Self.newFile, Self.newLinkCard]
+    public static let newFile = "+file", newLinkCard = "+link card"
+    public var isText: Bool { Self.textKinds.contains(kind) }
+
+    /// A new tag, as Markdown writes it: "#name".
+    public static func tag(_ name: String) -> Attachment { Attachment(id: "", kind: "tag", label: "#" + name) }
+
+    /// A new link to a note: its text and the note's id. The label is "text → id".
+    public static func noteLink(_ text: String, to note: String) -> Attachment {
+        Attachment(id: "", kind: "note link", label: text + " → " + note)
+    }
+
+    public static let divider = Attachment(id: "", kind: "divider")
+
+    /// A note link's text and the id of the note it goes to.
+    public var linkParts: (text: String, note: String)? {
+        guard kind == "note link", let arrow = label.range(of: " → ", options: .backwards) else { return nil }
+        let note = String(label[arrow.upperBound...])
+        return note.isEmpty ? nil : (String(label[..<arrow.lowerBound]), note)
+    }
 
     /// "image", or "link card: https://…".
     public var caption: String { label.isEmpty ? kind : kind + ": " + label }
@@ -167,6 +206,18 @@ extension Array where Element == Block {
         }
     }
 
+    /// The same blocks with each attachment in a paragraph passed through `change`.
+    public func mappingAttachments(_ change: (Attachment) -> Attachment) -> [Block] {
+        map { block in
+            guard case .paragraph(var p) = block else { return block }
+            p.pieces = p.pieces.map { piece in
+                guard case .attachment(let a) = piece else { return piece }
+                return .attachment(change(a))
+            }
+            return .paragraph(p)
+        }
+    }
+
     /// The same blocks with each attachment id passed through `change`.
     public func mappingAttachmentIDs(_ change: (String) -> String) -> [Block] {
         map { block in
@@ -198,12 +249,12 @@ extension Array where Element == Piece {
         var units: [NormalizationUnit] = []
         for piece in self {
             switch piece {
-            case .text(let run): units += run.text.map { .character($0, run.marks, run.link) }
+            case .text(let run): units += run.text.map { .character($0, run.marks, run.link, run.color) }
             case .attachment(let a): units.append(.attachment(a))
             }
         }
         func marks(_ i: Int) -> Marks? {
-            if case .character(_, let m, _) = units[i] { return m }
+            if case .character(_, let m, _, _) = units[i] { return m }
             return nil
         }
         for mark in [Marks.bold, .italic, .strike] {
@@ -217,9 +268,9 @@ extension Array where Element == Piece {
                 while end + 1 < units.count, marks(end + 1)?.contains(mark) == true { end += 1 }
                 // Strip the mark from whitespace at the start, then at the end, of this span.
                 func strip(_ k: Int) -> Bool {
-                    guard case .character(let c, var m, let link) = units[k], c.isWhitespace else { return false }
+                    guard case .character(let c, var m, let link, let color) = units[k], c.isWhitespace else { return false }
                     m.remove(mark)
-                    units[k] = .character(c, m, link)
+                    units[k] = .character(c, m, link, color)
                     return true
                 }
                 var low = i
@@ -233,12 +284,13 @@ extension Array where Element == Piece {
         var current: Run?
         for unit in units {
             switch unit {
-            case .character(let c, let m, let link):
-                if let run = current, run.marks == m, run.link == link {
+            case .character(let c, let m, let link, let color):
+                let next = Run(String(c), marks: m, link: link, color: color)
+                if let run = current, run.marks == m, run.link == link, run.color == next.color {
                     current!.text.append(c)
                 } else {
                     if let run = current { out.append(.text(run)) }
-                    current = Run(String(c), marks: m, link: link)
+                    current = next
                 }
             case .attachment(let a):
                 if let run = current { out.append(.text(run)) }
@@ -252,7 +304,7 @@ extension Array where Element == Piece {
 }
 
 private enum NormalizationUnit {
-    case character(Character, Marks, String?)
+    case character(Character, Marks, String?, Int)
     case attachment(Attachment)
 }
 

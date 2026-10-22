@@ -9,7 +9,7 @@ enum NoteKey {
     static let hints = NSAttributedString.Key("TTHints")  // bit 1 bold, bit 2 italic
     static let strike = NSAttributedString.Key("TTStrikethrough")
     static let underline = NSAttributedString.Key("TTUnderline")
-    static let highlight = NSAttributedString.Key("TTEmphasis")  // a highlight color number
+    static let highlight = NSAttributedString.Key("TTEmphasis")  // a highlight color number (Highlight)
     static let link = NSAttributedString.Key("NSLink")
     static let attachment = NSAttributedString.Key("NSAttachment")
     static let timestamp = NSAttributedString.Key("TTTimestamp")
@@ -22,6 +22,9 @@ struct BodyReader {
     let context: NSManagedObjectContext
     /// Tables known by id without reading the note (a write's rehearsal has some).
     var tables: [String: [[String]]] = [:]
+    /// Attachments that are part of the text, known by id without reading the note (a write's
+    /// rehearsal makes stand-ins for the ones it adds).
+    var inline: [String: Attachment] = [:]
 
     func blocks(_ body: NSAttributedString) throws(NotesError) -> [Block] {
         let text = body.string as NSString
@@ -82,9 +85,10 @@ struct BodyReader {
             if hints & 2 != 0 { marks.insert(.italic) }
             if ((attributes[NoteKey.strike] as? Int) ?? 0) != 0 { marks.insert(.strike) }
             if ((attributes[NoteKey.underline] as? Int) ?? 0) != 0 { marks.insert(.underline) }
-            if ((attributes[NoteKey.highlight] as? Int) ?? 0) != 0 { marks.insert(.highlight) }
+            let color = (attributes[NoteKey.highlight] as? Int) ?? 0
+            if color != 0 { marks.insert(.highlight) }
             let link = (attributes[NoteKey.link] as? URL)?.absoluteString ?? attributes[NoteKey.link] as? String
-            pieces.append(.text(Run(text, marks: marks, link: link)))
+            pieces.append(.text(Run(text, marks: marks, link: link, color: color)))
         }
         if let failure { throw failure }
         return .paragraph(Paragraph(kind, indent: indent, quote: quote, pieces.normalized()))
@@ -93,6 +97,7 @@ struct BodyReader {
     private func attachment(_ marker: NSObject) throws(NotesError) -> Attachment {
         let id = ANNotes.markerID(marker) ?? ""
         let type = ANNotes.markerType(marker) ?? ""
+        if let known = inline[id] { return known }
         if type.hasPrefix("com.apple.notes.inlinetextattachment") {
             let inline = try fetch("ICInlineAttachment", id: id)
             let text = ((inline.flatMap { ANNotes.value(forKey: "altText", of: $0) }) as? String ?? "").trimmingCharacters(in: .whitespaces)
@@ -101,6 +106,8 @@ struct BodyReader {
                 return Attachment(id: id, kind: "tag", label: text)
             case "com.apple.notes.inlinetextattachment.mention":
                 return Attachment(id: id, kind: "mention", label: text)
+            case "com.apple.notes.inlinetextattachment.dividerline":
+                return Attachment(id: id, kind: "divider")
             case "com.apple.notes.inlinetextattachment.calculateresult", "com.apple.notes.inlinetextattachment.calculategraphexpression":
                 return Attachment(id: id, kind: "calculation", label: text)
             case "com.apple.notes.inlinetextattachment.link":
@@ -123,7 +130,9 @@ struct BodyReader {
         switch kind {
         case "link": return Attachment(id: id, kind: kind, label: string("urlString"))
         case "image", "scan", "drawing", "table": return Attachment(id: id, kind: kind)
-        default: return Attachment(id: id, kind: kind, label: string("title"))
+        default:
+            let title = string("title")
+            return Attachment(id: id, kind: kind, label: title.isEmpty ? string("userTitle") : title)
         }
     }
 

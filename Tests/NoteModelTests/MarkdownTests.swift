@@ -3,7 +3,7 @@ import Testing
 
 @testable import NoteModel
 
-func text(_ s: String, _ marks: Marks = [], link: String? = nil) -> Piece { .text(Run(s, marks: marks, link: link)) }
+func text(_ s: String, _ marks: Marks = [], link: String? = nil, color: Int = 0) -> Piece { .text(Run(s, marks: marks, link: link, color: color)) }
 func line(as style: Style = .body, indent: Int = 0, quote: Int = 0, _ pieces: Piece...) -> Block {
     .paragraph(Paragraph(style, indent: indent, quote: quote, pieces))
 }
@@ -66,7 +66,8 @@ func roundTrips(_ blocks: [Block]) -> Bool {
         ]
         #expect(roundTrips(blocks))
         #expect(Markdown.render([blocks[0]]) == "\\# not a heading")
-        #expect(Markdown.render([blocks[15]]) == "MCP_Test #tag")
+        // Text that reads as a tag is escaped; a real tag is written as #tag.
+        #expect(Markdown.render([blocks[15]]) == "MCP_Test \\#tag")
     }
 
     @Test func monospacedAndTables() {
@@ -87,6 +88,53 @@ func roundTrips(_ blocks: [Block]) -> Bool {
         let blocks: [Block] = [line(text("photo "), .attachment(image), text(" and "), .attachment(link)), line(as: .monospaced, .attachment(image))]
         #expect(Markdown.render([blocks[0]]) == "photo ![image](attachment:AAAA-1) and ![link: https://e.com](attachment:BBBB-2)")
         #expect(roundTrips(blocks))
+    }
+
+    @Test func tags() {
+        let read = Attachment(id: "TAG-1", kind: "tag", label: "#read")
+        let blocks: [Block] = [
+            line(as: .title, text("Books "), .attachment(read)),
+            line(.attachment(read), text(", "), .attachment(Attachment(id: "TAG-2", kind: "tag", label: "#to-do_2"))),
+            // Literal text that would read as a tag is escaped; text that would not stays as it is.
+            line(text("not a tag: #read, C# and #1 and issue #123")),
+            // A tag that would run into the text after it, or follow a closing mark, stays a placeholder.
+            line(.attachment(read), text("ing")), line(text("b", .bold), .attachment(read)),
+            line(as: .monospaced, .attachment(read)),
+        ]
+        #expect(Markdown.render(Array(blocks.prefix(4))) == """
+            # Books #read
+            #read, #to-do_2
+            not a tag: \\#read, C# and #1 and issue #123
+            ![tag: \\#read](attachment:TAG-1)ing
+            """)
+        #expect(roundTrips(blocks))
+        // Tags compare by what they show, so Markdown can write them without an id.
+        #expect(Markdown.parse("buy milk #shopping (#家务)") == [line(text("buy milk "), .attachment(.tag("shopping")), text(" ("), .attachment(.tag("家务")), text(")"))])
+        #expect(Markdown.parse("Books #read") == [line(text("Books "), .attachment(read))])
+        #expect(Markdown.parse("C#, x#y, #1 and #2024") == [line(text("C#, x#y, #1 and #2024"))])
+    }
+
+    @Test func noteLinksAndDividers() {
+        let link = Attachment(id: "LINK-1", kind: "note link", label: "Trip [plan] → ABCD1234")
+        let divider = Attachment(id: "DIV-1", kind: "divider")
+        let blocks: [Block] = [
+            line(text("see "), .attachment(link), text(" too")), line(.attachment(divider)), line(quote: 1, .attachment(divider)),
+            line(text("---")), line(text("***")), line(as: .bullet, .attachment(divider)),
+            line(text("| a |")), line(.attachment(divider)),
+        ]
+        #expect(Markdown.render(Array(blocks.prefix(5))) == """
+            see [Trip \\[plan\\]](note:ABCD1234) too
+            ---
+            > ---
+            \\---
+            \\*\\*\\*
+            """)
+        #expect(roundTrips(blocks))
+        #expect(Markdown.parse("[Plan](note:ABCD1234)\n___\n| x |\n---") == [
+            line(.attachment(.noteLink("Plan", to: "ABCD1234"))), line(.attachment(.divider)), line(text("| x |")), line(.attachment(.divider)),
+        ])
+        // An ordinary link stays a link.
+        #expect(Markdown.parse("[site](https://e.com)") == [line(text("site", link: "https://e.com"))])
     }
 
     @Test func whitespaceAtEmphasisEdges() {
@@ -176,5 +224,36 @@ func roundTrips(_ blocks: [Block]) -> Bool {
         #expect(FolderPath.join(["Work", "A/B"]) == "Work/A\\/B")
         #expect(ShortID.of("1E58A0C2-7D3B-4F7A-9C1D-2B3C4D5E6F70") == "1E58A0C2")
         #expect(ShortID.resolve("1e58", in: ["1E58A0C2-X", "2B"]) == .found("1E58A0C2-X"))
+    }
+}
+
+@Suite struct Checklists {
+    let note = Markdown.parse("# Trip\n- [x] tickets\n- [ ] bag\n  - [x] socks\n  - [ ] hat\n- [ ] **pass**port\ntext\n- [x] alone")
+
+    @Test func tickByText() {
+        var blocks = note
+        let missing = Checklist.set(["bag", "**pass**port", "passport", "nothing"], checked: true, in: &blocks)
+        #expect(missing == ["nothing"])
+        #expect(Markdown.render(blocks) == "# Trip\n- [x] tickets\n- [x] bag\n  - [x] socks\n  - [ ] hat\n- [x] **pass**port\ntext\n- [x] alone")
+    }
+
+    @Test func actions() {
+        #expect(Markdown.render(Checklist.apply(.uncheckAll, to: note)).components(separatedBy: "[x]").count == 1)
+        #expect(Markdown.render(Checklist.apply(.deleteChecked, to: note)) == "# Trip\n- [ ] bag\n  - [ ] hat\n- [ ] **pass**port\ntext")
+        #expect(Markdown.render(Checklist.apply(.moveCheckedDown, to: note))
+            == "# Trip\n- [ ] bag\n  - [x] socks\n  - [ ] hat\n- [ ] **pass**port\n- [x] tickets\ntext\n- [x] alone")
+    }
+}
+
+@Suite struct Highlights {
+    @Test func colors() {
+        let blocks: [Block] = [
+            line(text("a", .highlight), text("b", .highlight, color: 2), text("c"), text("d", [.highlight, .bold], color: 5)),
+            line(text("<mark class=\"pink\"> is text")),
+        ]
+        #expect(Markdown.render(blocks) == "<mark>a</mark><mark class=\"pink\">b</mark>c<mark class=\"blue\">**d**</mark>\n\\<mark class=\"pink\"> is text")
+        #expect(roundTrips(blocks))
+        #expect(Markdown.parse("<mark class=\"Orange\">x</mark>") == [line(text("<mark class=\"Orange\">x</mark>"))])
+        #expect(Markdown.parse("<mark class=\"mint\">x</mark>") == [line(text("x", .highlight, color: 4))])
     }
 }

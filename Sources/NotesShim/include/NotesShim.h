@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// `[object valueForKey:key]`, or nil when the object has no such key or raises.
 + (nullable id)valueForKey:(NSString *)key of:(id)object NS_SWIFT_NAME(value(forKey:of:));
 
+/// The rule of a smart folder, as a predicate on notes (ICNote), and its description ("#work,
+/// #home"); nil when the folder has none or this macOS reads it differently.
++ (nullable NSPredicate *)predicateOfSmartFolder:(NSManagedObject *)folder NS_SWIFT_NAME(predicate(ofSmartFolder:));
++ (nullable NSString *)descriptionOfSmartFolder:(NSManagedObject *)folder NS_SWIFT_NAME(description(ofSmartFolder:));
+
 /// A note's body as Notes keeps it, with Notes' own attributes (TTStyle, TTHints, NSAttachment…).
 + (nullable NSAttributedString *)bodyOfNote:(NSManagedObject *)note error:(NSError **)error NS_SWIFT_NAME(body(of:));
 
@@ -38,6 +43,62 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A new empty note in a folder of the shared context.
 + (nullable NSManagedObject *)newNoteInFolder:(NSManagedObject *)folder error:(NSError **)error NS_SWIFT_NAME(newNote(inFolder:));
+
+/// A new tag in a note: an inline attachment showing "#name", with the tag itself made when the
+/// account has none of that name. Returns the attachment's identifier; its marker in the body has
+/// the type com.apple.notes.inlinetextattachment.hashtag.
++ (nullable NSString *)newTagNamed:(NSString *)name inNote:(NSManagedObject *)note error:(NSError **)error
+    NS_SWIFT_NAME(newTag(named:in:));
+
+/// A new link from a note to another, showing `text` (the target's title when empty), and a new
+/// divider line. Each returns the inline attachment's identifier; the markers' types are
+/// com.apple.notes.inlinetextattachment.link and .dividerline.
++ (nullable NSString *)newLinkToNote:(NSManagedObject *)target text:(NSString *)text inNote:(NSManagedObject *)note error:(NSError **)error
+    NS_SWIFT_NAME(newLink(to:text:in:));
++ (nullable NSString *)newDividerInNote:(NSManagedObject *)note error:(NSError **)error NS_SWIFT_NAME(newDivider(in:));
+
+/// A new attachment to a note holding a copy of a file, or a card for a web address. `title`,
+/// when not empty, is the name the attachment shows. Returns the attachment's identifier and,
+/// in `type`, its type for the body's marker.
++ (nullable NSString *)addFile:(NSURL *)file title:(NSString *)title toNote:(NSManagedObject *)note
+                          type:(NSString *_Nullable *_Nonnull)type error:(NSError **)error NS_SWIFT_NAME(addFile(_:title:to:type:));
++ (nullable NSString *)addLinkCard:(NSURL *)url toNote:(NSManagedObject *)note
+                              type:(NSString *_Nullable *_Nonnull)type error:(NSError **)error NS_SWIFT_NAME(addLinkCard(_:to:type:));
+
+/// Renames a tag in every note that has it, the way Notes' tag browser does. `tag` is the tag
+/// (ICHashtag) in its context.
++ (BOOL)renameTag:(NSManagedObject *)tag to:(NSString *)name error:(NSError **)error NS_SWIFT_NAME(renameTag(_:to:));
+
+/// Brings back the tag of a tag attachment when Notes marked it deleted, as it does when the save
+/// that adds the tag's first use counts its uses before the new one.
++ (BOOL)reviveTagOfAttachment:(NSManagedObject *)attachment error:(NSError **)error NS_SWIFT_NAME(reviveTag(of:));
+
+/// Takes back a deletion mark, and marks the change to be uploaded.
++ (BOOL)unmarkForDeletion:(NSManagedObject *)object error:(NSError **)error NS_SWIFT_NAME(unmark(forDeletion:));
+
+/// A copy of a note, attachments and all, in a folder of the shared context, the way Notes'
+/// Duplicate Note makes one. That code is in NotesUI, which this loads: loading it changes how
+/// NotesShared saves edits in the middle of a note (as NotesEditor does), so only a process that
+/// does nothing else may call this.
++ (nullable NSManagedObject *)duplicateNote:(NSManagedObject *)note intoFolder:(NSManagedObject *)folder error:(NSError **)error
+    NS_SWIFT_NAME(duplicate(_:into:));
+
+/// A new smart folder at the top of an account, showing the notes with any (or all) of these tags
+/// (ICHashtag objects of the account's context). Returns the folder's identifier.
++ (nullable NSString *)newSmartFolderNamed:(NSString *)name tags:(NSArray<NSManagedObject *> *)tags matchAll:(BOOL)all
+                                    account:(NSManagedObject *)account error:(NSError **)error
+    NS_SWIFT_NAME(newSmartFolder(named:tags:matchAll:account:));
+
+/// Renames a folder, or marks it deleted, the way Notes does, for a change made in Notes' data.
++ (BOOL)renameFolder:(NSManagedObject *)folder to:(NSString *)name error:(NSError **)error NS_SWIFT_NAME(renameFolder(_:to:));
+
+/// Puts a folder inside another, or at the top of its account when `parent` is nil, and marks the
+/// change to be uploaded.
++ (BOOL)moveFolder:(NSManagedObject *)folder intoParent:(nullable NSManagedObject *)parent error:(NSError **)error
+    NS_SWIFT_NAME(moveFolder(_:into:));
+
+/// Pins or unpins a note, and marks the change to be uploaded.
++ (BOOL)setPinned:(BOOL)pinned ofNote:(NSManagedObject *)note error:(NSError **)error NS_SWIFT_NAME(setPinned(_:of:));
 
 /// Marks an attachment (or another synced object) as deleted, the way Notes does.
 + (BOOL)markForDeletion:(NSManagedObject *)object error:(NSError **)error NS_SWIFT_NAME(mark(forDeletion:));
@@ -81,6 +142,24 @@ NS_ASSUME_NONNULL_BEGIN
 /// and rows by newlines. Must be called outside begin/end: a table made inside an editing
 /// session leaves the saved body cut short.
 - (nullable NSString *)addTableWithText:(NSString *)text error:(NSError **)error NS_SWIFT_NAME(addTable(withText:));
+
+@end
+
+/// A recording made in Notes, read from its attachment's mergeable data: the transcript Notes made
+/// of it and the summaries Notes wrote. Empty strings where Notes has none.
+@interface ANRecording : NSObject
+
+/// Nil when the data is not a recording's, or this version of macOS keeps recordings differently.
++ (nullable instancetype)recordingWithData:(NSData *)data NS_SWIFT_NAME(init(data:));
+- (instancetype)init NS_UNAVAILABLE;
+
+/// For a call, each part starts with the speaker's name.
+@property (nonatomic, readonly) NSString *transcript;
+@property (nonatomic, readonly) NSString *summary;
+/// The summary in one line.
+@property (nonatomic, readonly) NSString *headline;
+/// A recorded phone or FaceTime call.
+@property (nonatomic, readonly) BOOL call;
 
 @end
 

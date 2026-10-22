@@ -276,9 +276,17 @@ apple-notes-mcp skill                                                 # 打印�
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：
-1. 用 `gh release create v<版本> dist/AppleNotesMCP-<版本>.pkg dist/AppleNotesMCP-<版本>.pkg.sha256` 上传安装包。
-2. 运行 `./scripts/update-cask.sh`。它先确认 GitHub 上的文件和本地的一致，再把 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，也可以传别的路径）里 Homebrew cask 的版本和校验和改成新的，然后提交并推送。
+`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 `CHANGELOG.md` 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py`，然后在 `main` 上运行：
+
+```bash
+scripts/release.sh 0.2.1             # 也可以先演练：scripts/release.sh --dry-run 0.2.1
+```
+
+- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打包，并检查包是用你的证书签名的；接着提交 `Release <版本>`、打 tag `v<版本>` 并一起推送。之后用安装包和 `CHANGELOG.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。
+- **某一步失败时：**它会说明哪些已经做完，以及剩下的怎么手动完成。
+- **`--dry-run`：**做到打好安装包为止，然后撤销版本号的改动；不提交、不推送、不发布。
+
+每个 pull request 和每次推送到 `main` 都会在 GitHub 托管的 Mac 上（用最新的 Xcode）编译并跑单元测试（`.github/workflows/check.yml`）。这个 workflow 不带任何密钥：签名只在你自己的 Mac 上、在 `scripts/release.sh` 里进行。
 
 图标的源文件是 Icon Composer 文档 `Resources/AppIcon.icon`，图稿由 `scripts/compose-icon.swift` 用 Apple Reminders MCP 的图标合成，两个 App 看起来是一对。改了之后运行 `./scripts/build-icon.sh`（要用 Xcode 里的 `actool`），再提交 `Resources/AppIcon-compiled`；平常构建只复制这个目录。
 

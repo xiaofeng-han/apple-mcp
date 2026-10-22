@@ -343,9 +343,17 @@ A tool that a later version adds, and that the file therefore doesn't name yet, 
 ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
-`./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release:
-1. Upload the package with `gh release create v<version> dist/AppleRemindersMCP-<version>.pkg dist/AppleRemindersMCP-<version>.pkg.sha256`.
-2. Run `./scripts/update-cask.sh`. It checks that GitHub serves the same file. It then sets the new version and checksum in the Homebrew cask, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless given another path), and commits and pushes.
+`./scripts/build-pkg.sh` builds the release package, `dist/AppleRemindersMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release, write its note as a `## <version>` section of `CHANGELOG.md`, run `scripts/e2e.py`, and then, on `main`:
+
+```bash
+scripts/release.sh 0.3.1             # or first: scripts/release.sh --dry-run 0.3.1
+```
+
+- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and checks that it is signed with your certificate, then commits `Release <version>`, tags `v<version>` and pushes both. It publishes the GitHub release with the package and the note from `CHANGELOG.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`).
+- **If a step fails:** it says what is already done and how to finish by hand.
+- **`--dry-run`:** does everything up to the package, then undoes the version change; nothing is committed, pushed or published.
+
+Every pull request and every push to `main` is built and unit-tested on a GitHub-hosted Mac with the newest Xcode (`.github/workflows/check.yml`). That workflow holds no secrets: signing happens only on your Mac, in `scripts/release.sh`.
 
 The icon's source is the Icon Composer document `Resources/AppIcon.icon`. After changing it, run `./scripts/build-icon.sh` (it needs Xcode for `actool`) and commit `Resources/AppIcon-compiled`; ordinary builds only copy that folder. Draw the artwork as a full-bleed square, which macOS masks to its rounded shape: an icon that is transparent around its own shape is shown shrunk inside a grey tile. `swift scripts/flatten-icon.swift <icon.png> Resources/AppIcon.icon/Assets/artwork.png` turns an icon drawn as a rounded square on a transparent background into that artwork.
 

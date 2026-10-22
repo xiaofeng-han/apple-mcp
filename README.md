@@ -211,8 +211,8 @@ pkgutil --volume ~ --forget com.xiaofeng.apple-reminders-mcp.pkg
 Without Homebrew, download `AppleRemindersMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases) and open it, or install it from the terminal:
 
 ```bash
-gh release download v0.2.4 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
-installer -pkg AppleRemindersMCP-0.2.4.pkg -target CurrentUserHomeDirectory
+gh release download v0.3.0 -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
+installer -pkg AppleRemindersMCP-0.3.0.pkg -target CurrentUserHomeDirectory
 ```
 
 Installing for yourself only puts the app in `~/Applications` and needs no administrator password; installing for all users puts it in `/Applications`. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security.

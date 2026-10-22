@@ -17,6 +17,21 @@
 8. **复制笔记**（`create_note copy_of` / `notes copy`）：副本里的图片和文件在 iPhone 上正常。
 9. **设置窗口的「工具」标签页**：应列出 11 个工具，新的 `manage_tag` 标成「可删除」。界面我没看过。
 
+### 已建好的验证数据（10-22 10:27，全部已上传 iCloud）
+
+都在新文件夹「agent test 验证」里，看完告诉我，我一次清掉（笔记进「最近删除」，文件夹和智能文件夹删除）。
+
+| 看什么 | 在哪 | 对应第一部分 |
+|---|---|---|
+| 置顶；两个标签 `#agenttest验证`、`#agenttest新名`（后者由 `#agenttest旧名` 改名而来）；指向「agent test 附件」的笔记链接；分割线；紫/粉/橙/薄荷/蓝五种高亮；已勾选项被移到清单底部 | 笔记「agent test 标签与链接」（451BC85A） | 1、2、4、7 |
+| 一张照片、一个文本文件「说明文件」、apple.com 的链接卡片 | 笔记「agent test 附件」（11218BB5） | 3 |
+| 先建在最上层、再移进来的子文件夹 | 文件夹「agent test 验证/agent test 移动来的」 | 5 |
+| 上面那条附件笔记的复制品，附件应完整 | 「agent test 移动来的」里的「agent test 附件」（48B7F022） | 8 |
+| 按 `#agenttest验证` 收集笔记的智能文件夹，应只有「agent test 标签与链接」一条 | 智能文件夹「agent test 智能」 | 6 |
+| 标签浏览器里应有 `#agenttest验证`、`#agenttest新名`，没有 `#agenttest旧名` | 「备忘录」的标签列表 | 1 |
+
+另：命令行写入时，stderr 偶尔多出几行 `CoreData: debug: WAL checkpoint…`（数据库变大后 Core Data 自己的清理日志）。不影响输出和 MCP，以后可以想办法压掉。
+
 ## 二、要你决定
 
 1. **提交、PR、发版**：是否提交、开 PR、合进 main、发版（比如 Notes 0.3.0）？和搬家到 apple-mcp 谁先谁后？

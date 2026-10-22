@@ -112,6 +112,11 @@ func roundTrips(_ blocks: [Block]) -> Bool {
         #expect(Markdown.parse("buy milk #shopping (#家务)") == [line(text("buy milk "), .attachment(.tag("shopping")), text(" ("), .attachment(.tag("家务")), text(")"))])
         #expect(Markdown.parse("Books #read") == [line(text("Books "), .attachment(read))])
         #expect(Markdown.parse("C#, x#y, #1 and #2024") == [line(text("C#, x#y, #1 and #2024"))])
+        // After CJK punctuation, and after a comma or colon; not inside a web address.
+        #expect(Markdown.parse("标签：#读书，#待办") == [line(text("标签："), .attachment(.tag("读书")), text("，"), .attachment(.tag("待办")))])
+        #expect(Markdown.parse("tags:#a,#b") == [line(text("tags:"), .attachment(.tag("a")), text(","), .attachment(.tag("b")))])
+        #expect(Markdown.parse("see e.com/#intro") == [line(text("see e.com/#intro"))])
+        #expect(roundTrips([line(text("标签："), .attachment(read), text("。"))]))
     }
 
     @Test func noteLinksAndDividers() {

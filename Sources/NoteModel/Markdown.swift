@@ -199,8 +199,14 @@ public enum Markdown {
         return name.contains(where: \.isLetter) ? String(name) : nil
     }
 
-    /// A tag starts a word: at the start of the line, or after a space or an opening bracket or quote.
-    static func canPrecedeTag(_ c: Character) -> Bool { c.isWhitespace || "([{\"'“‘「（".contains(c) }
+    /// A tag starts a word: at the start of the line, or after a space, an opening bracket or
+    /// quote, a comma, semicolon or colon, or CJK punctuation ("标签：#x"). Not after a letter or
+    /// digit (C#) or a slash (a web address's /#part).
+    static func canPrecedeTag(_ c: Character) -> Bool {
+        if c.isWhitespace || "([{\"'“‘,;:".contains(c) { return true }
+        guard let scalar = c.unicodeScalars.first, c.isPunctuation else { return false }
+        return (0x3000...0x303F).contains(scalar.value) || (0xFF00...0xFF65).contains(scalar.value)
+    }
 
     /// "#name" for a tag whose name Markdown can write.
     static func tagText(_ a: Attachment) -> String? {

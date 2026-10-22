@@ -160,8 +160,8 @@ pkgutil --volume ~ --forget com.xiaofeng.apple-notes-mcp.pkg
 不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-notes-mcp/releases) 下载 `AppleNotesMCP-<版本>.pkg` 打开安装，或者在终端里装：
 
 ```bash
-gh release download v0.1.0 -R xiaofeng-han/apple-notes-mcp -p '*.pkg'
-installer -pkg AppleNotesMCP-0.1.0.pkg -target CurrentUserHomeDirectory
+gh release download v0.2.0 -R xiaofeng-han/apple-notes-mcp -p '*.pkg'
+installer -pkg AppleNotesMCP-0.2.0.pkg -target CurrentUserHomeDirectory
 ```
 
 选「仅为我安装」会装到 `~/Applications`，不需要管理员密码；为所有用户安装则装到 `/Applications`。安装包没有 Developer ID 签名：用浏览器下载后如果 macOS 拒绝打开，到「系统设置 → 隐私与安全性」里允许。

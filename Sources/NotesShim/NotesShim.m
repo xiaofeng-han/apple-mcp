@@ -1,6 +1,7 @@
 #import "NotesShim.h"
 
 #import <dlfcn.h>
+#import <objc/message.h>
 #import <objc/runtime.h>
 
 // The private methods used here, declared so the compiler emits correctly typed message sends.
@@ -22,6 +23,7 @@
 
 @protocol ANNoteClass
 + (id)newEmptyNoteInFolder:(id)folder;
++ (id)duplicateNote:(id)note intoFolder:(id)folder isPasswordProtected:(BOOL)locked removeOriginalNote:(BOOL)remove;
 @end
 
 @protocol ANNote
@@ -44,9 +46,19 @@
 - (void)endEditing;
 @end
 
+@protocol ANPinnable
+- (void)setIsPinned:(BOOL)pinned;
+@end
+
+@protocol ANAttaching
+- (id)addAttachmentWithFileURL:(NSURL *)url;
+- (id)addURLAttachmentWithURL:(NSURL *)url;
+@end
+
 @protocol ANSynced
 - (id)cloudState;
 - (void)markForDeletion;
+- (void)unmarkForDeletion;
 - (void)updateChangeCountWithReason:(NSString *)reason;
 - (id)attachmentModel;
 @end
@@ -85,6 +97,27 @@
 @protocol ANTodo
 - (instancetype)initWithIdentifier:(NSUUID *)identifier done:(BOOL)done;
 - (id)todoWithDone:(BOOL)done;
+@end
+
+@protocol ANInlineAttachmentClass
++ (id)newHashtagAttachmentWithIdentifier:(NSString *)identifier hashtagText:(NSString *)text
+              creatingHashtagIfNecessary:(BOOL)create note:(id)note parentAttachment:(id)parent;
++ (void)reviveOrTouchHashtag:(id)attachment;
++ (void)renameHashtagsWithStandardizedContent:(NSString *)content newDisplayText:(NSString *)name context:(NSManagedObjectContext *)context;
++ (id)newLinkAttachmentWithIdentifier:(NSString *)identifier toNote:(id)target fromNote:(id)note parentAttachment:(id)parent;
++ (id)newDividerLineAttachmentWithIdentifier:(NSString *)identifier note:(id)note parentAttachment:(id)parent;
+@end
+
+@protocol ANAudioDocumentClass
++ (void)registerWithICCRCoder;
++ (id)unarchiveFromData:(NSData *)data replicaID:(NSUUID *)replicaID;
+@end
+
+@protocol ANAudioDocument
+- (NSString *)transcriptAsPlainText;
+- (NSString *)recordingSummaryAsPlainText;
+- (NSString *)topLineSummaryAsPlainText;
+- (BOOL)isCallRecording;
 @end
 
 static NSString *const ANErrorDomain = @"AppleNotesMCP.NotesShared";
@@ -244,6 +277,21 @@ static BOOL loaded = NO;
     }
 }
 
++ (NSPredicate *)predicateOfSmartFolder:(NSManagedObject *)folder {
+    __block NSPredicate *predicate = nil;
+    ANTry(@"reading a smart folder", NULL, ^{
+        id query = [folder valueForKey:@"smartFolderQueryObjC"];
+        id value = [query valueForKey:@"predicate"];
+        if ([value isKindOfClass:[NSPredicate class]]) predicate = value;
+    });
+    return predicate;
+}
+
++ (NSString *)descriptionOfSmartFolder:(NSManagedObject *)folder {
+    id value = [self valueForKey:@"smartFolderDescriptionObjC" of:folder];
+    return [value isKindOfClass:[NSString class]] ? value : nil;
+}
+
 + (NSAttributedString *)bodyOfNote:(NSManagedObject *)note error:(NSError **)error {
     __block NSAttributedString *body = nil;
     if (!ANTry(@"reading the note body", error, ^{
@@ -292,6 +340,189 @@ static BOOL loaded = NO;
     })) return nil;
     if (!note && error) *error = ANError(@"NotesShared created no note");
     return note;
+}
+
++ (NSString *)newTagNamed:(NSString *)name inNote:(NSManagedObject *)note error:(NSError **)error {
+    Class cls = NSClassFromString(@"ICInlineAttachment");
+    SEL make = @selector(newHashtagAttachmentWithIdentifier:hashtagText:creatingHashtagIfNecessary:note:parentAttachment:);
+    if (![cls respondsToSelector:make]) {
+        if (error) *error = ANError(@"NotesShared cannot make tags in this version of macOS");
+        return nil;
+    }
+    __block NSString *identifier = nil;
+    if (!ANTry(@"making a tag", error, ^{
+        id attachment = [(id<ANInlineAttachmentClass>)cls newHashtagAttachmentWithIdentifier:[[NSUUID UUID] UUIDString] hashtagText:name
+                                                                 creatingHashtagIfNecessary:YES note:note parentAttachment:nil];
+        id value = [attachment valueForKey:@"identifier"];
+        if ([value isKindOfClass:[NSString class]]) identifier = value;
+    })) return nil;
+    if (!identifier && error) *error = ANError(@"NotesShared made no tag");
+    return identifier;
+}
+
+/// The identifier of an inline attachment `make` returns, or an error naming `what`.
+static NSString *ANInline(NSString *what, SEL selector, NSError **error, id (^make)(id<ANInlineAttachmentClass> cls)) {
+    Class cls = NSClassFromString(@"ICInlineAttachment");
+    if (![cls respondsToSelector:selector]) {
+        if (error) *error = ANError([NSString stringWithFormat:@"NotesShared cannot make %@ in this version of macOS", what]);
+        return nil;
+    }
+    __block NSString *identifier = nil;
+    if (!ANTry([@"making " stringByAppendingString:what], error, ^{
+        id attachment = make((id<ANInlineAttachmentClass>)cls);
+        id value = [attachment valueForKey:@"identifier"];
+        if ([value isKindOfClass:[NSString class]]) identifier = value;
+    })) return nil;
+    if (!identifier && error) *error = ANError([NSString stringWithFormat:@"NotesShared made no %@", what]);
+    return identifier;
+}
+
++ (NSString *)newLinkToNote:(NSManagedObject *)target text:(NSString *)text inNote:(NSManagedObject *)note error:(NSError **)error {
+    return ANInline(@"a note link", @selector(newLinkAttachmentWithIdentifier:toNote:fromNote:parentAttachment:), error, ^id(id<ANInlineAttachmentClass> cls) {
+        id link = [cls newLinkAttachmentWithIdentifier:[[NSUUID UUID] UUIDString] toNote:target fromNote:note parentAttachment:nil];
+        if (text.length > 0 && ![[link valueForKey:@"altText"] isEqual:text]) [link setValue:text forKey:@"altText"];
+        return link;
+    });
+}
+
+/// The identifier and type of an attachment `make` adds, or an error naming `what`.
+static NSString *ANAttached(NSString *what, NSString **type, NSError **error, id (^make)(void)) {
+    __block NSString *identifier = nil, *uti = nil;
+    if (!ANTry([@"adding " stringByAppendingString:what], error, ^{
+        id attachment = make();
+        id value = [attachment valueForKey:@"identifier"], kind = [attachment valueForKey:@"typeUTI"];
+        if ([value isKindOfClass:[NSString class]]) identifier = value;
+        if ([kind isKindOfClass:[NSString class]]) uti = kind;
+    })) return nil;
+    if (!identifier && error) *error = ANError([NSString stringWithFormat:@"NotesShared added no %@", what]);
+    *type = uti;
+    return identifier;
+}
+
++ (NSString *)addFile:(NSURL *)file title:(NSString *)title toNote:(NSManagedObject *)note type:(NSString **)type error:(NSError **)error {
+    if (![note respondsToSelector:@selector(addAttachmentWithFileURL:)]) {
+        if (error) *error = ANError(@"NotesShared cannot add files in this version of macOS");
+        return nil;
+    }
+    return ANAttached(@"a file", type, error, ^id {
+        id attachment = [(id<ANAttaching>)note addAttachmentWithFileURL:file];
+        if (title.length > 0) [attachment setValue:title forKey:@"userTitle"];
+        return attachment;
+    });
+}
+
++ (NSString *)addLinkCard:(NSURL *)url toNote:(NSManagedObject *)note type:(NSString **)type error:(NSError **)error {
+    if (![note respondsToSelector:@selector(addURLAttachmentWithURL:)]) {
+        if (error) *error = ANError(@"NotesShared cannot add link cards in this version of macOS");
+        return nil;
+    }
+    return ANAttached(@"a link card", type, error, ^id { return [(id<ANAttaching>)note addURLAttachmentWithURL:url]; });
+}
+
++ (NSString *)newDividerInNote:(NSManagedObject *)note error:(NSError **)error {
+    return ANInline(@"a divider line", @selector(newDividerLineAttachmentWithIdentifier:note:parentAttachment:), error, ^id(id<ANInlineAttachmentClass> cls) {
+        return [cls newDividerLineAttachmentWithIdentifier:[[NSUUID UUID] UUIDString] note:note parentAttachment:nil];
+    });
+}
+
++ (BOOL)renameTag:(NSManagedObject *)tag to:(NSString *)name error:(NSError **)error {
+    Class cls = NSClassFromString(@"ICHashtag");
+    if (![cls respondsToSelector:@selector(renameHashtagsWithStandardizedContent:newDisplayText:context:)]) {
+        if (error) *error = ANError(@"NotesShared cannot rename tags in this version of macOS");
+        return NO;
+    }
+    return ANTry(@"renaming the tag", error, ^{
+        [(id<ANInlineAttachmentClass>)cls renameHashtagsWithStandardizedContent:[tag valueForKey:@"standardizedContent"] newDisplayText:name
+                                                                        context:tag.managedObjectContext];
+    });
+}
+
++ (BOOL)reviveTagOfAttachment:(NSManagedObject *)attachment error:(NSError **)error {
+    Class cls = NSClassFromString(@"ICInlineAttachment");
+    if (![cls respondsToSelector:@selector(reviveOrTouchHashtag:)]) return YES;
+    return ANTry(@"keeping a tag", error, ^{ [(id<ANInlineAttachmentClass>)cls reviveOrTouchHashtag:attachment]; });
+}
+
++ (NSManagedObject *)duplicateNote:(NSManagedObject *)note intoFolder:(NSManagedObject *)folder error:(NSError **)error {
+    if (!dlopen("/System/Library/PrivateFrameworks/NotesUI.framework/NotesUI", RTLD_NOW)) {
+        if (error) *error = ANError([NSString stringWithFormat:@"cannot load NotesUI: %s", dlerror()]);
+        return nil;
+    }
+    Class cls = NSClassFromString(@"ICNote");
+    if (![cls respondsToSelector:@selector(duplicateNote:intoFolder:isPasswordProtected:removeOriginalNote:)]) {
+        if (error) *error = ANError(@"NotesShared cannot copy notes in this version of macOS");
+        return nil;
+    }
+    __block NSManagedObject *copy = nil;
+    if (!ANTry(@"copying the note", error, ^{
+        id made = [(id<ANNoteClass>)cls duplicateNote:note intoFolder:folder isPasswordProtected:NO removeOriginalNote:NO];
+        if ([made isKindOfClass:[NSManagedObject class]]) copy = made;
+    })) return nil;
+    if (!copy && error) *error = ANError(@"NotesShared made no copy");
+    return copy;
+}
+
++ (NSString *)newSmartFolderNamed:(NSString *)name tags:(NSArray<NSManagedObject *> *)tags matchAll:(BOOL)all
+                           account:(NSManagedObject *)account error:(NSError **)error {
+    Class selection = NSClassFromString(@"ICTagSelection"), query = NSClassFromString(@"ICQueryObjC"), folders = NSClassFromString(@"ICFolder");
+    SEL make = NSSelectorFromString(@"initWithManagedObjectContext:includedObjectIDs:excludedObjectIDs:tagOperator:");
+    SEL ask = NSSelectorFromString(@"objc_queryForNotesMatchingTagSelection:"), smart = NSSelectorFromString(@"objc_smartFolderWithQuery:account:");
+    if (![selection instancesRespondToSelector:make] || ![query respondsToSelector:ask] || ![folders respondsToSelector:smart]) {
+        if (error) *error = ANError(@"NotesShared cannot make smart folders in this version of macOS");
+        return nil;
+    }
+    __block NSString *identifier = nil;
+    if (!ANTry(@"making a smart folder", error, ^{
+        NSSet *ids = [NSSet setWithArray:[tags valueForKey:@"objectID"]];
+        // The tag operator: 0 any of the tags, 1 all of them.
+        id chosen = ((id (*)(id, SEL, id, id, id, NSInteger))objc_msgSend)([selection alloc], make, account.managedObjectContext, ids, [NSSet set], all ? 1 : 0);
+        id rule = ((id (*)(id, SEL, id))objc_msgSend)(query, ask, chosen);
+        NSManagedObject *folder = ((id (*)(id, SEL, id, id))objc_msgSend)(folders, smart, rule, account);
+        [folder setValue:name forKey:@"title"];
+        id value = [folder valueForKey:@"identifier"];
+        if ([value isKindOfClass:[NSString class]]) identifier = value;
+    })) return nil;
+    if (!identifier && error) *error = ANError(@"NotesShared made no smart folder");
+    return identifier;
+}
+
++ (BOOL)renameFolder:(NSManagedObject *)folder to:(NSString *)name error:(NSError **)error {
+    return ANTry(@"renaming the folder", error, ^{
+        [folder setValue:name forKey:@"title"];
+        [folder setValue:[NSDate date] forKey:@"dateForLastTitleModification"];
+        [(id<ANSynced>)folder updateChangeCountWithReason:@"Renamed folder"];
+    });
+}
+
++ (BOOL)moveFolder:(NSManagedObject *)folder intoParent:(NSManagedObject *)parent error:(NSError **)error {
+    return ANTry(@"moving the folder", error, ^{
+        [folder setValue:parent forKey:@"parent"];
+        // Notes settles a folder moved on two devices by this date.
+        [folder setValue:[NSDate date] forKey:@"parentModificationDate"];
+        [(id<ANSynced>)folder updateChangeCountWithReason:@"Moved folder"];
+    });
+}
+
++ (BOOL)setPinned:(BOOL)pinned ofNote:(NSManagedObject *)note error:(NSError **)error {
+    if (![note respondsToSelector:@selector(setIsPinned:)]) {
+        if (error) *error = ANError(@"NotesShared cannot pin notes in this version of macOS");
+        return NO;
+    }
+    return ANTry(@"pinning the note", error, ^{
+        [(id<ANPinnable>)note setIsPinned:pinned];
+        [(id<ANSynced>)note updateChangeCountWithReason:pinned ? @"Pinned note" : @"Unpinned note"];
+    });
+}
+
++ (BOOL)unmarkForDeletion:(NSManagedObject *)object error:(NSError **)error {
+    if (![object respondsToSelector:@selector(unmarkForDeletion)]) {
+        if (error) *error = ANError(@"NotesShared cannot take back a deletion in this version of macOS");
+        return NO;
+    }
+    return ANTry(@"keeping a tag", error, ^{
+        [(id<ANSynced>)object unmarkForDeletion];
+        [(id<ANSynced>)object updateChangeCountWithReason:@"Tag in use"];
+    });
 }
 
 + (BOOL)markForDeletion:(NSManagedObject *)object error:(NSError **)error {
@@ -413,6 +644,45 @@ static BOOL loaded = NO;
     })) return nil;
     if (!identifier && error) *error = ANError(@"NotesShared created no table");
     return identifier;
+}
+
+@end
+
+@implementation ANRecording
+
++ (instancetype)recordingWithData:(NSData *)data {
+    if (![ANNotes loadFramework:NULL]) return nil;
+    // Checked here rather than in loadFramework: without these only transcripts are missing.
+    Class cls = NSClassFromString(@"ICTTAudioDocument");
+    if (![cls respondsToSelector:@selector(registerWithICCRCoder)] || ![cls respondsToSelector:@selector(unarchiveFromData:replicaID:)]) return nil;
+    for (NSString *selector in @[@"transcriptAsPlainText", @"recordingSummaryAsPlainText", @"topLineSummaryAsPlainText", @"isCallRecording"]) {
+        if (![cls instancesRespondToSelector:NSSelectorFromString(selector)]) return nil;
+    }
+    static BOOL registered = NO;
+    __block ANRecording *recording = nil;
+    ANTry(@"reading a recording", NULL, ^{
+        if (!registered) {
+            [(id<ANAudioDocumentClass>)cls registerWithICCRCoder];
+            registered = YES;
+        }
+        // The replica is who would make further changes; for reading any new one does.
+        id<ANAudioDocument> document = [(id<ANAudioDocumentClass>)cls unarchiveFromData:data replicaID:[NSUUID UUID]];
+        if (!document) return;
+        recording = [[ANRecording alloc] initWithTranscript:ANPlain([document transcriptAsPlainText])
+                                                    summary:ANPlain([document recordingSummaryAsPlainText])
+                                                   headline:ANPlain([document topLineSummaryAsPlainText])
+                                                       call:[document isCallRecording]];
+    });
+    return recording;
+}
+
+- (instancetype)initWithTranscript:(NSString *)transcript summary:(NSString *)summary headline:(NSString *)headline call:(BOOL)call {
+    if (!(self = [super init])) return nil;
+    _transcript = transcript;
+    _summary = summary;
+    _headline = headline;
+    _call = call;
+    return self;
 }
 
 @end

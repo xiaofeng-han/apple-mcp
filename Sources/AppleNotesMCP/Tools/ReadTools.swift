@@ -6,72 +6,94 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
     [
         Tool("overview", title: "Overview of notes",
              summary: """
-                 The folders with their note counts. Given a folder, dates or sort: the notes, one line \
-                 each (id | title | date | size | description). undescribed: true lists notes that need a \
-                 description, with their opening text, for describe_note.
+                 The folders with their note counts, the smart folders, and the tags. Given a folder, dates, tags, groups, \
+                 attachment kinds or sort: the notes, one line each (id | version | title | date | size | \
+                 description). folder "Recently Deleted" lists deleted notes, which move_note brings back. \
+                 undescribed: true lists notes that need a description, with their opening text, for describe_note.
                  """,
              input: Schema.object([
-                 "folder": Schema.text("Path such as \"Projects/Ideas\", or id; includes its folders"),
+                 "folder": Schema.text("Path such as \"Projects/Ideas\", or id; includes its folders; a smart folder; or Recently Deleted"),
                  "modified_after": Schema.text("YYYY-MM-DD, inclusive"), "modified_before": Schema.text("YYYY-MM-DD, exclusive"),
                  "created_after": Schema.text("YYYY-MM-DD, inclusive"), "created_before": Schema.text("YYYY-MM-DD, exclusive"),
-                 "sort": Schema.choice(NoteOrder.allCases.map(\.rawValue), "Newest first by modified (default) or created, or by title"),
+                 "sort": Schema.choice(NoteOrder.allCases.map(\.rawValue), "Newest first by modified (default), created or opened (last opened in Notes), or by title"),
                  "undescribed": Schema.flag("Only notes without a current description"),
                  "depth": Schema.whole("Folder levels shown when listing folders, 1 to 10 (default 1)"),
                  "limit": Schema.whole("Notes listed, 1 to 500 (default 30, 50 with undescribed)"),
-             ]), effect: .reads) { fields in
+             ].merging(Input.filterSchema) { a, _ in a }), effect: .reads) { fields in
             let input = Input(fields)
             let folder = try input.text("folder")
             let modified = try input.window("modified"), created = try input.window("created")
             let order = try input.order()
+            let filter = try input.filter()
             let undescribed = try input.flag("undescribed") ?? false
             let depth = try input.number("depth", 1...10) ?? 1
             let limit = try input.number("limit", 1...500) ?? (undescribed ? 50 : 30)
             return try await withNotes(store) {
                 let all = descriptions.all()
-                if folder == nil, modified.isEmpty, created.isEmpty, order == nil, !undescribed {
+                if folder == nil, modified.isEmpty, created.isEmpty, order == nil, filter.isEmpty, !undescribed {
                     return ToolAnswer(try folderTree(store, descriptions: all, depth: depth))
                 }
+                let scope = try folder.map { reference throws(NotesError) in try store.scope(reference) }
+                if case .recentlyDeleted? = scope {
+                    if undescribed { throw BadInput("undescribed lists notes in folders, not in Recently Deleted") }
+                    return ToolAnswer(try deletedList(store, descriptions: all, modified: modified, created: created, filter: filter, order: order, limit: limit))
+                }
                 return ToolAnswer(try noteList(
-                    store, descriptions: all, folder: folder, modified: modified, created: created,
+                    store, descriptions: all, scope: scope, modified: modified, created: created, filter: filter,
                     order: order ?? (created.isEmpty ? .modified : .created),
                     group: folder != nil && order == nil && modified.isEmpty && created.isEmpty, undescribed: undescribed, limit: limit))
             }
         },
 
         Tool("search", title: "Search notes",
-             summary: "Full-text search of titles and text, best matches first, with the text around each match.",
+             summary: """
+                 Full-text search of titles, text, and the text Notes found in attachments (in images and \
+                 scans, handwriting, recording transcripts), best matches first, with the text around each match.
+                 """,
              input: Schema.object([
                  "query": Schema.text("Words to find"),
                  "match": Schema.choice(["all", "any"], "Every word (all, default) or any of them"),
-                 "folder": Schema.text("Path or id; includes its folders"),
+                 "folder": Schema.text("Path or id; includes its folders; a smart folder; or Recently Deleted"),
                  "modified_after": Schema.text("YYYY-MM-DD, inclusive"), "modified_before": Schema.text("YYYY-MM-DD, exclusive"),
                  "created_after": Schema.text("YYYY-MM-DD, inclusive"), "created_before": Schema.text("YYYY-MM-DD, exclusive"),
-                 "sort": Schema.choice(NoteOrder.allCases.map(\.rawValue), "Instead of best match: newest modified or created first, or by title"),
+                 "sort": Schema.choice(NoteOrder.allCases.map(\.rawValue), "Instead of best match: newest modified, created or opened first, or by title"),
                  "limit": Schema.whole("1 to 100 (default 10)"),
-             ], required: ["query"]), effect: .reads) { fields in
+             ].merging(Input.filterSchema) { a, _ in a }, required: ["query"]), effect: .reads) { fields in
             let input = Input(fields)
             let query = try input.requiredText("query")
             let matchAll = try input.pick("match", from: ["all", "any"]) != "any"
             let folder = try input.text("folder")
             let modified = try input.window("modified"), created = try input.window("created")
             let order = try input.order()
+            let filter = try input.filter()
             let limit = try input.number("limit", 1...100) ?? 10
             return try await withNotes(store) {
-                var scope: Set<String>?
+                let scope = try folder.map { reference throws(NotesError) in try store.scope(reference) }
                 var root: FolderInfo?
-                if let folder {
-                    let found = try store.folder(folder)
+                var deleted = false
+                var place = ""
+                switch scope {
+                case .folder(let found)?:
                     root = found
-                    scope = Set(try store.folders().filter { $0.names.starts(with: found.names) }.map(\.id))
+                    place = " in \(found.path)"
+                case .smart(let smart)?: place = " in the smart folder \(smart.name)"
+                case .recentlyDeleted?:
+                    deleted = true
+                    place = " in \(NotesStore.recentlyDeleted)"
+                case nil: break
                 }
-                let (total, hits) = try store.search(query, matchAll: matchAll, in: scope, modified: modified, created: created, order: order, limit: limit)
-                let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 }
-                let within = (root.map { " in \($0.path)" } ?? "") + (ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))")
+                let (total, hits) = try store.search(
+                    query, matchAll: matchAll, in: scope, modified: modified, created: created, filter: filter, order: order, limit: limit)
+                let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
+                let within = place + (ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))")
                 if hits.isEmpty { return ToolAnswer("No notes match \"\(query)\"\(within).") }
                 let kinds = try store.attachmentKinds(Set(hits.map(\.note.id)))
+                let versions = store.versions(hits.map(\.note.id))
                 let items = hits.map { hit in
-                    (hit.note.folderNames, [
-                        "\(ShortID.of(hit.note.id)) | \(Output.title(hit.note.title)) | \(Output.day(order == .created ? hit.note.created : hit.note.modified)) | "
+                    // A note this process deleted can still be in its old folder in the store.
+                    (deleted ? [NotesStore.recentlyDeleted] : hit.note.folderNames, [
+                        "\(ShortID.of(hit.note.id)) | \(versions[hit.note.id] ?? "?") | \(Output.title(hit.note.title)) | "
+                            + "\((order ?? .modified).date(of: hit.note)) | "
                             + Output.size(characters: hit.length, attachments: kinds[hit.note.id] ?? [:]),
                         "  " + hit.snippet,
                     ])
@@ -190,6 +212,66 @@ private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions
         let id = (paths[folder.path]?.count ?? 0) > 1 ? " [id \(ShortID.of(folder.id))]" : ""
         lines.append(String(repeating: "  ", count: folder.names.count - 1) + "\(folder.name) (\(counts))\(id)")
     }
+    let smart = try store.smartFolders()
+    if !smart.isEmpty {
+        lines.append("Smart folders (notes gathered by a rule; pass one as folder to list them): "
+            + (try smart.map { s throws(NotesError) in "\(s.name) (\(try store.notes(in: s).count): \(s.rule))" }).joined(separator: ", "))
+    }
+    let deleted = try store.recentlyDeletedNotes().count
+    if deleted > 0 { lines.append("\(NotesStore.recentlyDeleted) (\(deleted)): pass it as folder to list them; move_note brings one back") }
+    let tags = try store.tagSummary()
+    if !tags.isEmpty {
+        let shown = tags.prefix(60).map { "#\($0.name) (\($0.notes))" }.joined(separator: ", ")
+        lines.append("Tags: \(shown)\(tags.count > 60 ? ", and \(tags.count - 60) more" : ""); pass tags to list a tag's notes")
+    }
+    return lines.joined(separator: "\n")
+}
+
+/// The notes in Recently Deleted, most recently deleted first unless `order` says otherwise,
+/// each with how long Notes keeps it.
+@MainActor
+private func deletedList(
+    _ store: NotesStore, descriptions: [String: Descriptions.Entry], modified: DateWindow, created: DateWindow, filter: NoteFilter,
+    order: NoteOrder?, limit: Int
+) throws(NotesError) -> String {
+    var notes = try store.recentlyDeletedNotes().filter { modified.contains($0.note.modified) && created.contains($0.note.created) }
+    let passing = Set(try store.matching(notes.map(\.note), filter).map(\.id))
+    notes = notes.filter { passing.contains($0.note.id) }
+    if let order {
+        var sorted = notes.map(\.note)
+        order.sort(&sorted)
+        let rank = Dictionary(uniqueKeysWithValues: sorted.enumerated().map { ($0.element.id, $0.offset) })
+        notes.sort { rank[$0.note.id]! < rank[$1.note.id]! }
+    } else {
+        notes.sort { $0.deleted > $1.deleted }
+    }
+    let shown = Array(notes.prefix(limit))
+    let ids = Set(shown.map(\.note.id))
+    let texts = try store.plainTexts(ids)
+    let kinds = try store.attachmentKinds(ids)
+    let versions = store.versions(shown.map(\.note.id))
+    let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
+    var lines = ["\(NotesStore.recentlyDeleted)\(ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))") — \(notes.count) note\(notes.count == 1 ? "" : "s")"
+        + (notes.count > shown.count ? ", showing \(shown.count)" : "")
+        + ". Notes removes each for good \(NotesStore.daysInRecentlyDeleted) days after it was deleted; move_note brings one back to a folder."]
+    guard !notes.isEmpty else { return lines.joined(separator: "\n") }
+    lines.append("id | version | title | deleted | size | description")
+    let calendar = Calendar.current
+    for (note, deleted) in shown {
+        let text = texts[note.id] ?? ""
+        let gone = calendar.date(byAdding: .day, value: NotesStore.daysInRecentlyDeleted, to: deleted) ?? deleted
+        let left = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: gone)).day ?? 0)
+        let summary: String
+        if note.locked {
+            summary = "(locked)"
+        } else if let entry = descriptions[note.id] {
+            summary = (Descriptions.isCurrent(entry, modified: note.modified) ? "" : "(older) ") + entry.text
+        } else {
+            summary = "~ " + Descriptions.extract(text, title: note.title)
+        }
+        lines.append("\(ShortID.of(note.id)) | \(versions[note.id] ?? "?") | \(Output.title(note.title)) | \(Output.day(deleted)) (\(left) day\(left == 1 ? "" : "s") left) | "
+            + (note.locked ? "locked" : Output.size(characters: text.count, attachments: kinds[note.id] ?? [:])) + " | " + summary)
+    }
     return lines.joined(separator: "\n")
 }
 
@@ -197,42 +279,46 @@ private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions
 /// description, each with its opening text: what describe_note needs.
 @MainActor
 private func noteList(
-    _ store: NotesStore, descriptions: [String: Descriptions.Entry], folder: String?, modified: DateWindow, created: DateWindow,
-    order: NoteOrder, group: Bool, undescribed: Bool, limit: Int
+    _ store: NotesStore, descriptions: [String: Descriptions.Entry], scope: NotesStore.Scope?, modified: DateWindow, created: DateWindow,
+    filter: NoteFilter, order: NoteOrder, group: Bool, undescribed: Bool, limit: Int
 ) throws(NotesError) -> String {
-    var scope: Set<String>?
     var root: FolderInfo?
+    var heading = "All folders"
     var subfolders: String?
-    if let folder {
-        let found = try store.folder(folder)
+    var candidates: [NoteInfo]
+    switch scope {
+    case .folder(let found)?:
         root = found
+        heading = found.path
         let inside = try store.folders().filter { $0.names.count > found.names.count && $0.names.starts(with: found.names) }
-        scope = Set([found.id] + inside.map(\.id))
+        candidates = try store.notes(inFolders: Set([found.id] + inside.map(\.id)))
         let direct = inside.filter { $0.names.count == found.names.count + 1 }
         if !direct.isEmpty { subfolders = "Folders in it: " + direct.map { "\($0.name) (\($0.noteCount))" }.joined(separator: ", ") }
+    case .smart(let smart)?:
+        heading = "Smart folder \(smart.name) (\(smart.rule))"
+        candidates = try store.notes(in: smart)
+    case .recentlyDeleted?, nil:
+        candidates = try store.notes(inFolders: nil)
     }
-    var notes = try store.notes(inFolders: scope).filter { modified.contains($0.modified) && created.contains($0.created) }
+    var notes = try store.matching(candidates.filter { modified.contains($0.modified) && created.contains($0.created) }, filter)
     if undescribed { notes = notes.filter { !$0.locked && !Descriptions.isCurrent(descriptions[$0.id], modified: $0.modified) } }
-    switch order {
-    case .modified: notes.sort { $0.modified > $1.modified }
-    case .created: notes.sort { $0.created > $1.created }
-    case .title: notes.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-    }
+    order.sort(&notes)
     // Cut by the order first, so grouping never drops a folder's newest notes.
     let shown = Array(notes.prefix(limit))
     let ids = Set(shown.map(\.id))
     let texts = try store.plainTexts(ids)
     let kinds = try store.attachmentKinds(ids)
-    let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 }
-    var lines = ["\(root?.path ?? "All folders")\(ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))") — \(notes.count) "
-        + (undescribed ? "notes without a current description" : "notes") + (notes.count > shown.count ? ", showing \(shown.count)" : "")]
+    let versions = store.versions(shown.map(\.id))
+    let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
+    var lines = ["\(heading)\(ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))") — \(notes.count) "
+        + (undescribed ? "notes without a current description" : notes.count == 1 ? "note" : "notes") + (notes.count > shown.count ? ", showing \(shown.count)" : "")]
     if let subfolders { lines.append(subfolders) }
     guard !notes.isEmpty else { return lines.joined(separator: "\n") }
     var items: [(folder: [String], lines: [String])] = []
     for note in shown {
         let text = texts[note.id] ?? ""
-        let date = Output.day(order == .created ? note.created : note.modified)
-        let line = "\(ShortID.of(note.id)) | \(note.pinned ? "📌 " : "")\(Output.title(note.title)) | \(date) | "
+        let date = order.date(of: note)
+        let line = "\(ShortID.of(note.id)) | \(versions[note.id] ?? "?") | \(note.pinned ? "📌 " : "")\(Output.title(note.title)) | \(date) | "
             + (note.locked ? "locked" : Output.size(characters: text.count, attachments: kinds[note.id] ?? [:]))
         if undescribed {
             items.append((note.folderNames, [line, "  " + opening(text, title: note.title)]))
@@ -248,7 +334,7 @@ private func noteList(
         }
         items.append((note.folderNames, [line + " | " + summary]))
     }
-    lines.append("id | title | \(order == .created ? "created" : "modified") | size" + (undescribed ? "" : " | description"))
+    lines.append("id | version | title | \(order.column) | size" + (undescribed ? "" : " | description"))
     lines += Output.sections(items, root: root?.names, rootPath: root?.path ?? "", group: group)
     if undescribed {
         lines.append("Write one line for each with describe_note, many notes per call.")
@@ -275,9 +361,15 @@ private func readNote(_ store: NotesStore, _ descriptions: Descriptions, _ id: S
     let note = try store.noteInfo(id)
     let blocks = try store.blocks(id)
     var header = "id: \(ShortID.of(id)) | version: \(NotesStore.version(of: blocks)) | folder: \(note.folderPath) | modified: \(Output.minute(note.modified))"
+    if note.pinned { header += " | pinned" }
     if note.shared { header += note.sharedReadOnly ? " | shared with you, read-only" : " | shared" }
     if note.inTrash { header += " | in Recently Deleted (move_note restores it)" }
     if !Descriptions.isCurrent(descriptions.all()[id], modified: note.modified) { header += " | needs a description" }
+    let linking = try store.backlinks(id)
+    if !linking.isEmpty {
+        header += " | linked from: " + linking.prefix(10).map { "\(Output.title($0.title)) (\(ShortID.of($0.id)))" }.joined(separator: ", ")
+            + (linking.count > 10 ? ", and \(linking.count - 10) more" : "")
+    }
     let shown = blocks.mappingAttachmentIDs(ShortID.of)
     if outline {
         // Sizes are of each section as read_note returns it.

@@ -1,6 +1,7 @@
 import CoreData
 import Foundation
 import NoteModel
+import NotesShim
 
 // Moving and deleting notes, and managing folders, through Notes' AppleScript:
 // - `delete note` moves a note to Recently Deleted; deleting one already there erases it for good,
@@ -22,8 +23,9 @@ struct Moved {
 extension NotesStore {
     // MARK: Notes
 
-    func delete(_ id: String) async throws(NotesError) {
+    func delete(_ id: String, version: String) async throws(NotesError) {
         let note = try noteInfo(id)
+        try checkVersion(id, version)
         if note.inTrash { throw .refused("the note is already in Recently Deleted; deleting it again would erase it for good") }
         if note.shared {
             throw .refused("shared notes are not deleted here: deleting one can remove it for everyone it is shared with. Delete it in Notes")
@@ -42,11 +44,12 @@ extension NotesStore {
 
     /// Moves a note to another folder of its account, or back from Recently Deleted. Moving into or
     /// out of a shared folder changes who sees the note, so it needs `allowShared`.
-    func move(_ id: String, to reference: String, allowShared: Bool) async throws(NotesError) -> Moved {
+    func move(_ id: String, to reference: String, allowShared: Bool, version: String) async throws(NotesError) -> Moved {
         let target = try destination(reference)
         let note = try self.note(id)
         let info = info(note)
         try guardTitle(info.title)
+        try checkVersion(id, version)
         if note.get("markedForDeletion") as? Bool == true { throw .refused("this note is deleted") }
         if info.locked { throw .refused("locked notes are moved in Notes") }
         let source = note.get("folder") as? NSManagedObject
@@ -117,6 +120,8 @@ extension NotesStore {
             let found = try folder(reference)
             return Destination(uri: found.uri, path: found.path, accountID: found.accountID, shared: found.shared)
         } catch .notFound {
+            // Notes' own view by path can find a smart folder; it is never a destination.
+            if try smartFolder(reference) != nil { _ = try folder(reference) }
             let names = FolderPath.split(reference)
             guard !names.isEmpty else { throw .notFound("folder \"\(reference)\"") }
             let specifier = names.reversed().map { "folder \(AppleScript.quoted($0))" }.joined(separator: " of ") + " of default account"
@@ -180,6 +185,136 @@ extension NotesStore {
         renamedFolders[found.id] = (name, Date())
         if let trash = try? trashURI(sameAccountAs: try object("ICFolder", id: found.id)) { saveNotes(trash: trash) }
         return (found.path, FolderPath.join(Array(found.names.dropLast()) + [name]))
+    }
+
+    // MARK: Smart folders
+
+    /// Makes a smart folder of the notes with any (or all) of these tags; they must be in use.
+    func createSmartFolder(_ name: String, tags: [String], matchAll: Bool) async throws(NotesError) -> NotesStore.SmartFolder {
+        try checkFolderName(name)
+        try guardTitle(name, what: "folder names")
+        guard !tags.isEmpty else { throw .refused("a smart folder needs tags") }
+        for tag in tags {
+            if let first = try? notes(taggedWith: tag).notes.first { _ = try repairTags(first.id) }
+        }
+        let smartNames = try smartFolders().map { $0.name.lowercased() }
+        let topNames = try folders().filter { $0.parentID == nil }.map { $0.name.lowercased() }
+        if (smartNames + topNames).contains(name.lowercased()) {
+            throw .refused("there is already a folder named \"\(name)\"")
+        }
+        let context = try writeContext()
+        var account = try object("ICFolder", id: Self.defaultFolderID, in: context)?.get("account") as? NSManagedObject
+        if account == nil { account = try fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO"), in: context).first }
+        guard let account else { throw .failed("no Notes account was found") }
+        let hashtags = try fetch("ICHashtag", NSPredicate(format: "markedForDeletion == NO AND account == %@", account), in: context)
+        var chosen: [NSManagedObject] = []
+        for tag in tags {
+            let key = Self.tagKey(tag)
+            guard let found = hashtags.first(where: { Self.tagKey(string($0, "displayText")) == key || string($0, "standardizedContent") == key.uppercased() }) else {
+                let known = try tagSummary().map { "#" + $0.name }.joined(separator: ", ")
+                throw .notFound("the tag #\(tag) in use" + (known.isEmpty ? " (no note has tags)" : "; tags in use: \(known)"))
+            }
+            chosen.append(found)
+        }
+        let id: String
+        do {
+            id = try shim { try ANNotes.newSmartFolder(named: name, tags: chosen, matchAll: matchAll, account: account) }
+            try context.save()
+        } catch let error as NotesError {
+            context.rollback()
+            throw error
+        } catch {
+            context.rollback()
+            throw .failed("saving the smart folder failed: \(error.localizedDescription)")
+        }
+        refresh()
+        guard let made = try smartFolder(id) else { throw .failed("the new smart folder cannot be found") }
+        return made
+    }
+
+    /// Renames or deletes a smart folder: it holds no notes, so a delete removes only the folder.
+    func changeSmartFolder(_ smart: NotesStore.SmartFolder, renameTo name: String?) async throws(NotesError) -> String {
+        if let name {
+            try checkFolderName(name)
+            try guardTitle(name, what: "folder names")
+        }
+        try guardTitle(smart.name, what: "folders named")
+        let context = try writeContext()
+        guard let folder = try object("ICFolder", id: smart.id, in: context) else { throw .notFound("smart folder \(smart.name) in Notes' data") }
+        do {
+            if let name { try shim { try ANNotes.renameFolder(folder, to: name) } } else { try shim { try ANNotes.mark(forDeletion: folder) } }
+            try context.save()
+        } catch let error as NotesError {
+            context.rollback()
+            throw error
+        } catch {
+            context.rollback()
+            throw .failed("saving the change failed: \(error.localizedDescription)")
+        }
+        refresh()
+        return name ?? smart.name
+    }
+
+    /// Puts a folder, with everything in it, inside another folder of its account, or at the top
+    /// (`parent` nil). Done in Notes' data rather than by AppleScript (whose `move folder` deletes
+    /// the folder), then confirmed in Notes' own view.
+    func moveFolder(_ reference: String, into parentReference: String?, allowShared: Bool) async throws(NotesError) -> (old: String, new: String) {
+        let found = try folder(reference)
+        try checkChangeable(found, allowShared: allowShared)
+        let parent = try parentReference.map { reference throws(NotesError) in try folder(reference) }
+        if let parent {
+            if parent.id == found.id || parent.names.starts(with: found.names) { throw .refused("a folder cannot go inside itself") }
+            if parent.accountID != found.accountID { throw .refused("folders move only within their account") }
+            if parent.shared != found.shared || parent.shared, !allowShared {
+                throw .refused("this move changes who can see the folder's notes (a shared folder is involved). Ask the user, then pass allow_shared: true")
+            }
+            try guardTitle(parent.name, what: "folders named")
+        }
+        if parent?.id == found.parentID { throw .refused("\(found.path) is already there") }
+        let siblings = try folders().filter { $0.parentID == parent?.id && $0.accountID == found.accountID && $0.id != found.id }
+        if siblings.contains(where: { $0.name.lowercased() == found.name.lowercased() }) {
+            throw .refused("there is already a folder named \"\(found.name)\" there")
+        }
+        let depth = (parent?.names.count ?? (multipleAccountsShown ? 1 : 0)) + (try folders().filter { $0.names.starts(with: found.names) }.map { $0.names.count - found.names.count + 1 }.max() ?? 1)
+        if depth > 10 + (multipleAccountsShown ? 1 : 0) { throw .refused("Notes nests folders at most 10 deep") }
+        let context = try writeContext()
+        guard let object = try self.object("ICFolder", id: found.id, in: context) else { throw .notFound("folder \(found.path) in Notes' data") }
+        let parentObject = try parent.map { p throws(NotesError) -> NSManagedObject in
+            guard let o = try self.object("ICFolder", id: p.id, in: context) else { throw .notFound("folder \(p.path) in Notes' data") }
+            return o
+        }
+        do {
+            try shim { try ANNotes.moveFolder(object, into: parentObject) }
+            try context.save()
+        } catch let error as NotesError {
+            context.rollback()
+            throw error
+        } catch {
+            context.rollback()
+            throw .failed("saving the move failed: \(error.localizedDescription)")
+        }
+        let container: String
+        if let parent { container = "folder id \"\(parent.uri)\"" } else { container = try accountSpecifier(of: found) }
+        let arrived = try await waitFor(10) { () throws(NotesError) in
+            try AppleScript.notesList("id of folders of \(container)").contains(found.uri)
+        }
+        refresh()
+        let new = FolderPath.join((parent?.names ?? (multipleAccountsShown ? Array(found.names.prefix(1)) : [])) + [found.name])
+        guard arrived else {
+            throw .failed("the move is saved in Notes' data, but Notes does not show \(found.name) in \(parent?.path ?? "the top level") yet; "
+                + "look in Notes (quitting and opening Notes shows it) before trying again")
+        }
+        return (found.path, new)
+    }
+
+    private var multipleAccountsShown: Bool { (try? fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO")).count ?? 1) ?? 1 > 1 }
+
+    /// The AppleScript specifier of a folder's account.
+    private func accountSpecifier(of folder: FolderInfo) throws(NotesError) -> String {
+        guard let object = try object("ICFolder", id: folder.id), let account = object.get("account") as? NSManagedObject else {
+            throw .failed("the folder's account cannot be found")
+        }
+        return "account id \"\(account.objectID.uriRepresentation().absoluteString)\""
     }
 
     /// Deletes an empty folder. A folder that still holds anything is refused, so one call never

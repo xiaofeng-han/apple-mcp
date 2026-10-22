@@ -83,6 +83,55 @@ struct Input {
         return DateWindow(from: try day(field + "_after"), until: try day(field + "_before"))
     }
 
+    /// The notes a change is for: id and version, or notes, a list of {id, version}.
+    func targets() throws -> [(id: String, version: String)] {
+        let id = try text("id"), version = try text("version")
+        if let items = try objects("notes", keys: ["id", "version"]) {
+            guard id == nil, version == nil else { throw BadInput("give id and version, or notes, not both") }
+            guard (1...100).contains(items.count) else { throw BadInput("notes takes 1 to 100 notes") }
+            return try items.map { (try $0.requiredText("id"), try $0.requiredText("version")) }
+        }
+        guard let id else { throw BadInput("id is required (or notes)") }
+        guard let version else { throw BadInput("version is required: the one read_note, overview or search gave") }
+        return [(id, version)]
+    }
+
+    /// tags, only and attachments: what overview and search narrow notes to.
+    func filter() throws -> NoteFilter {
+        var filter = NoteFilter()
+        filter.tags = try (texts("tags") ?? []).map { name in
+            let key = name.trimmingCharacters(in: .whitespaces)
+            let bare = key.hasPrefix("#") ? String(key.dropFirst()) : key
+            guard !bare.isEmpty else { throw BadInput("tags must not be empty") }
+            return bare
+        }
+        filter.groups = try (texts("only") ?? []).map { value in
+            guard let group = NoteFilter.Group(rawValue: value.lowercased()) else {
+                throw BadInput("only takes " + NoteFilter.Group.allCases.map(\.rawValue).joined(separator: ", "))
+            }
+            return group
+        }
+        filter.attachments = try (texts("attachments") ?? []).map { value in
+            guard let kind = NoteFilter.attachmentKinds.first(where: { $0.lowercased() == value.lowercased() }) else {
+                throw BadInput("attachments takes " + NoteFilter.attachmentKinds.joined(separator: ", "))
+            }
+            return kind
+        }
+        if filter.attachments.count > 1, filter.attachments.contains(where: { $0 == "any" || $0 == "none" }) {
+            throw BadInput("attachments any and none go alone")
+        }
+        return filter
+    }
+
+    /// The schema of the filter's fields.
+    static let filterSchema: [String: JSON] = [
+        "tags": Schema.texts("Only notes with all these tags (# optional)"),
+        "only": Schema.list(of: ["type": "string", "enum": .array(NoteFilter.Group.allCases.map { .string($0.rawValue) })],
+                            "Only notes in all of these groups (unchecked: with unticked checklist items; calls: call recordings)"),
+        "attachments": Schema.list(of: ["type": "string", "enum": .array(NoteFilter.attachmentKinds.map { .string($0) })],
+                                   "Only notes with an attachment of one of these kinds; any, or none"),
+    ]
+
     func order() throws -> NoteOrder? {
         try pick("sort", from: NoteOrder.allCases.map(\.rawValue)).flatMap(NoteOrder.init(rawValue:))
     }

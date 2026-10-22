@@ -13,7 +13,7 @@ let words = Array(CommandLine.arguments.dropFirst())
 /// a diagnosis; `agents` lists, sets up and installs AI agents; `skill` prints the skill;
 /// `--settings` (or, with no words, a double-click in Finder) opens the settings window; anything
 /// else is a command (see Commands). Only the first word counts, so a search may be for "setup".
-enum Mode { case serve, setup, check, agents, skill, version, settings, command }
+enum Mode { case serve, setup, check, agents, skill, version, settings, command, copy, checkMarkdown }
 
 let mode: Mode = {
     switch words.first {
@@ -24,6 +24,8 @@ let mode: Mode = {
     case "skill": return .skill
     case "--version": return .version
     case "--settings": return .settings
+    case "--copy-note": return .copy
+    case "--check-markdown": return .checkMarkdown
     case nil:
         var info = stat()
         fstat(STDIN_FILENO, &info)
@@ -137,15 +139,53 @@ case .settings:
     MainActor.assumeIsolated { SettingsPanel.show(tools: tools) }
     exit(0)
 
+case .checkMarkdown:
+    // `--check-markdown`: every note read, written as Markdown and parsed back, must come out the
+    // same; what does not is listed. Reads only. Worth running after a macOS update.
+    runThenExit {
+        do {
+            var checked = 0, differ: [String] = []
+            for note in try store.notes(inFolders: nil) + store.recentlyDeletedNotes().map(\.note) where !note.locked {
+                let blocks = try store.blocks(note.id)
+                checked += 1
+                let back = Markdown.parse(Markdown.render(blocks))
+                guard back != blocks else { continue }
+                let line = zip(back, blocks).enumerated().first { $0.element.0 != $0.element.1 }?.offset ?? min(back.count, blocks.count)
+                differ.append("\(ShortID.of(note.id)) \(note.title): line \(line + 1)")
+            }
+            print("\(checked) notes read; \(differ.count) do not read back the same from Markdown" + (differ.isEmpty ? "." : ":"))
+            for line in differ.prefix(20) { print("  " + line) }
+            return differ.isEmpty ? 0 : 1
+        } catch {
+            print("Notes data:", error)
+            return 1
+        }
+    }
+
+case .copy:
+    // `--copy-note NOTE [FOLDER]`, run by create_note's copy_of: prints the copy's id.
+    runThenExit {
+        guard words.count >= 2 else { return 2 }
+        do {
+            print(try store.copyHere(words[1], into: words.count > 2 ? words[2] : nil))
+            return 0
+        } catch {
+            FileHandle.standardError.write(Data("\(error)\n".utf8))
+            return 1
+        }
+    }
+
 case .serve:
     let instructions = """
-        Apple Notes on this Mac, synced through iCloud. Find notes with overview or search, then read_note, \
-        and pass its version back to edit_note; make all changes to one note in a single edit_note call. \
-        Each note paragraph is one Markdown line: # title, ## heading, ### subheading, * and - lists, 1. numbered, \
-        - [ ] / - [x] checkboxes, > quote, two spaces per indent level, ``` monospaced, **bold**, *italic*, \
-        ~~strike~~, <u>underline</u>, <mark>highlight</mark>, [link](url), | tables |. Keep \
-        ![…](attachment:…) placeholders where they are. To describe many notes: overview with undescribed: \
-        true, then one describe_note call.
+        Apple Notes on this Mac, synced through iCloud. Find notes with overview or search, then read_note; \
+        every change (edit_note, move_note, delete_note) passes back the version they gave, and a note changed \
+        since is refused. Make all changes to one note in a single edit_note call. Each note paragraph is one \
+        Markdown line: # title, ## heading, ### subheading, * and - lists, 1. numbered, - [ ] / - [x] checkboxes, \
+        > quote, two spaces per indent level, ``` monospaced, **bold**, *italic*, ~~strike~~, <u>underline</u>, \
+        <mark>highlight</mark>, [link](url), | tables |, #tag, [text](note:id) a link to a note, --- a divider. \
+        Keep ![…](attachment:…) placeholders where they are; ![name](/path/to/file) attaches a file. Deleted \
+        notes stay 30 days in Recently Deleted (overview folder "Recently Deleted"). To describe many notes: \
+        overview with undescribed: true, then one describe_note call.
         """
     let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions,
                           tools: tools, exposure: Settings.exposure)

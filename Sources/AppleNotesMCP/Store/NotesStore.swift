@@ -34,18 +34,30 @@ struct NoteInfo: Sendable {
     let sharedReadOnly: Bool
     let inTrash: Bool
     let uri: String
+    /// A Quick Note.
+    let quickNote: Bool
+    /// The app a note came from: com.apple.mobilephone for a call recording, Calculator for a Math Note.
+    let host: String?
+    let hasChecklist: Bool
+    /// It has a checklist with items not ticked yet.
+    let checklistInProgress: Bool
+    /// When it was last opened in Notes, on any device.
+    let opened: Date?
 
     var folderPath: String { inTrash ? "Recently Deleted" : FolderPath.join(folderNames) }
+    var callRecording: Bool { host?.caseInsensitiveCompare("com.apple.mobilephone") == .orderedSame }
+    var mathNote: Bool { ["com.apple.greyparrot", "com.apple.calculator"].contains { host?.caseInsensitiveCompare($0) == .orderedSame } }
 }
 
 /// The iCloud state of a note: its local changes are uploaded once `synced` reaches `local`.
 struct CloudState: Sendable {
     var local: Int
     var synced: Int
-    /// Tables of the note whose latest change is not uploaded yet (each table is a record of its own).
-    var pendingTables: [String]
+    /// Tables of the note, and what a write added to it (tags, links, files), whose latest change is
+    /// not uploaded yet: each is a record of its own.
+    var pendingAttachments: [String]
     var noteSynced: Bool { synced >= local }
-    var uploaded: Bool { noteSynced && pendingTables.isEmpty }
+    var uploaded: Bool { noteSynced && pendingAttachments.isEmpty }
 }
 
 struct WriteResult: Sendable {
@@ -56,6 +68,8 @@ struct WriteResult: Sendable {
     var mismatch: String?
     /// Tables this write edited in place.
     var tablesEdited: [String] = []
+    /// Attachments this write added (tags, links, divider lines, files, link cards).
+    var added: [String] = []
 }
 
 /// Apple Notes for the tools. Reads go through Notes' own data model on a read-only store; writes
@@ -77,6 +91,8 @@ final class NotesStore {
     var renamedFolders: [String: (name: String, at: Date)] = [:]
     /// Plain text of notes for search, by id, until the note changes.
     var textCache: [String: (key: String, text: String)] = [:]
+    /// Text Notes got out of each attachment, for search, by attachment id, until it changes.
+    var attachmentTextCache: [String: (key: String, texts: [AttachmentText])] = [:]
     private var multipleAccounts = false
 
     init(writeGuard: String?) {
@@ -171,9 +187,75 @@ final class NotesStore {
         }
     }
 
+    // MARK: Smart folders
+
+    struct SmartFolder {
+        let id: String
+        let name: String
+        /// What gathers its notes: "#work, #home".
+        let rule: String
+        let object: NSManagedObject
+    }
+
+    /// Smart folders: notes gathered by a rule (tags, dates, …), holding none of their own.
+    func smartFolders() throws(NotesError) -> [SmartFolder] {
+        try fetch("ICFolder", NSPredicate(format: Self.visibleFolders + " AND smartFolderQueryJSON != nil")).map { folder in
+            SmartFolder(id: string(folder, "identifier"), name: string(folder, "title"),
+                        rule: ANNotes.description(ofSmartFolder: folder) ?? "a rule set in Notes", object: folder)
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// A smart folder by id, short id or name (case-insensitive), or nil.
+    func smartFolder(_ reference: String) throws(NotesError) -> SmartFolder? {
+        let wanted = reference.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+        let all = try smartFolders()
+        return all.first { $0.id == wanted || ShortID.of($0.id) == wanted } ?? all.first { $0.name.caseInsensitiveCompare(wanted) == .orderedSame }
+    }
+
+    /// The notes a smart folder gathers, by its own rule.
+    func notes(in smart: SmartFolder) throws(NotesError) -> [NoteInfo] {
+        guard let rule = ANNotes.predicate(ofSmartFolder: smart.object) else {
+            throw .failed("the rule of the smart folder \(smart.name) cannot be read in this version of macOS")
+        }
+        _ = try folders()
+        return try fetch("ICNote", rule).map(info).filter { !$0.inTrash && !deletedFolders.contains($0.folderID) }
+    }
+
+    /// What a list or a search covers: a folder and the folders in it, a smart folder's notes, or
+    /// Recently Deleted.
+    enum Scope {
+        case folder(FolderInfo)
+        case smart(SmartFolder)
+        case recentlyDeleted
+    }
+
+    /// The scope a folder reference names: a folder first, else a smart folder.
+    func scope(_ reference: String) throws(NotesError) -> Scope {
+        if Self.isRecentlyDeleted(reference) { return .recentlyDeleted }
+        do throws(NotesError) {
+            return .folder(try userFolder(reference))
+        } catch .notFound(let what) {
+            if let smart = try smartFolder(reference) { return .smart(smart) }
+            throw .notFound(what)
+        }
+    }
+
     /// A user folder by id, short id, or path ("Parent/Child", case-insensitive), or by its own
-    /// name when that is unique.
+    /// name when that is unique. A smart folder is refused with what it is: it holds no notes, so
+    /// notes cannot go in it, and it is changed in Notes.
     func folder(_ reference: String) throws(NotesError) -> FolderInfo {
+        do throws(NotesError) {
+            return try userFolder(reference)
+        } catch .notFound(let what) {
+            if let smart = try smartFolder(reference) {
+                throw .refused("\(smart.name) is a smart folder: it shows the notes its rule (\(smart.rule)) picks and holds none of "
+                    + "its own. Use a regular folder; overview and search take a smart folder to list or search its notes")
+            }
+            throw .notFound(what)
+        }
+    }
+
+    private func userFolder(_ reference: String) throws(NotesError) -> FolderInfo {
         let all = try folders()
         if let byID = all.first(where: { $0.id == reference || ShortID.of($0.id) == reference }) { return byID }
         let wanted = reference.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")).lowercased()
@@ -223,10 +305,18 @@ final class NotesStore {
     static func isShared(_ folder: NSManagedObject) -> Bool {
         var current: NSManagedObject? = folder
         while let f = current {
-            if f.get("serverShareData") != nil { return true }
+            if sharedItself(f) { return true }
             current = f.get("parent") as? NSManagedObject
         }
         return false
+    }
+
+    /// Shared by the user, or someone else's, as Notes decides it (ICQuery's shared notes): a
+    /// share record, or a place in another person's iCloud zone.
+    static func sharedItself(_ object: NSManagedObject) -> Bool {
+        if object.get("serverShareData") != nil { return true }
+        guard let owner = object.get("zoneOwnerName") as? String else { return false }
+        return owner != "__defaultOwner__"
     }
 
     // MARK: Notes
@@ -239,9 +329,12 @@ final class NotesStore {
             folderNames: folder.map(names(of:)) ?? [],
             modified: note.get("modificationDate") as? Date ?? .distantPast, created: note.get("creationDate") as? Date ?? .distantPast,
             pinned: note.get("isPinned") as? Bool ?? false, locked: note.get("isPasswordProtected") as? Bool ?? false,
-            shared: note.get("serverShareData") != nil || folder.map(Self.isShared) ?? false,
+            shared: Self.sharedItself(note) || folder.map(Self.isShared) ?? false,
             sharedReadOnly: note.get("isSharedReadOnly") as? Bool ?? false,
-            inTrash: Self.isTrash(folder) || deletedNotes.contains(id), uri: note.objectID.uriRepresentation().absoluteString)
+            inTrash: Self.isTrash(folder) || deletedNotes.contains(id), uri: note.objectID.uriRepresentation().absoluteString,
+            quickNote: note.get("isSystemPaper") as? Bool ?? false, host: note.get("hostApplicationIdentifier") as? String,
+            hasChecklist: note.get("hasChecklist") as? Bool ?? false, checklistInProgress: note.get("hasChecklistInProgress") as? Bool ?? false,
+            opened: note.get("lastOpenedDate") as? Date)
     }
 
     func noteInfo(_ id: String) throws(NotesError) -> NoteInfo {
@@ -254,6 +347,31 @@ final class NotesStore {
         let predicate = ids.map { NSPredicate(format: "markedForDeletion == NO AND folder.identifier IN %@", Array($0)) }
             ?? NSPredicate(format: "markedForDeletion == NO AND folder.folderType != 1")
         return try fetch("ICNote", predicate).map(info).filter { !$0.inTrash && !deletedFolders.contains($0.folderID) }
+    }
+
+    /// How tools name Recently Deleted, which is not a user folder.
+    static let recentlyDeleted = "Recently Deleted"
+    /// Notes removes a note this long after it went to Recently Deleted.
+    static let daysInRecentlyDeleted = 30
+
+    static func isRecentlyDeleted(_ reference: String) -> Bool {
+        reference.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")).caseInsensitiveCompare(recentlyDeleted) == .orderedSame
+    }
+
+    /// Notes in Recently Deleted, of every account, each with when it went there (the store's
+    /// date for its last change of folder; now, for one this process deleted that the store does
+    /// not show there yet).
+    func recentlyDeletedNotes() throws(NotesError) -> [(note: NoteInfo, deleted: Date)] {
+        _ = try folders()
+        var found = try fetch("ICNote", NSPredicate(format: "markedForDeletion == NO AND folder.folderType == 1")).map { note in
+            (note: info(note), deleted: note.get("folderModificationDate") as? Date ?? note.get("modificationDate") as? Date ?? Date())
+        }
+        let listed = Set(found.map(\.note.id))
+        for id in deletedNotes.subtracting(listed) {
+            guard let note = try? note(id), note.get("markedForDeletion") as? Bool != true else { continue }
+            found.append((info(note), Date()))
+        }
+        return found
     }
 
     /// Notes titled `title` (ignoring case and surrounding spaces), newest first.
@@ -307,20 +425,47 @@ final class NotesStore {
         SHA256.hash(data: Data(Markdown.render(blocks).utf8)).prefix(6).map { String(format: "%02x", $0) }.joined()
     }
 
-    func cloudState(_ id: String) throws(NotesError) -> CloudState {
+    /// The version of a locked note, whose content cannot be read: changes to it (a move, a
+    /// delete) are checked against nothing more.
+    static let lockedVersion = "locked"
+
+    /// A note's version as read_note gives it.
+    func version(of id: String) throws(NotesError) -> String {
+        if try note(id).get("isPasswordProtected") as? Bool == true { return Self.lockedVersion }
+        return Self.version(of: try blocks(id))
+    }
+
+    /// Versions for a list of notes; "?" for a note that cannot be read.
+    func versions(_ ids: [String]) -> [String: String] {
+        Dictionary(ids.map { id in (id, (try? version(of: id)) ?? "?") }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Refuses a change to a note that changed after the caller read it: every change names the
+    /// version it was made against.
+    func checkVersion(_ id: String, _ expected: String) throws(NotesError) {
+        let current = try version(of: id)
+        guard current == expected.trimmingCharacters(in: .whitespaces).lowercased() else {
+            throw .conflict("\"\(try noteInfo(id).title)\" changed after it was read (version \(current), not \(expected)). "
+                + "Read it again, then make the change.")
+        }
+    }
+
+    func cloudState(_ id: String, watching added: [String] = []) throws(NotesError) -> CloudState {
         refresh()
         let note = try note(id)
         var local = 0, synced = 0
         guard ANNotes.cloudState(of: note, local: &local, synced: &synced) else { throw .failed("Notes reported no iCloud state for the note") }
         var pending: [String] = []
-        for attachment in (note.get("attachments") as? Set<NSManagedObject>) ?? []
-        where attachment.get("typeUTI") as? String == "com.apple.notes.table" && attachment.get("markedForDeletion") as? Bool != true {
-            var tableLocal = 0, tableSynced = 0
-            if ANNotes.cloudState(of: attachment, local: &tableLocal, synced: &tableSynced), tableSynced < tableLocal {
+        let watched = Set(added)
+        let attachments = ((note.get("attachments") as? Set<NSManagedObject>) ?? []).union((note.get("inlineAttachments") as? Set<NSManagedObject>) ?? [])
+            .filter { $0.get("typeUTI") as? String == "com.apple.notes.table" || watched.contains(string($0, "identifier")) }
+        for attachment in attachments where attachment.get("markedForDeletion") as? Bool != true {
+            var attachmentLocal = 0, attachmentSynced = 0
+            if ANNotes.cloudState(of: attachment, local: &attachmentLocal, synced: &attachmentSynced), attachmentSynced < attachmentLocal {
                 pending.append(string(attachment, "identifier"))
             }
         }
-        return CloudState(local: local, synced: synced, pendingTables: pending)
+        return CloudState(local: local, synced: synced, pendingAttachments: pending)
     }
 
     func string(_ object: NSManagedObject, _ key: String) -> String {

@@ -347,10 +347,32 @@ apple-notes-mcp --check-markdown                                # 每条笔记�
 - 命令行参数如何从工具的输入 schema 读出；
 - 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
+## 和同类项目的比较
+
+GitHub 和 npm 上有大约五十个 Apple 备忘录的 MCP 服务器。下表选了功能最多的六个，另加语义搜索独一份的 disco-trooper。每一列按该项目 2026-10-22 的 README 自述填写，没有逐个安装验证，所以表格里写的是各项目自己的说法。✅ 有 · ⚠️ 部分或有条件 · ❌ 无 · – 它的 README 没提。
+
+| | **本项目 0.3** | [sweetrb](https://github.com/sweetrb/apple-notes-mcp) | [ailenshen](https://github.com/ailenshen/apple-notes-mcp) v2 | [PsychQuant](https://github.com/PsychQuant/che-apple-notes-mcp) | [notebridge](https://github.com/mqingcs/notebridge-Apple-Notes-MCP) | [evg4b](https://github.com/evg4b/apple-notes-mcp) | [TheInkedEngineer](https://github.com/TheInkedEngineer/apple-notes-mcp) | [disco-trooper](https://github.com/disco-trooper/apple-notes-mcp) |
+|---|---|---|---|---|---|---|---|---|
+| 读出格式 | Markdown 全结构，含标签、笔记链接、分割线、高亮颜色 | HTML / 纯文本 / Markdown | Markdown | 文本 + HTML | 纯文本 / 导出 HTML | 纯文本（可要 HTML） | 纯文本 / Markdown / HTML | Markdown / HTML |
+| 勾选框真实状态（读） | ✅ | ✅ 需完全磁盘访问 | ✅ | – | ❌ | ❌ | ❌ | ❌ |
+| 局部编辑（改一行不动其余） | ✅ 字符级 | ⚠️ 只有 append / prepend；update 整篇，富文本被拒 | ✅ | ⚠️ 整篇 | ⚠️ append / edit / 改名 / 移动；带附件不能整篇 | ⚠️ 整篇 + append | ⚠️ 整篇 | ⚠️ 整篇 |
+| 保留 Markdown 表达不了的格式 | ✅ 颜色字体对齐不动，合并他设备修改 | ⚠️ append 保留，整篇不保 | ✅ | ❌ | – | ❌ | ❌ | ❌ |
+| 勾选框 / 表格写入 | ✅ 按文字打勾、全勾全消、已勾移底或删；表格单元格级 | ⚠️ 只能新增勾选项，不能打勾；表格只能追加 | ✅ 逐项 replace；表格 ✅ | ❌ | ❌ | ❌ | ❌ | ❌（表格只读，含加粗等格式） |
+| 附件读 / 加 | 读 ✅ 图、扫描、绘图、PDF、音频（含文字稿摘要）、视频帧 + OCR 文字；加 ✅ 文件、链接卡片；删 ❌ | 读 ✅ 列出、导出、转写、绘图转 SVG；加 ✅ | 读 ✅；加 ❌ | ❌ | 读 ✅ 原始字节 + SHA-256 + 预览；加 ⚠️ ≤ 256 KiB | 读 ⚠️ 仅列出 | ❌ | ❌ |
+| 搜索 | 全文 + 附件识别文字；按标签、分组、附件类型筛选；最近打开排序 | 标题 / 内容 + 布尔查询语言（需完全磁盘访问） | 全文 | SQL LIKE | 仅标题 | 关键词 | 标题 / 正文子串，分页，日期 | ✅ 混合：向量 + 关键词 RRF，长笔记分块，增量索引，后台索引任务；可选 OpenRouter 云嵌入；按 # 标签文字和链接找相关笔记 |
+| 文件夹管理 / 移动 | ✅ 建、改名、移动、删；智能文件夹 | 建、改名、删 | 建、改名、删 | 建、改名、删；批量建 / 移 / 删笔记 | ❌ | 建、删 | ✅ 建、改名、删、移动；批量取 / 删 | 仅列出；笔记可移动 |
+| 导出 | 文件夹 → Markdown + 原附件，或 zip | Markdown 模板 / HTML / JSON | 同本项目 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 多账户 · 标签 · 置顶 | 多账户路径区分，移动限同账户；标签读写、全库改名删；置顶；反向链接；最近删除 | 多账户参数；标签增删、置顶（Shortcuts） | – | 多账户参数；置顶 / 锁定筛选；共享面板 | – | 多账户参数 | 多账户参数 | – |
+| 版本冲突 / 备份 | ✅ 所有改动带版本；备份 20 份；预演 + 回读 | ✅ contentHash；备份 – | ✅ 整篇重写要版本 + 备份 | ⚠️ 进程内 undo / redo | ✅ expected_version + 备份 + restore | ❌ | ❌ | ❌ |
+| 工具开关 / 只读 | ✅ GUI + tools.json，实时 list_changed，约束命令行 | ⚠️ 本体无，派生版有 | ❌ | ❌ | ✅ 文件夹白名单；写入显式开启 | ✅ --scopes，默认只读 | ⚠️ 删文件夹要确认 | ✅ READONLY_MODE |
+| 命令行 / 技能 / 代理配置 | ✅ 每工具一命令；技能；7 家代理检测、配置、安装 | ⚠️ setup 子命令；插件带 skill；Broker.app | ❌ | ✅ --cli；插件斜杠命令 + skill | ❌ | ❌ | ❌ | ⚠️ 安装向导写 Claude Code 配置、选嵌入模型 |
+| 分发 | brew cask / pkg | npx / 插件市场 | npx | .mcpb / 二进制 / 插件市场 | 克隆 + pip | brew / 二进制（含 Intel） | brew | npm，要 Bun |
+
+别人有、本项目没有的：语义搜索，删除笔记里已有的附件，跨账户移动笔记，HTTP 传输，Intel Mac 和 macOS 26 以前的系统。
+
 ## 做不到的
 
-- 附件只能读，不能添加或删除（表格除外）。
-- 不能移动文件夹：「备忘录」AppleScript 的 `move folder` 报告成功，实际却删掉了文件夹，所以从不使用。
+- 已经在笔记里的附件删不掉，表格、标签、笔记链接和分割线除外。新文件和链接卡片可以添加。
 - 加锁的笔记读不了（正文用用户的密码加了密）。
 - 如果某个表格在当前这次打开的「备忘录」里被手动编辑过，原地修改它不会上传；这时服务器会用相同内容重建它，表格里的格式会丢失。
 - 「备忘录」把自己的改动写回数据库有延迟，所以服务器会记住自己删除或改名的笔记和文件夹，直到数据库跟上。

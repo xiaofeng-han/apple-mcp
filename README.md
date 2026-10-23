@@ -347,10 +347,32 @@ apple-notes-mcp --check-markdown                            # every note read ba
 - how command-line flags are read from the tools' input schemas;
 - the choice of tools: the rule for tools the file doesn't name, saving, reading and watching the file, and what the server lists, refuses and announces.
 
+## Compared with other servers
+
+About fifty MCP servers for Apple Notes are on GitHub and npm. The table has the six with the most features, and disco-trooper for its semantic search. Each column says what that project's README said on 2026-10-22; none of them was installed and tested for this table, so read a cell as that project's claim. ✅ has it · ⚠️ partly, or with conditions · ❌ no · – its README does not say.
+
+| | **This server (0.3)** | [sweetrb](https://github.com/sweetrb/apple-notes-mcp) | [ailenshen](https://github.com/ailenshen/apple-notes-mcp) v2 | [PsychQuant](https://github.com/PsychQuant/che-apple-notes-mcp) | [notebridge](https://github.com/mqingcs/notebridge-Apple-Notes-MCP) | [evg4b](https://github.com/evg4b/apple-notes-mcp) | [TheInkedEngineer](https://github.com/TheInkedEngineer/apple-notes-mcp) | [disco-trooper](https://github.com/disco-trooper/apple-notes-mcp) |
+|---|---|---|---|---|---|---|---|---|
+| Reads notes as | Markdown with every structure, tags, links to notes, divider lines and highlight colors | HTML, plain text or Markdown | Markdown | text and HTML | plain text, or exported HTML | plain text (HTML on request) | plain text, Markdown or HTML | Markdown or HTML |
+| Checklist state when reading | ✅ | ✅ with Full Disk Access | ✅ | – | ❌ | ❌ | ❌ | ❌ |
+| Edits in place (one line changes, the rest stays) | ✅ character by character | ⚠️ append and prepend only; an update replaces the whole body and refuses rich notes | ✅ | ⚠️ whole body | ⚠️ append, edit, rename, move; no whole-body replace on notes with attachments | ⚠️ whole body, or append | ⚠️ whole body | ⚠️ whole body |
+| Keeps formatting Markdown cannot show | ✅ colors, fonts and alignment stay; merges with edits from other devices | ⚠️ kept on append, not on update | ✅ | ❌ | – | ❌ | ❌ | ❌ |
+| Writes checklists and tables | ✅ ticks items by text, ticks or unticks all, moves or deletes ticked items; edits table cells | ⚠️ adds unticked items only (through Shortcuts), cannot tick; only appends new tables | ✅ one replacement per item; tables ✅ | ❌ | ❌ | ❌ | ❌ | ❌ (reads tables, with bold and such) |
+| Attachments: read / add | reads ✅ images, scans, drawings, PDFs, audio (with transcript and summary), a video frame, and the text Notes recognized; adds ✅ files and link cards; removes ❌ | reads ✅ lists, exports, transcribes audio, drawings to SVG; adds ✅ | reads ✅; adds ❌ | ❌ | reads ✅ original bytes with SHA-256 and previews; adds ⚠️ up to 256 KiB | reads ⚠️ lists only | ❌ | ❌ |
+| Search | full text and the text recognized in attachments; narrowed by tag, group and attachment kind; sorted by last opened | title or body, and a boolean query language (needs Full Disk Access) | full text | SQL LIKE | titles only | keywords | title or body substring, pages, dates | ✅ hybrid: vectors and keywords with RRF, long notes chunked, incremental and background indexing; OpenRouter embeddings optional; related notes by #tag text and links |
+| Folders | ✅ create, rename, move, delete; smart folders | create, rename, delete | create, rename, delete | create, rename, delete; batch create, move and delete of notes | ❌ | create, delete | ✅ create, rename, delete, move; batch read and delete | lists only; notes can be moved |
+| Export | a folder as Markdown with the original attachments, or a .zip | Markdown with templates, HTML, JSON | same as this server | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Accounts, tags, pinning | accounts told apart in paths, moves within one account; tags read and written, renamed or removed everywhere; pinning; backlinks; Recently Deleted | account parameter; tags and pinning through Shortcuts | – | account parameter; pinned and locked filters; share sheet | – | account parameter | account parameter | – |
+| Conflicts and backups | ✅ every change names a version; 20 backups; rehearsed on a copy and read back | ✅ contentHash; backups – | ✅ a rewrite needs the version; backups | ⚠️ in-process undo and redo | ✅ expected_version, backups, restore | ❌ | ❌ | ❌ |
+| Choosing tools, read-only | ✅ settings window and tools.json, live list_changed, holds for the command line too | ⚠️ not itself; a derivative has it | ❌ | ❌ | ✅ folder allow-list; writes opt-in | ✅ --scopes, read-only by default | ⚠️ folder deletes need confirmation | ✅ READONLY_MODE |
+| Command line, skill, agent setup | ✅ a command per tool; a skill; finds, sets up and installs 7 agents | ⚠️ setup subcommands; plugins with a skill; Broker.app | ❌ | ✅ --cli; plugin with slash commands and a skill | ❌ | ❌ | ❌ | ⚠️ a wizard that writes Claude Code's config and picks the embedding model |
+| Install | Homebrew cask or package | npx, plugin marketplaces | npx | .mcpb, binary, plugin marketplace | clone and pip | Homebrew or binary (Intel too) | Homebrew | npm, needs Bun |
+
+What some of them have and this server does not: semantic search, removing an attachment already in a note, moving notes between accounts, an HTTP transport, Intel Macs and macOS before 26.
+
 ## Limits
 
-- Attachments can be read, not added or removed (except tables).
-- Folders cannot be moved: Notes' AppleScript `move folder` reports success and deletes the folder, so it is never used.
+- An attachment already in a note cannot be removed, except tables, tags, links to notes and divider lines. New files and link cards can be added.
 - Locked notes cannot be read (their text is encrypted with the user's password).
 - A table that was edited in Notes itself during the current Notes session does not upload when changed in place; the server then makes it again with the same content, which resets formatting inside its cells.
 - Notes saves its own changes to the database lazily, so the server remembers notes and folders it deleted or renamed until the database catches up.

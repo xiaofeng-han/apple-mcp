@@ -53,7 +53,8 @@ public final class NotesComponent: Component {
     ]
 
     public var modes: [String: @MainActor @Sendable ([String]) async -> Int32] {
-        ["--copy-note": { [self] words in copyNote(words) }, "--check-markdown": { [self] _ in checkMarkdown() }]
+        ["--copy-note": { [self] words in copyNote(words) }, "--check-markdown": { [self] _ in checkMarkdown() },
+         "--list-json": { [self] words in listJSON(words) }]
     }
 
     static func describe(_ state: Permissions.State) -> String {
@@ -128,6 +129,11 @@ public final class NotesComponent: Component {
             print("Notes data:", error)
             return 1
         }
+    }
+
+    /// `--list-json [QUERY]`, for editor pickers (see ListJSON).
+    func listJSON(_ words: [String]) -> Int32 {
+        ListJSON.run(words, from: store, write: { print($0) }, fail: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
     }
 
     /// `--copy-note NOTE [FOLDER]`, run by create_note's copy_of: prints the copy's id.

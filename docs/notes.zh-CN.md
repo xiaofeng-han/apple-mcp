@@ -148,6 +148,8 @@ apple-notes-mcp notes create - --folder Projects <<'EOF'
 EOF
 ```
 
+给编辑器和脚本用的 `apple-notes-mcp --list-json [查询]` 每行打印一个 JSON 对象，含完整的 `id`、`title`、`folder` 和 `modified`：不带查询时是所有没上锁的笔记，最新的在前；带查询时是搜索结果，最匹配的在前（最多 100 条），每条多一个 `snippet`。上面的列表会截短标题和 id，这里给的都是完整的值。
+
 ## 安装
 
 发布的包只支持 Apple 芯片，需要 macOS 26 或更新。默认用 Homebrew 安装和配置：
@@ -350,11 +352,12 @@ swift test
 apple-notes-mcp --check-markdown                                # 每条笔记写成 Markdown 再读回来是否不变（只读）
 ```
 
-`dist/` 里的构建和正式版签名相同，所以沿用你给已安装 App 的权限；裸的 `.build/debug/AppleNotesMCP` 只有启动它的程序（你的终端）的权限，没有权限时检查会立刻停下。`e2e.py notes` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 145 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment` 和对识别文字的搜索，它会读你的一张图片；如果有带文字稿的录音，也会读一段。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
+`dist/` 里的构建和正式版签名相同，所以沿用你给已安装 App 的权限；裸的 `.build/debug/AppleNotesMCP` 只有启动它的程序（你的终端）的权限，没有权限时检查会立刻停下。`e2e.py notes` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 147 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment` 和对识别文字的搜索，它会读你的一张图片；如果有带文字稿的录音，也会读一段。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
 - Markdown 转换，包括每种行都能原样读回；
 - 修改计划，以及存储正文的解码；
 - agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑、各 agent 设置的读写、各 agent 技能的位置；
 - 命令行参数如何从工具的输入 schema 读出；
+- `--list-json`：列出哪些笔记、按什么顺序、向搜索要什么、每行一个 JSON 对象，以及退出码；
 - 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
 ## 和同类项目的比较

@@ -435,6 +435,17 @@ code, out, err = cli("notes", "edit", C or "none", "--insert", "- [ ] second", "
 check("cli: notes edit --insert", code == 0 and "Updated" in out, (code, out, err))
 code, out, err = cli("notes", "read", C or "none"); check("cli: the edit is in the store", code == 0 and body(out).endswith("- [ ] first\n- [ ] second\n"), (code, out, err))
 code, out, err = cli("notes", "search", "命令行", "--folder", "agent test"); check("cli: notes search QUERY --folder", code == 0 and C in out, (code, out, err))
+# --list-json, for editor pickers: one JSON object per line, with the full id and title.
+def list_json(*query):
+    code, out, err = cli("--list-json", *query)
+    rows = [json.loads(line) for line in out.splitlines()] if code == 0 else []
+    return code, rows, next((r for r in rows if r["id"].startswith(C or "none")), None), err
+code, rows, row, err = list_json()
+check("cli: --list-json lists every note, newest first", code == 0 and row is not None and len(row["id"]) == 36
+      and (row["title"], row["folder"], "snippet" in row) == ("agent test 命令行 setup", "agent test", False)
+      and [r["modified"] for r in rows] == sorted((r["modified"] for r in rows), reverse=True), (code, row, err))
+code, rows, row, err = list_json("命令行", "setup")
+check("cli: --list-json QUERY lists search results with snippets", code == 0 and row is not None and row["folder"] == "agent test" and bool(row.get("snippet")), (code, rows[:3], err))
 code, out, err = cli("notes", "edit", C or "none", "--rewrite", "# agent test x", "--version", "000000000000")
 check("cli: a stale version exits 1", code == 1 and "changed after" in err and out == "", (code, out, err))
 code, out, err = cli("notes", "create", "--json", "-", stdin=json.dumps({"markdown": "# agent test JSON 标准输入", "folder": "agent test"}))

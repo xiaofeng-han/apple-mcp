@@ -50,9 +50,11 @@ jobs:
           script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"
 
-  # Diagnosis only, never fails the check: runs each test target in parallel, as `swift test` does
-  # by default, with a time limit, to find out whether the hang comes from the tests that start
-  # processes (AgentsTests) or from parallel runs on this runner as such.
+  # Diagnosis only, never fails the check: runs parts of the tests in parallel, as `swift test` does
+  # by default, with a time limit each. The last run found NoteModelTests and WireTests pass in
+  # parallel and AgentsTests hang (no test finishing in 90 seconds, pure parsing tests included), so
+  # this narrows AgentsTests down: suite by suite, and without the test that changes HOME while
+  # other tests run.
   parallel-tests:
     runs-on: macos-26
     timeout-minutes: 20
@@ -64,19 +66,19 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
       - name: Build the tests
         run: swift build --build-tests
-      - name: Each test target in parallel, 90 seconds each
+      - name: Parts of AgentsTests in parallel, 60 seconds each
         continue-on-error: true
         run: |
-          for target in NoteModelTests WireTests AgentsTests; do
-            echo "::group::$target"
-            /usr/bin/python3 -I - "$target" <<'EOF'
+          while read -r label arguments; do
+            echo "::group::$label"
+            /usr/bin/python3 -I - "$label" $arguments <<'EOF'
           import os, pty, select, signal, subprocess, sys, time
-          target = sys.argv[1]
+          label, arguments = sys.argv[1], sys.argv[2:]
           leader, follower = pty.openpty()
-          process = subprocess.Popen(["swift", "test", "--skip-build", "--filter", target], stdout=follower, stderr=follower,
+          process = subprocess.Popen(["swift", "test", "--skip-build", *arguments], stdout=follower, stderr=follower,
                                      stdin=subprocess.DEVNULL, start_new_session=True)
           os.close(follower)
-          deadline, lines, finished = time.time() + 90, 0, 0
+          deadline, finished = time.time() + 60, 0
           while time.time() < deadline and process.poll() is None:
               if select.select([leader], [], [], 1)[0]:
                   try:
@@ -87,9 +89,18 @@ jobs:
                   finished += chunk.count("✔ Test ") + chunk.count("✘ Test ")
           if process.poll() is None:
               os.killpg(process.pid, signal.SIGKILL)
-              print(f"\nRESULT {target}: hung, {finished} tests finished in 90 seconds")
+              print(f"\nRESULT {label}: hung, {finished} tests finished in 60 seconds")
           else:
-              print(f"\nRESULT {target}: exit status {process.returncode}, {finished} tests finished")
+              print(f"\nRESULT {label}: exit status {process.returncode}, {finished} tests finished")
           EOF
             echo "::endgroup::"
-          done
+          done <<'LIST'
+          JSONTextTests --filter JSONTextTests
+          TOMLTextTests --filter TOMLTextTests
+          SkillTests --filter SkillTests
+          RegistrationTests --filter RegistrationTests
+          InstallerChoiceTests --filter InstallerChoiceTests
+          InstallerChoiceTests-without-HOME-test --filter InstallerChoiceTests --skip shortensOnlyTheAccountsOwnHome
+          AgentsTests-without-HOME-test --filter AgentsTests --skip shortensOnlyTheAccountsOwnHome
+          AgentsTests-without-process-tests --filter AgentsTests --skip stopsWhatRunsTooLong|runsWithoutATerminal
+          LIST

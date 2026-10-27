@@ -328,7 +328,9 @@ final class Readings: @unchecked Sendable {
         // Emptied, then written a moment later, the way a shell redirect saves.
         for exposed in [true, false, true, false, true] {
             let descriptor = open(box.exposure.file.path, O_WRONLY | O_TRUNC)
-            try await Task.sleep(for: .milliseconds(3))
+            // Holding the thread, not Task.sleep: resuming on a busy cooperative pool (tests run
+            // in parallel) can take longer than the watch's 50 ms, which no shell redirect does.
+            usleep(3_000)
             let text = #"{"tools": {"read_a": \#(exposed)}}"#
             _ = text.withCString { write(descriptor, $0, strlen($0)) }
             close(descriptor)

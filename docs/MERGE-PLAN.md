@@ -377,6 +377,25 @@ public protocol Component: Sendable {
 | e2e | `scripts/e2e.py notes\|reminders [可执行文件]` 转给 `scripts/e2e/notes.py`、`scripts/e2e/reminders.py`（两边原来的 `e2e.py`，内容未改）。第 8 节说的把两份共用的 harness 合成一份，**没有做**：它们只能在 Mac 上跑，在这里改了没法验证，留到能在 Mac 上一起验证时 |
 | 验证 | **待做，要在 Mac 上**：`scripts/build-pkg.sh notes` 和 `reminders` 都能建；`scripts/release.sh --dry-run notes 0.4.0`、`… reminders 0.4.0` 都能走完（`CHANGELOG` 里还没有 0.4.0 一节，演练会提示，正式发版会停下）；`brew audit --cask --strict`、`brew livecheck` 在阶段 4 改了 cask 之后跑 |
 
+### 阶段 4 的准备（2026-10-27）
+
+阶段 3 已合入（PR #7）。发版要用签名证书、`gh` 和 tap 的本地副本，只能在 Mac 上做；这里能准备的都已备好：
+
+| 准备 | 状态 |
+|---|---|
+| 0.4.0 的发布说明 | **已写**：`CHANGELOG-notes.md`、`CHANGELOG-reminders.md` 的 `## 0.4.0`。内容是搬家（命令、cask、权限、设置、已配置的 agent 都不变，`brew upgrade` 自动改从新仓库下载）、Notes 工具页补上 `manage_tag` 的中文标题，以及阶段 1 修掉的 `Shell.runSync` 卡死（设置窗口配置、安装 agent 时可能一直等一个早已结束的程序）。在本机用 `release.sh` 自己的 awk 取过这两节，英文、中文两部分都能分开。发版前请再读一遍措辞 |
+| tap 的 README | 链接还指向 `apple-reminders-mcp`、`apple-notes-mcp` 和旧 README 的锚点，维护说明还是旧脚本；在 `homebrew-tap` 另开 PR 改 |
+| `apple-notes-mcp` 只留说明 | 在 `apple-notes-mcp` 开草稿 PR：删掉其余文件，只留一个中英文的 `README.md`（第 6 节）。**要等 Notes 0.4.0 从新仓库发出后再合并**，然后在 GitHub 上把仓库归档 |
+
+在 Mac 上依次做（每一步都可以停下）：
+
+1. `git pull`，`swift build`，跑两套 e2e：`/usr/bin/python3 -I scripts/e2e.py notes .build/debug/AppleNotesMCP`、`… reminders .build/debug/AppleRemindersMCP`；打开两个 App 的设置窗口（`--settings`），中英文看一遍三个标签页。
+2. 演练：`scripts/release.sh --dry-run notes 0.4.0`、`scripts/release.sh --dry-run reminders 0.4.0`。看 `dist/release-notes-<app>-0.4.0.md`。
+3. 发版：`scripts/release.sh notes 0.4.0`，再 `scripts/release.sh reminders 0.4.0`。每次都会打 tag、发 release，并用 `update-cask.sh` 把 cask 的 `url`、`homepage`、`livecheck` 第一次改到新仓库。
+4. 验证 cask：`brew update && brew upgrade --cask apple-notes-mcp apple-reminders-mcp`；`brew audit --cask --strict --online xiaofeng-han/tap/apple-notes-mcp`（reminders 同理）；`brew livecheck --cask xiaofeng-han/tap/apple-notes-mcp xiaofeng-han/tap/apple-reminders-mcp` 应各自只认自己前缀的 tag。现有 agent 的配置在设置窗口里仍显示「已配置」。
+5. 合并 `homebrew-tap` 的 README PR 和 `apple-notes-mcp` 的说明 PR，再把 `apple-notes-mcp` 归档（Settings → General → Archive this repository）。
+6. 可选：`apple-mcp` 仓库的描述现在还是「MCP server for Apple Reminders on macOS via ReminderKit…」，可以改成两个 App 的说法。
+
 ## 10. 风险与待定
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。

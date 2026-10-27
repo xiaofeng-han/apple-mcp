@@ -1,8 +1,8 @@
-// Composes Resources/AppIcon.icon/Assets/artwork.png from the Apple Reminders MCP artwork, so the
+// Composes Resources/Notes/AppIcon.icon/Assets/artwork.png from the Apple Reminders MCP artwork, so the
 // two apps look like a pair: the same robot and ruled lines, on a Notes page with a yellow header.
 //
-//   swift scripts/compose-icon.swift ../apple-reminders-mcp/Resources/AppIcon.icon/Assets/artwork.png \
-//       Resources/AppIcon.icon/Assets/artwork.png && scripts/build-icon.sh
+//   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
+//       Resources/Notes/AppIcon.icon/Assets/artwork.png && scripts/build-icon.sh notes
 import CoreGraphics
 import Foundation
 import ImageIO

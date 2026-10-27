@@ -2,11 +2,11 @@
 // opaque 1024px artwork macOS wants (it masks the square to its own shape itself; an icon that is
 // transparent around its own shape is shown shrunk inside a grey tile).
 //
-//   swift scripts/flatten-icon.swift <source.png> Resources/AppIcon.icon/Assets/artwork.png [trim]
+//   swift scripts/flatten-icon.swift <source.png> Resources/<App>/AppIcon.icon/Assets/artwork.png [trim]
 //
 // It finds the square, crops the largest centred square inside it, minus `trim` source pixels
 // (default 14) so the drawn rim stays out of sight, and fills what is left of the drawn corners
-// with the square's own colour. Then run scripts/build-icon.sh.
+// with the square's own colour. Then run scripts/build-icon.sh notes|reminders.
 import AppKit
 
 let args = CommandLine.arguments

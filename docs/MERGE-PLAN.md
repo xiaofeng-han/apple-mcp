@@ -362,6 +362,20 @@ public protocol Component: Sendable {
 | 测试 | **已加**。`AppCoreTests`：模式分发、改写规则、`clears`、命令树的措辞、技能的 frontmatter、正文和必填 flag。`NotesComponentTests`、`RemindersComponentTests`：工具名不重复；每条命令都指向真实的工具，而且只用它的字段；每个工具都有中文标题；默认动词都有对应的命令；身份字串正确 |
 | 设置窗口截图对比 | **待做，要在 Mac 上**：两个 App、中英文、三个标签页 |
 | e2e | **待做，要在 Mac 上**（命令同阶段 1） |
+| 阶段 2 合入 | **已合入**（PR #6，2026-10-27）。CI 修了三轮，都是测试：新测试里两处 `#expect` 写法编译不过，一处断言写错（技能文本一直以一个换行结尾）；原有的 `FileWatchTests.letsASaveInPlaceSettle` 在更多测试并行时，测试里 3 ms 的 `Task.sleep` 被拖过了文件监视的 50 ms，改成 `usleep` |
+
+### 阶段 3 的进度（2026-10-27）
+
+| 步骤 | 状态 |
+|---|---|
+| `incoming/notes/` 清空 | **已做**：资源到 `Resources/Notes/`，Reminders 的资源到 `Resources/Reminders/`；`RE-FINDINGS.md` 到 `docs/`；`compose-icon.swift`、`pbshape.py`、`release.sh` 到 `scripts/`；`incoming/` 删除 |
+| 脚本带 App 参数 | **已做**：`build-app.sh`、`build-pkg.sh`、`build-icon.sh`、`update-cask.sh` 和 `release.sh` 都多了第一个参数 `notes` 或 `reminders`，两个 App 不同的地方（可执行文件、标题、bundle id、cask、资源目录、tag 前缀、文档、CHANGELOG、权限说明）只写在 `scripts/app.sh` 一处。两边的 `build-*.sh` 原本只差这些，合成一份；生成的 `distribution.xml` 与原来逐字相同（已对比 Reminders 的） |
+| `release.sh` | **已改**：`scripts/release.sh [--dry-run] notes\|reminders <版本>`；tag 是 `notes-v<版本>`、`reminders-v<版本>`；release 建在 `xiaofeng-han/apple-mcp`；改版本号的是 `Resources/<App>/Info.plist` 和 `docs/<app>.md`（+ `.zh-CN`）里的安装命令，并把下载命令里的旧 tag 和旧仓库、Releases 链接一起换成新的（在本机用 GNU sed 对四份文档演练过替换结果）；说明取自 `CHANGELOG-<app>.md`；说明模板里的权限、cask、下载命令按 App 填 |
+| cask | **`update-cask.sh` 已改，tap 还没动**：除了版本和校验和，它还把 `url` 改到 `apple-mcp` 的 `<前缀>-v#{version}`，`homepage` 改到 `docs/<app>.md`，`livecheck` 改成 `url "https://github.com/xiaofeng-han/apple-mcp"`、`strategy :github_releases` 和只认本 App 前缀的 `regex`（`scripts/cask.awk`，用 tap 里现有的两个 cask 演练过）。tap 现在不能先改：新地址要等阶段 4 发出第一个带前缀的 release 才存在，所以由那次发版的 `update-cask.sh` 一并改掉 |
+| 两份 CHANGELOG | **已做**：`CHANGELOG-notes.md`（原 Notes 的，补上了 0.3.0 一节，取自 GitHub release 说明）、`CHANGELOG-reminders.md`（新建，放了 0.3.0 一节） |
+| 文档拆分 | **已做**：两个 App 原来的 README 成了 `docs/notes.md`、`docs/reminders.md`（+ `.zh-CN`），开头写明属于本仓库，构建、发版、图标、测试的命令都带上 App 参数，互相引用改成仓库内链接；根目录 `README.md`/`README.zh-CN.md` 改写成仓库总览：两个 App、安装、搬家说明、目录、构建与测试 |
+| e2e | `scripts/e2e.py notes\|reminders [可执行文件]` 转给 `scripts/e2e/notes.py`、`scripts/e2e/reminders.py`（两边原来的 `e2e.py`，内容未改）。第 8 节说的把两份共用的 harness 合成一份，**没有做**：它们只能在 Mac 上跑，在这里改了没法验证，留到能在 Mac 上一起验证时 |
+| 验证 | **待做，要在 Mac 上**：`scripts/build-pkg.sh notes` 和 `reminders` 都能建；`scripts/release.sh --dry-run notes 0.4.0`、`… reminders 0.4.0` 都能走完（`CHANGELOG` 里还没有 0.4.0 一节，演练会提示，正式发版会停下）；`brew audit --cask --strict`、`brew livecheck` 在阶段 4 改了 cask 之后跑 |
 
 ## 10. 风险与待定
 

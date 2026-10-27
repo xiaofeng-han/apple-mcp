@@ -5,7 +5,7 @@ script first removes what an interrupted run left behind and at the end deletes 
 made, so only Recently Deleted keeps its notes. The choice of tools is read from a throwaway
 tools.json, so the user's own choice neither hides tools from the checks nor changes. Usage:
 
-    /usr/bin/python3 -I scripts/e2e.py [path to the AppleNotesMCP executable]
+    /usr/bin/python3 -I scripts/e2e.py notes [path to the AppleNotesMCP executable]
 
 The app needs Full Disk Access and Automation → Notes (run it with `setup` once).
 """

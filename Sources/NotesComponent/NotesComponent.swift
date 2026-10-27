@@ -53,7 +53,8 @@ public final class NotesComponent: Component {
     ]
 
     public var modes: [String: @MainActor @Sendable ([String]) async -> Int32] {
-        ["--copy-note": { [self] words in copyNote(words) }, "--check-markdown": { [self] _ in checkMarkdown() }]
+        ["--copy-note": { [self] words in copyNote(words) }, "--check-markdown": { [self] _ in checkMarkdown() },
+         "--list-json": { [self] words in listJSON(words) }]
     }
 
     static func describe(_ state: Permissions.State) -> String {
@@ -126,6 +127,33 @@ public final class NotesComponent: Component {
             return differ.isEmpty ? 0 : 1
         } catch {
             print("Notes data:", error)
+            return 1
+        }
+    }
+
+    /// `--list-json [QUERY]`: one JSON object per line for editor pickers; every note newest first, or
+    /// the notes that match QUERY, best first. Full titles and ids, which the text lists cut.
+    func listJSON(_ words: [String]) -> Int32 {
+        struct Row: Encodable { let id, title, folder, modified: String; let snippet: String? }
+        let query = words.dropFirst().joined(separator: " ")
+        do {
+            let rows: [Row]
+            if query.isEmpty {
+                var notes = try store.notes(inFolders: nil).filter { !$0.locked }
+                NoteOrder.modified.sort(&notes)
+                rows = notes.map { Row(id: $0.id, title: $0.title, folder: $0.folderPath, modified: Output.minute($0.modified), snippet: nil) }
+            } else {
+                let hits = try store.search(query, matchAll: true, in: nil, modified: DateWindow(), created: DateWindow(), order: nil, limit: 100).hits
+                rows = hits.map { Row(id: $0.note.id, title: $0.note.title, folder: $0.note.folderPath, modified: Output.minute($0.note.modified), snippet: $0.snippet) }
+            }
+            let encoder = JSONEncoder()
+            for row in rows { print(String(decoding: try encoder.encode(row), as: UTF8.self)) }
+            return 0
+        } catch let error as NotesError {
+            FileHandle.standardError.write(Data((Output.explain(error) + "\n").utf8))
+            return 1
+        } catch {
+            FileHandle.standardError.write(Data("\(error)\n".utf8))
             return 1
         }
     }

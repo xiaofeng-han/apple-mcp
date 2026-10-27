@@ -15,7 +15,7 @@ Each app is its own app: its own name, command (`apple-notes-mcp`, `apple-remind
 
 This repository was `apple-reminders-mcp` (old links redirect here). Apple Notes MCP moved in from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) with its history, and both apps now share one base: the MCP server, the command line, the settings window and setting up agents are written once. Nothing changed for users: the casks, commands, permissions, settings and agent setups are the same as before.
 
-Releases come from here, one app at a time, tagged `notes-v<version>` or `reminders-v<version>`. Apple Notes MCP 0.1.0 to 0.3.0 were released from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases), and Apple Reminders MCP up to 0.3.0 here as `v<version>`. Each app's changes are in [CHANGELOG-notes.md](CHANGELOG-notes.md) and [CHANGELOG-reminders.md](CHANGELOG-reminders.md).
+Releases come from here, one app at a time, tagged `notes-v<version>` or `reminders-v<version>`. Apple Notes MCP 0.1.0 to 0.3.0 were released from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases) (now archived), and Apple Reminders MCP up to 0.3.0 here as `v<version>`. Each app's changes are in [CHANGELOG-notes.md](CHANGELOG-notes.md) and [CHANGELOG-reminders.md](CHANGELOG-reminders.md).
 
 ## Layout
 
@@ -32,7 +32,7 @@ swift build                                  # both apps: .build/debug/AppleNote
 swift test                                   # the shared base and both apps' unit tests
 ./scripts/build-app.sh notes                 # dist/AppleNotesMCP.app, signed (or: reminders)
 /usr/bin/python3 -I scripts/e2e.py notes     # end to end, against your real notes (or: reminders)
-scripts/release.sh --dry-run notes 0.4.0     # a release, up to the package, then undone
+scripts/release.sh --dry-run notes <version> # a release, up to the package, then undone
 ```
 
 Every pull request and every push to `main` builds both apps on a GitHub-hosted Mac, checks that what users and agents see (help, commands, the skill, the MCP tool lists, agent setup) has not changed against `Tests/Golden` (`scripts/golden.py`), and runs the unit tests. The end-to-end checks need real data and the apps' permissions, so they run on a Mac before a release. Each app's documentation has the details: signing, packaging, releasing, and what its tests cover.

@@ -27,7 +27,7 @@
 | 事项 | 决定 |
 |---|---|
 | 产品 | 两个 App 照旧。Apple Notes MCP：`AppleNotesMCP.app`、`com.xiaofeng.apple-notes-mcp`、命令与 cask `apple-notes-mcp`、服务器 `apple-notes`。Apple Reminders MCP：`AppleRemindersMCP.app`、`com.xiaofeng.apple-reminders-mcp`、`apple-reminders-mcp`、`apple-reminders`。命令名、服务器名、支持目录、defaults、权限、图标都不变 |
-| 仓库 | 一个仓库出两个 App，底座也在这个仓库里，不单独成仓库（理由见 2.6）。GitHub 上把 `apple-reminders-mcp` 改名为 `apple-mcp`，并入 `apple-notes-mcp` 的历史；`apple-notes-mcp` 在新仓库第一次发 Notes 之后归档。`apple-mcp` 只是仓库名，不是产品名 |
+| 仓库 | 一个仓库出两个 App，底座也在这个仓库里，不单独成仓库（理由见 2.6）。GitHub 上把 `apple-reminders-mcp` 改名为 `apple-mcp`，并入 `apple-notes-mcp` 的历史；`apple-notes-mcp` 在新仓库第一次发 Notes 之后清空到只剩一个 `README.md`（指向新仓库地址，2026-10-27 定），然后归档；它的 tag 和 release 原样保留。`apple-mcp` 只是仓库名，不是产品名 |
 | 版本与发版 | 各自的版本号和节奏，接着现在的往下走。搬家前先从两个旧仓库各发一次的决定（2026-10-21 定）已经执行：Notes 0.2.0、0.3.0（`v0.2.0`、`v0.3.0`，`apple-notes-mcp`）、Reminders 0.3.0（`v0.3.0`，`apple-reminders-mcp`）。搬进新仓库后的版本 tag 带前缀（如 `notes-v0.4.0`、`reminders-v0.4.0`），用 Notes 现有的 `scripts/release.sh` 发（第 7 节）。只改了一个 App 就只发那一个 |
 | 用户看到的变化 | 没有：两个 App 的命令、`help`、技能文本、写进 agent 的配置、`serverInfo`、设置窗口都与重构前逐字相同，用黄金输出检查（第 8 节） |
 
@@ -76,7 +76,7 @@ Notes 0.3.0 还加了第 11 个工具 `manage_tag`，与 Reminders 的 `manage_t
 
 ### 1.3 已查证的外部事实
 
-- **GitHub 仓库改名**：git、网页和 API 地址自动重定向到新名（GitHub Actions 的 `uses:` 和 Pages 除外），只要不再用旧名新建仓库；release 下载链接在网页路径下，预期一同重定向——改名后用旧地址实际下载一次验证。归档的仓库只读，但它的 release 仍能下载。
+- **GitHub 仓库改名**：git、网页和 API 地址自动重定向到新名（GitHub Actions 的 `uses:` 和 Pages 除外），只要不再用旧名新建仓库；release 下载链接在网页路径下，预期一同重定向——改名后用旧地址实际下载一次验证。归档的仓库只读，但它的 release 仍能下载；把工作树里的文件删光也不影响 tag 和 release，历史仍在，`git checkout v0.3.0` 照样能拿到当时的全部代码。
 - **macOS 隐私权限**（TCC）按 bundle id + 代码签名的 designated requirement 记录。本方案不换 bundle id、签名证书也不变（`Xiaofeng Local Code Signing`），所以已授的权限全部保留——这是不合成一个 App 的主要好处之一。
 - **一个仓库发两个产品**：GitHub 的「Latest release」整个仓库只有一个，会在两个 App 之间来回跳；两个 cask 现在的 `livecheck` 是 `strategy :github_latest`，要改成按 tag 前缀找（`strategy :github_releases` 加 `regex`，第 7 节），发布前用 `brew livecheck --cask` 验证。
 
@@ -268,7 +268,7 @@ public protocol Component: Sendable {
 
 - 两个 cask 的 `url`、`homepage`、`livecheck` 改到新仓库与带前缀的 tag（第 7 节）；Reminders 的旧下载地址靠改名重定向，Notes 的旧 release 留在归档的 `apple-notes-mcp` 里照常可下载。
 - `release.sh`、`update-cask.sh` 里的仓库名与 tag 改掉；两个 README 里的 `gh release download` 示例改成新仓库和新 tag。
-- `apple-notes-mcp` 仓库：README 换成指向 `apple-mcp` 的说明，在新仓库第一次发 Notes 之后归档。
+- `apple-notes-mcp` 仓库：在新仓库第一次发 Notes 之后，一个提交删掉所有文件（源码、`docs/`、`scripts/`、`Resources/`、`CHANGELOG.md`、`.github/`、两个 README），只留一个新的 `README.md`，然后归档（2026-10-27 定）。这个 README 中英各一段，说清：代码、历史和之后的版本都在 `github.com/xiaofeng-han/apple-mcp`，文档在那里的 `docs/notes.md`；安装方式不变（`brew install --cask xiaofeng-han/tap/apple-notes-mcp`，cask 会自动指到新仓库的包）；0.1.0 到 0.3.0 的包仍在本仓库的 Releases 里，tag 也在；想看旧代码用 `git checkout v0.3.0`。tag 和 release 不删。
 
 ## 7. 构建、发布与 Homebrew
 
@@ -314,7 +314,7 @@ public protocol Component: Sendable {
 | 1 共享 target | 一个 `Package.swift`：`Wire`（取 Notes 版）、`Launcher`、`Agents`（按第 4 节参数化）共用；两个可执行文件暂时各自保留自己的 `App/`、`CLI/`，传入自己的 `Product` | `swift test`；两套 e2e；黄金输出逐字相同 |
 | 2 AppCore 与组件 | 命令行机制取并集、设置窗口、`AgentsCommand`、`AppMain`（RunLoop）、`Permission` 进 `AppCore`；产品代码变成 `NotesComponent`、`RemindersComponent`；`main.swift` 只剩一行 | `AppCoreTests` 与两个组件测试；两套 e2e（Reminders 第一次在 RunLoop 下跑）；黄金输出逐字相同；两个设置窗口中英文截图与重构前对比 |
 | 3 构建与发布 | 脚本带 App 参数（`release.sh` 也是，tag 带前缀）、两份 CHANGELOG、`Resources/<app>/`、cask 的 `url`/`homepage`/`livecheck`、README 拆分 | 两个 pkg 都能建；`release.sh --dry-run` 两个 App 都过；本地 tap 装两个 cask；`brew audit --cask --strict`、`brew livecheck`；现有 agent 配置仍显示「已配置」 |
-| 4 发版 | 从新仓库用 `release.sh` 分别发 Notes、Reminders 0.3.0 之后的下一个版本（`notes-v0.4.0`、`reminders-v0.4.0`），它顺带更新两个 cask；`apple-notes-mcp` 改 README 后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载 |
+| 4 发版 | 从新仓库用 `release.sh` 分别发 Notes、Reminders 0.3.0 之后的下一个版本（`notes-v0.4.0`、`reminders-v0.4.0`），它顺带更新两个 cask；`apple-notes-mcp` 清空到只剩一个指向新仓库的 `README.md`，然后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载；旧仓库首页只剩那一页说明 |
 
 ## 10. 风险与待定
 
@@ -331,7 +331,7 @@ public protocol Component: Sendable {
 | 决定 | 出处 | 在本方案里 |
 |---|---|---|
 | 新身份：产品 Apple MCP、`AppleMCP.app`、`com.xiaofeng.apple-mcp`、命令与 cask `apple-mcp` | 初稿 | **不适用**：两个 App 保留各自的身份 |
-| 仓库：`apple-reminders-mcp` 改名 `apple-mcp`，并入 Notes 历史，Notes 仓库归档 | 初稿 | **适用**：改名后的仓库出两个 App；Notes 仓库在新仓库第一次发 Notes 之后归档 |
+| 仓库：`apple-reminders-mcp` 改名 `apple-mcp`，并入 Notes 历史，Notes 仓库归档 | 初稿 | **适用**：改名后的仓库出两个 App；Notes 仓库在新仓库第一次发 Notes 之后清空到只剩一个指向新仓库的 README，再归档（10-27 定） |
 | 服务器按组件分开注册：`apple-notes`、`apple-reminders` | 初稿 | **适用**，而且就是今天的样子 |
 | 旧命令名靠 Homebrew 包装脚本保留 | 初稿 | **不需要**：没有改名，两个 cask 照旧装自己的命令 |
 | `Component` 协议，每个组件一个独立 target | 初稿 | **适用，简化**：每个 App 一个组件；去掉 `Registry`、`LegacyIdentity`、组件开关、`ServerSpec` 的参数与 `wrapperRuns` |
@@ -365,5 +365,21 @@ git commit -m "Merge the history of apple-notes-mcp"
 # 4. 验证旧地址重定向（改名后）。
 curl -sIL https://github.com/xiaofeng-han/apple-reminders-mcp/releases/download/v0.3.0/AppleRemindersMCP-0.3.0.pkg | grep -i '^location'
 
-# 5. 新仓库第一次发 Notes 之后：apple-notes-mcp 的 README 换成指向 apple-mcp 的说明，然后归档（Settings → Archive）。
+# 5. 新仓库第一次发 Notes 之后：apple-notes-mcp 清空到只剩一个 README.md，再归档（Settings → Archive）。
+#    tag 和 release 不受影响；历史也都在 apple-mcp 里。
+cd apple-notes-mcp && git checkout main && git pull
+git rm -r -q .                       # 删掉所有文件（含 docs/、scripts/、Resources/、.github/、CHANGELOG.md、两个 README）
+cat > README.md <<'EOF'
+# Apple Notes MCP has moved
+
+The code, its history and all releases from 0.4.0 on live in **[xiaofeng-han/apple-mcp](https://github.com/xiaofeng-han/apple-mcp)**, which builds Apple Notes MCP and Apple Reminders MCP from one shared base. Documentation: [docs/notes.md](https://github.com/xiaofeng-han/apple-mcp/blob/main/docs/notes.md).
+
+Installing has not changed: `brew install --cask xiaofeng-han/tap/apple-notes-mcp` (the cask now points at the new repository). Releases 0.1.0 to 0.3.0 stay downloadable under [Releases](https://github.com/xiaofeng-han/apple-notes-mcp/releases); their code is at the tags (`git checkout v0.3.0`).
+
+---
+
+**中文**：Apple Notes MCP 的代码、历史和 0.4.0 起的版本都搬到了 [xiaofeng-han/apple-mcp](https://github.com/xiaofeng-han/apple-mcp)（一个仓库出 Apple Notes MCP 和 Apple Reminders MCP 两个 App），文档见那里的 [docs/notes.zh-CN.md](https://github.com/xiaofeng-han/apple-mcp/blob/main/docs/notes.zh-CN.md)。安装方式不变：`brew install --cask xiaofeng-han/tap/apple-notes-mcp`。0.1.0 到 0.3.0 的安装包仍在本仓库的 Releases 里，代码在对应的 tag 上。
+EOF
+git add README.md && git commit -m "Move to apple-mcp; keep only a pointer" && git push
+# 然后在 GitHub 上：Settings → General → Archive this repository。
 ```

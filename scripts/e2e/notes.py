@@ -183,6 +183,16 @@ check("stateless: nothing after cancelling", m and m.get("id") == 6, m)
 modern.stdin.close()
 modern.wait(timeout=10)
 
+# Everything below reads and writes notes: without Full Disk Access (a bare build has only what
+# the app that started it has, usually the terminal), stop here rather than fail at every step.
+st, t, _ = call("overview")
+if st != "OK":
+    print("FAIL access to Notes  -> " + t)
+    print("Run the checks with the app bundle, which holds its own permissions: scripts/build-app.sh notes, then")
+    print("    /usr/bin/python3 -I scripts/e2e.py notes dist/AppleNotesMCP.app/Contents/MacOS/AppleNotesMCP")
+    print(f"\n{len(fails) + 1} failed: " + ", ".join(fails + ["access to Notes"]))
+    sys.exit(1)
+
 # Leftovers of an interrupted run.
 st, t, _ = call("overview", depth=3)
 if re.search(r"^agent test \(", t, re.M):

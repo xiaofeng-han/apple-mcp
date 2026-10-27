@@ -389,7 +389,7 @@ public protocol Component: Sendable {
 
 在 Mac 上依次做（每一步都可以停下）：
 
-1. `git pull`，`swift build`，跑两套 e2e：`/usr/bin/python3 -I scripts/e2e.py notes .build/debug/AppleNotesMCP`、`… reminders .build/debug/AppleRemindersMCP`；打开两个 App 的设置窗口（`--settings`），中英文看一遍三个标签页。
+1. `git pull`，`scripts/build-app.sh notes`、`scripts/build-app.sh reminders`，用 `dist/` 里的 App 包跑两套 e2e：`/usr/bin/python3 -I scripts/e2e.py notes dist/AppleNotesMCP.app/Contents/MacOS/AppleNotesMCP`、`… reminders dist/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP`（裸的 `.build/debug` 构建只有终端的权限，2026-10-27 第一次跑时就因此缺了提醒事项权限）；打开两个 App 的设置窗口（`--settings`），中英文看一遍三个标签页。
 2. 演练：`scripts/release.sh --dry-run notes 0.4.0`、`scripts/release.sh --dry-run reminders 0.4.0`。看 `dist/release-notes-<app>-0.4.0.md`。
 3. 发版：`scripts/release.sh notes 0.4.0`，再 `scripts/release.sh reminders 0.4.0`。每次都会打 tag、发 release，并用 `update-cask.sh` 把 cask 的 `url`、`homepage`、`livecheck` 第一次改到新仓库。
 4. 验证 cask：`brew update && brew upgrade --cask apple-notes-mcp apple-reminders-mcp`；`brew audit --cask --strict --online xiaofeng-han/tap/apple-notes-mcp`（reminders 同理）；`brew livecheck --cask xiaofeng-han/tap/apple-notes-mcp xiaofeng-han/tap/apple-reminders-mcp` 应各自只认自己前缀的 tag。现有 agent 的配置在设置窗口里仍显示「已配置」。

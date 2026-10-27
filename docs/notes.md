@@ -345,12 +345,12 @@ For debugging, set `APPLE_NOTES_MCP_WIRE_LOG=<file>` to log every message sent a
 
 ```bash
 /usr/bin/python3 -I scripts/e2e.py notes                          # the installed app, against your real notes
-/usr/bin/python3 -I scripts/e2e.py notes .build/debug/AppleNotesMCP   # a development build (uses its parent's permissions)
+/usr/bin/python3 -I scripts/e2e.py notes dist/AppleNotesMCP.app/Contents/MacOS/AppleNotesMCP   # this checkout, after scripts/build-app.sh notes
 swift test
 apple-notes-mcp --check-markdown                            # every note read back from its Markdown, unchanged (reads only)
 ```
 
-`e2e.py notes` runs every tool over stdio, and the main command-line commands, 145 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment` and search in the text Notes recognized in it, and, if you have one, a recording with its transcript. The choice of tools comes from a throwaway file (`APPLE_NOTES_MCP_TOOLS_FILE`), so yours is neither used nor changed. `swift test` checks, in throwaway folders where files are involved:
+A build in `dist/` is signed like a release, so it holds the permissions you gave the installed app; a bare `.build/debug/AppleNotesMCP` has only those of the app that starts it (your terminal), and the checks stop at once without them. `e2e.py notes` runs every tool over stdio, and the main command-line commands, 145 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment` and search in the text Notes recognized in it, and, if you have one, a recording with its transcript. The choice of tools comes from a throwaway file (`APPLE_NOTES_MCP_TOOLS_FILE`), so yours is neither used nor changed. `swift test` checks, in throwaway folders where files are involved:
 - the Markdown conversion, including that every kind of line reads back the same;
 - the planning of edits, and the stored-body decoder;
 - the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, how each agent's settings are read and written, and where each agent's skill goes;

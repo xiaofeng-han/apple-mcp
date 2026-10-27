@@ -111,8 +111,17 @@ to_modern({"jsonrpc": "2.0", "id": 6, "method": "ping", "params": {"_meta": META
 check("stateless: nothing after cancelling", m and m.get("id") == 6, m)
 modern.stdin.close(); modern.wait(timeout=10)
 
-# Leftovers from an interrupted run: empty and delete the test lists.
+# Everything below reads and writes Reminders: without access (a bare build has only what the app
+# that started it has, usually the terminal), stop here rather than fail at every step.
 st, t = call("list_lists")
+if st != "OK":
+    print("FAIL Reminders access  -> " + t)
+    print("Run the checks with the app bundle, which holds its own permission: scripts/build-app.sh reminders, then")
+    print("    /usr/bin/python3 -I scripts/e2e.py reminders dist/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP")
+    print("FAILED:", fails + ["Reminders access"])
+    sys.exit(1)
+
+# Leftovers from an interrupted run: empty and delete the test lists.
 for l in obj(t)["lists"]:
     if l["name"] in ("agent test", "agent test 2", "agent test 3", "agent test 4"):
         st2, t2 = call("find_reminders", list=l["id"], include_completed=True)
@@ -410,3 +419,4 @@ proc.stdin.close(); proc.wait(timeout=10)
 err = proc.stderr.read().strip()
 print("stderr:", err[:500])
 print("FAILED:" if fails else "ALL PASSED", fails)
+sys.exit(1 if fails else 0)

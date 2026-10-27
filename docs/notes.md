@@ -1,6 +1,8 @@
 # Apple Notes MCP
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](notes.zh-CN.md)
+
+Part of [apple-mcp](../README.md), the repository of Apple Notes MCP and [Apple Reminders MCP](reminders.md).
 
 An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) read and edit Apple Notes on macOS, with native formatting. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
@@ -290,23 +292,23 @@ A tool that a later version adds, and that the file therefore doesn't name yet, 
 ### Build from source
 
 ```bash
-./scripts/build-app.sh
+./scripts/build-app.sh notes
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh` builds the release package, `dist/AppleNotesMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release, write its note as a `## <version>` section of `CHANGELOG.md`, run `scripts/e2e.py`, and then, on `main`:
+`./scripts/build-pkg.sh notes` builds the release package, `dist/AppleNotesMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release, write its note as a `## <version>` section of [`CHANGELOG-notes.md`](../CHANGELOG-notes.md), run `scripts/e2e.py notes` (and `scripts/e2e.py reminders` too when the shared code changed), and then, on `main`:
 
 ```bash
-scripts/release.sh 0.2.1             # or first: scripts/release.sh --dry-run 0.2.1
+scripts/release.sh notes 0.4.0       # or first: scripts/release.sh --dry-run notes 0.4.0
 ```
 
-- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and checks that it is signed with your certificate, then commits `Release <version>`, tags `v<version>` and pushes both. It publishes the GitHub release with the package and the note from `CHANGELOG.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`).
+- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and checks that it is signed with your certificate, then commits `Release Apple Notes MCP <version>`, tags `notes-v<version>` and pushes both. It publishes the GitHub release with the package and the note from `CHANGELOG-notes.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh notes`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`). Apple Reminders MCP keeps its own version and is released on its own.
 - **If a step fails:** it says what is already done and how to finish by hand.
 - **`--dry-run`:** does everything up to the package, then undoes the version change; nothing is committed, pushed or published.
 
 Every pull request and every push to `main` is built and unit-tested on a GitHub-hosted Mac with the newest Xcode (`.github/workflows/check.yml`). That workflow holds no secrets: signing happens only on your Mac, in `scripts/release.sh`.
 
-The icon's source is the Icon Composer document `Resources/AppIcon.icon`, whose artwork `scripts/compose-icon.swift` makes from the Apple Reminders MCP icon, so the two look like a pair. After changing it, run `./scripts/build-icon.sh` (it needs Xcode for `actool`) and commit `Resources/AppIcon-compiled`; ordinary builds only copy that folder.
+The icon's source is the Icon Composer document `Resources/Notes/AppIcon.icon`, whose artwork `scripts/compose-icon.swift` makes from the Apple Reminders MCP icon, so the two look like a pair. After changing it, run `./scripts/build-icon.sh notes` (it needs Xcode for `actool`) and commit `Resources/Notes/AppIcon-compiled`; ordinary builds only copy that folder.
 
 ### Why the permissions belong to this app
 
@@ -316,7 +318,7 @@ Start it by its real path, or through a script that `exec`s it, as Homebrew's `a
 
 ### Signing
 
-`build-app.sh` signs with the self-signed certificate "Xiaofeng Local Code Signing" from the login keychain by default (`SIGNING_IDENTITY` picks another). The designated requirement is "bundle id + certificate", so permissions survive rebuilds; with ad-hoc signing every rebuild has to be granted again. The [Apple Reminders MCP README](https://github.com/xiaofeng-han/apple-reminders-mcp#signing) shows how to create the certificate on a new Mac.
+`build-app.sh` signs with the self-signed certificate "Xiaofeng Local Code Signing" from the login keychain by default (`SIGNING_IDENTITY` picks another). The designated requirement is "bundle id + certificate", so permissions survive rebuilds; with ad-hoc signing every rebuild has to be granted again. The [Apple Reminders MCP documentation](reminders.md#signing) shows how to create the certificate on a new Mac.
 
 ## Registering with clients
 
@@ -342,13 +344,13 @@ For debugging, set `APPLE_NOTES_MCP_WIRE_LOG=<file>` to log every message sent a
 ## Tests
 
 ```bash
-/usr/bin/python3 -I scripts/e2e.py                          # the installed app, against your real notes
-/usr/bin/python3 -I scripts/e2e.py .build/debug/AppleNotesMCP   # a development build (uses its parent's permissions)
+/usr/bin/python3 -I scripts/e2e.py notes                          # the installed app, against your real notes
+/usr/bin/python3 -I scripts/e2e.py notes .build/debug/AppleNotesMCP   # a development build (uses its parent's permissions)
 swift test
 apple-notes-mcp --check-markdown                            # every note read back from its Markdown, unchanged (reads only)
 ```
 
-`e2e.py` runs every tool over stdio, and the main command-line commands, 145 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment` and search in the text Notes recognized in it, and, if you have one, a recording with its transcript. The choice of tools comes from a throwaway file (`APPLE_NOTES_MCP_TOOLS_FILE`), so yours is neither used nor changed. `swift test` checks, in throwaway folders where files are involved:
+`e2e.py notes` runs every tool over stdio, and the main command-line commands, 145 checks in all, with the write guard on (`APPLE_NOTES_MCP_WRITE_GUARD=agent test`: only notes titled, and folders named, "agent test…" can change). It works in a folder "agent test" that it creates and finally deletes with everything in it, so only Recently Deleted keeps its notes. It reads one of your images to check `read_attachment` and search in the text Notes recognized in it, and, if you have one, a recording with its transcript. The choice of tools comes from a throwaway file (`APPLE_NOTES_MCP_TOOLS_FILE`), so yours is neither used nor changed. `swift test` checks, in throwaway folders where files are involved:
 - the Markdown conversion, including that every kind of line reads back the same;
 - the planning of edits, and the stored-body decoder;
 - the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, how each agent's settings are read and written, and where each agent's skill goes;

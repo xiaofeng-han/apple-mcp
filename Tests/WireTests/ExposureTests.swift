@@ -325,10 +325,12 @@ final class Readings: @unchecked Sendable {
         let readings = Readings()
         let watch = FileWatch(box.exposure.file) { readings.add((try? box.exposure.choices())?["read_a"]) }
         defer { watch.stop() }
-        // Emptied, then written a moment later, the way a shell redirect saves.
+        // Emptied, then written a moment later, the way a shell redirect saves. The moment is a
+        // blocking sleep: on CI, with the whole suite running in parallel, an awaited sleep was
+        // sometimes resumed only after the watch's 50 ms, so it read the file still empty.
         for exposed in [true, false, true, false, true] {
             let descriptor = open(box.exposure.file.path, O_WRONLY | O_TRUNC)
-            try await Task.sleep(for: .milliseconds(3))
+            usleep(3_000)
             let text = #"{"tools": {"read_a": \#(exposed)}}"#
             _ = text.withCString { write(descriptor, $0, strlen($0)) }
             close(descriptor)

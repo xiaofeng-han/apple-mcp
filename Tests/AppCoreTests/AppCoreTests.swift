@@ -84,8 +84,8 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
     }
 
     @Test func clearsOnlyWhereTheAppDoes() {
-        #expect(demoCLI(clears: true).routes.allSatisfy(\.clears))
-        #expect(!demoCLI(clears: false).routes.contains(where: \.clears))
+        #expect(demoCLI(clears: true).routes.allSatisfy { $0.clears })
+        #expect(!demoCLI(clears: false).routes.contains { $0.clears })
     }
 
     @Test func nounsInOrder() {

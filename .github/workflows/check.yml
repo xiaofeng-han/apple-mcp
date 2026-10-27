@@ -1,6 +1,10 @@
 # Builds and runs the unit tests for every pull request and every push to main, on a GitHub-hosted
-# Mac. It uses no secrets: releases are signed and published from a Mac with scripts/release.sh.
-# scripts/e2e.py is not run here, since it needs real Notes data and the app's permissions.
+# Mac. It uses no secrets: releases are signed and published from a Mac.
+# scripts/e2e.py is not run here, since it needs real Notes or Reminders data and the apps' permissions.
+#
+# While the repositories are being merged (docs/MERGE-PLAN.md), Apple Notes MCP is its own package
+# under incoming/notes, so each package is built and tested on its own. Phase 1 of the plan makes
+# one package of both, and then this goes back to a single build.
 name: Check
 
 on:
@@ -17,8 +21,20 @@ concurrency:
 
 jobs:
   build-and-test:
+    name: build-and-test (${{ matrix.app }})
     runs-on: macos-26
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: reminders
+            path: .
+          - app: notes
+            path: incoming/notes
+    defaults:
+      run:
+        working-directory: ${{ matrix.path }}
     steps:
       - uses: actions/checkout@v7
         with:

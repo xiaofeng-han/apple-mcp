@@ -316,6 +316,22 @@ public protocol Component: Sendable {
 | 3 构建与发布 | 脚本带 App 参数（`release.sh` 也是，tag 带前缀）、两份 CHANGELOG、`Resources/<app>/`、cask 的 `url`/`homepage`/`livecheck`、README 拆分 | 两个 pkg 都能建；`release.sh --dry-run` 两个 App 都过；本地 tap 装两个 cask；`brew audit --cask --strict`、`brew livecheck`；现有 agent 配置仍显示「已配置」 |
 | 4 发版 | 从新仓库用 `release.sh` 分别发 Notes、Reminders 0.3.0 之后的下一个版本（`notes-v0.4.0`、`reminders-v0.4.0`），它顺带更新两个 cask；`apple-notes-mcp` 清空到只剩一个指向新仓库的 `README.md`，然后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载；旧仓库首页只剩那一页说明 |
 
+### 阶段 0 的进度（2026-10-27）
+
+| 步骤 | 状态 |
+|---|---|
+| 并入 Notes 历史 | **已做**，在 `apple-reminders-mcp` 的分支 `claude/merge-notes-reminders-mcp-bc72bx` 上，还没合入 `main`。并入的是 `apple-notes-mcp` 里放这份方案的分支（`340668f`），它包含 Notes `main` 的全部提交（`4b279db`，0.3.0），所以方案文件连同历史一起进来了。合并后 `incoming/notes/` 与那个分支逐字节相同，`incoming/` 以外的文件除下面三项外没动 |
+| 方案与 CI 移到仓库根目录 | **已做**：`docs/MERGE-PLAN.md`（本文件）；`.github/workflows/check.yml` 改成矩阵，在 macOS runner 上分别对根目录（Reminders）和 `incoming/notes`（Notes）跑 `swift build`、`swift test`。它只在 PR 和 `main` 的推送上跑 |
+| README 说明 | **已做**：两个 README 开头加了一段，说明仓库正在变成 `apple-mcp`、Notes 暂在 `incoming/notes/`、对用户没有变化 |
+| GitHub 上改名为 `apple-mcp` | **待做，要仓库主人在网页上做**（Settings → General → Repository name）；改名前后分支和提交都不受影响。改完用附录第 4 步验证旧下载地址重定向 |
+| 录黄金输出 | **待做，要在 Mac 上做**：需要 macOS、构建好的两个 App 和它们的权限 |
+| 两边各自构建、跑 e2e | CI 覆盖 `swift build`、`swift test`（开 PR 后跑）；e2e 要在 Mac 上跑 |
+
+搬家期间要知道的两件事：
+
+- **Notes 仍从 `apple-notes-mcp` 发版，直到阶段 4。** `incoming/notes/scripts/release.sh` 在新仓库里跑不通：它默认的 tap 路径（`../homebrew-tap`）会落到 `incoming/homebrew-tap`，它把 tag 推到当前仓库、却在 `REPO=xiaofeng-han/apple-notes-mcp` 上建 release，`--verify-tag` 会失败。阶段 3 改脚本时一并解决。Reminders 一直照常从本仓库发版（它没有 `release.sh`，按 README 的步骤）。
+- **看 Notes 文件的历史**：`git blame incoming/notes/…` 能追到原来的 Notes 提交；`git log --follow` 追不过合并处的路径前缀。要看某个 Notes 文件在合并前的提交，用合并提交的第二个父提交和原路径：`git log <合并提交>^2 -- Sources/NoteModel/Markdown.swift`。这是保留原提交 ID 的代价（方案里引用了 Notes 的提交 ID，比如 `cf9f09a`），没有改写历史。
+
 ## 10. 风险与待定
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。
@@ -356,9 +372,12 @@ git clone git@github.com:xiaofeng-han/apple-mcp.git && cd apple-mcp
 # 2. 把 apple-notes-mcp 的历史并进来，文件先落在 incoming/notes/ 下，避免同名文件冲突。
 git remote add notes git@github.com:xiaofeng-han/apple-notes-mcp.git
 git fetch notes
-git merge --allow-unrelated-histories -s ours --no-commit notes/main
-git read-tree --prefix=incoming/notes -u notes/main
+# 实际并入的是放这份方案的分支（它包含 notes/main 的全部提交），见第 9 节「阶段 0 的进度」。
+git merge --allow-unrelated-histories -s ours --no-commit notes/claude/merge-notes-reminders-mcp-bc72bx
+git read-tree --prefix=incoming/notes -u notes/claude/merge-notes-reminders-mcp-bc72bx
 git commit -m "Merge the history of apple-notes-mcp"
+git mv incoming/notes/docs/MERGE-PLAN.md docs/MERGE-PLAN.md
+git mv incoming/notes/.github/workflows/check.yml .github/workflows/check.yml   # 再改成两个包的矩阵
 
 # 3. 录黄金输出（第 8 节），再按 2.5 的映射表 git mv 到位，按阶段 1、2 抽出底座。
 

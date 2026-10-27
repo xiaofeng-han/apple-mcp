@@ -168,7 +168,7 @@ apple-notes-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 
 
 像上面那样写全名，会自动添加 tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap)，并且只信任这一个 cask。Homebrew 6 起，第三方 tap 里的内容要先信任才会加载。之后 `brew upgrade` 就能收到新版本。
 
-Homebrew 装的就是下面那个安装包，只是用 macOS 的安装器为所有用户安装，所以会要管理员密码，App 装在 `/Applications`。它还会添加命令 `apple-notes-mcp`（`/opt/homebrew/bin/apple-notes-mcp`），这是一个启动 App 的小脚本，下面的步骤都用它。`brew uninstall --cask apple-notes-mcp` 卸载 App，加上 `--zap` 还会把它的设置、笔记备份和描述移到废纸篓。
+Homebrew 装的是下面那个安装包里的同一个 App：它从 release 上的 zip 解出 App，自己移到 `/Applications`，所以不要管理员密码。App 没有 Developer ID 签名，所以 cask 会去掉 Homebrew 给下载加的隔离标记，否则 Gatekeeper 不让它启动。它还会添加命令 `apple-notes-mcp`（`/opt/homebrew/bin/apple-notes-mcp`），这是一个启动 App 的小脚本，下面的步骤都用它。`brew uninstall --cask apple-notes-mcp` 卸载 App，加上 `--zap` 还会把它的设置、笔记备份和描述移到废纸篓。
 
 如果之前用安装包「仅为我安装」过，删掉那一份，并让各 agent 改用新命令（「AI 助手」标签页里每个 agent 都会显示「更新」）。两份的签名相同，权限会沿用。
 
@@ -304,7 +304,7 @@ ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 scripts/release.sh notes 0.4.0       # 也可以先演练：scripts/release.sh --dry-run notes 0.4.0
 ```
 
-- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打包，并检查包是用你的证书签名的；接着提交 `Release Apple Notes MCP <版本>`、打 tag `notes-v<版本>` 并一起推送。之后用安装包和 `CHANGELOG-notes.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh notes` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。
+- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打出安装包和 App 的 zip，并检查 App 是用你的证书签名的；接着提交 `Release Apple Notes MCP <版本>`、打 tag `notes-v<版本>` 并一起推送。之后用安装包、zip（Homebrew cask 装的就是它）和 `CHANGELOG-notes.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh notes` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。
 - **某一步失败时：**它会说明哪些已经做完，以及剩下的怎么手动完成。
 - **`--dry-run`：**做到打好安装包为止，然后撤销版本号的改动；不提交、不推送、不发布。
 

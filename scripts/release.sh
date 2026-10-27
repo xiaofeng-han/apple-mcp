@@ -6,11 +6,12 @@
 #
 # It sets the version in the app's Info.plist (Resources/Notes or Resources/Reminders; the build
 # number is the previous one plus one) and in the install commands of its documentation
-# (docs/notes.md, docs/reminders.md and their .zh-CN.md), runs swift test, builds the package with
-# build-pkg.sh, commits "Release <title> <version>", tags notes-v<version> or reminders-v<version>
-# and pushes both to main. Then it creates a draft GitHub release with the package and its
-# checksum, checks that GitHub has the very file, publishes it, and points the app's Homebrew cask
-# at it with update-cask.sh. Only that app is released; the other keeps its version.
+# (docs/notes.md, docs/reminders.md and their .zh-CN.md), runs swift test, builds the package and
+# the zipped app with build-pkg.sh, commits "Release <title> <version>", tags notes-v<version> or
+# reminders-v<version> and pushes both to main. Then it creates a draft GitHub release with the
+# package, the zip (which the Homebrew cask installs) and their checksums, checks that GitHub has
+# the very files, publishes it, and points the app's Homebrew cask at it with update-cask.sh. Only
+# that app is released; the other keeps its version.
 #
 # The release note is the "## <version>" section of CHANGELOG-notes.md or CHANGELOG-reminders.md:
 # the English part, a line "---", then the Chinese part. The requirements and install commands for
@@ -35,6 +36,7 @@ APP_ID=$1
 VERSION=$2
 TAG=$TAG_PREFIX$VERSION
 PKG=dist/$APP-$VERSION.pkg
+ZIP=dist/$APP-$VERSION.zip
 NOTES=dist/release-notes-$APP_ID-$VERSION.md
 TAP=${TAP:-$(cd .. && pwd)/homebrew-tap}
 IDENTITY=${SIGNING_IDENTITY:-Xiaofeng Local Code Signing}
@@ -117,7 +119,7 @@ mkdir -p dist
 swift test > dist/swift-test.log 2>&1 || { tail -40 dist/swift-test.log >&2; fail "swift test failed; the whole log is dist/swift-test.log"; }
 echo "swift test passed"
 
-STEP="building the package"
+STEP="building the package and the zip"
 ./scripts/build-pkg.sh "$APP_ID"
 codesign -d -r- "dist/$APP.app" 2>&1 | grep -q 'certificate leaf' || fail "dist/$APP.app is not signed with \"$IDENTITY\""
 
@@ -154,7 +156,7 @@ EOF
 fi
 
 if [ "$DRY_RUN" = 1 ]; then
-  echo "dry run: built $PKG; the version edits are undone, and nothing was committed, pushed or published"
+  echo "dry run: built $PKG and $ZIP; the version edits are undone, and nothing was committed, pushed or published"
   exit 0
 fi
 
@@ -170,17 +172,20 @@ git push -q --atomic origin HEAD:main "$TAG"
 
 STEP="creating the draft release"
 HINT="The release commit and $TAG are on GitHub. Finish by hand:
-  gh release create $TAG $PKG $PKG.sha256 -R $REPO --draft --verify-tag --title \"$TITLE $VERSION\" --notes-file $NOTES
+  gh release create $TAG $PKG $PKG.sha256 $ZIP $ZIP.sha256 -R $REPO --draft --verify-tag --title \"$TITLE $VERSION\" --notes-file $NOTES
   gh release edit $TAG -R $REPO --draft=false
   scripts/update-cask.sh $APP_ID \"$TAP\""
-gh release create "$TAG" "$PKG" "$PKG.sha256" -R "$REPO" --draft --verify-tag --title "$TITLE $VERSION" --notes-file "$NOTES" >/dev/null
+gh release create "$TAG" "$PKG" "$PKG.sha256" "$ZIP" "$ZIP.sha256" -R "$REPO" --draft --verify-tag --title "$TITLE $VERSION" --notes-file "$NOTES" >/dev/null
 
-STEP="checking the draft's package"
-HINT="The draft release $TAG is on GitHub but does not hold the package that was built here. Delete it
+STEP="checking the draft's package and zip"
+HINT="The draft release $TAG is on GitHub but does not hold the files that were built here. Delete it
 (gh release delete $TAG -R $REPO), then create it again as above."
-SHA=$(cut -d ' ' -f 1 "$PKG.sha256")
-DIGEST=$(gh release view "$TAG" -R "$REPO" --json assets --jq ".assets[] | select(.name == \"$APP-$VERSION.pkg\") | .digest")
-[ "$DIGEST" = "sha256:$SHA" ] || fail "GitHub has ${DIGEST:-no package} for $APP-$VERSION.pkg, not sha256:$SHA"
+for file in "$PKG" "$ZIP"; do
+  NAME=$(basename "$file")
+  SHA=$(cut -d ' ' -f 1 "$file.sha256")
+  DIGEST=$(gh release view "$TAG" -R "$REPO" --json assets --jq ".assets[] | select(.name == \"$NAME\") | .digest")
+  [ "$DIGEST" = "sha256:$SHA" ] || fail "GitHub has ${DIGEST:-no file} for $NAME, not sha256:$SHA"
+done
 
 STEP="publishing the release"
 HINT="The draft release $TAG is checked. Finish by hand:

@@ -168,7 +168,7 @@ Instead of the last two commands, you can open Apple Notes MCP from Applications
 
 Naming the cask in full, as above, adds the tap [xiaofeng-han/tap](https://github.com/xiaofeng-han/homebrew-tap) and trusts only this cask. Since Homebrew 6, items from taps outside Homebrew have to be trusted before Homebrew loads them. After that, `brew upgrade` picks up new releases.
 
-Homebrew installs the same package described below, but for all users and through the macOS installer. So it asks for an administrator password, and it puts the app in `/Applications`. It also adds the command `apple-notes-mcp` (`/opt/homebrew/bin/apple-notes-mcp`), a small script that starts the app; the steps below use it. `brew uninstall --cask apple-notes-mcp` removes the app. Adding `--zap` also moves its settings, note backups and descriptions to the Trash.
+Homebrew installs the same app as the package described below, from a zip of it on the release, and moves it to `/Applications` itself, so it needs no administrator password. The app has no Developer ID signature, so the cask takes off the quarantine Homebrew puts on downloads, which would stop Gatekeeper from starting it. It also adds the command `apple-notes-mcp` (`/opt/homebrew/bin/apple-notes-mcp`), a small script that starts the app; the steps below use it. `brew uninstall --cask apple-notes-mcp` removes the app. Adding `--zap` also moves its settings, note backups and descriptions to the Trash.
 
 If you installed the package for yourself before, remove that copy and point your agents at the new command (the AI Assistants tab offers **Update** for each). Both copies have the same signature, so the permissions carry over.
 
@@ -304,7 +304,7 @@ ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 scripts/release.sh notes 0.4.0       # or first: scripts/release.sh --dry-run notes 0.4.0
 ```
 
-- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and checks that it is signed with your certificate, then commits `Release Apple Notes MCP <version>`, tags `notes-v<version>` and pushes both. It publishes the GitHub release with the package and the note from `CHANGELOG-notes.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh notes`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`). Apple Reminders MCP keeps its own version and is released on its own.
+- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and the zipped app and checks that the app is signed with your certificate, then commits `Release Apple Notes MCP <version>`, tags `notes-v<version>` and pushes both. It publishes the GitHub release with the package, the zip (which the Homebrew cask installs) and the note from `CHANGELOG-notes.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh notes`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`). Apple Reminders MCP keeps its own version and is released on its own.
 - **If a step fails:** it says what is already done and how to finish by hand.
 - **`--dry-run`:** does everything up to the package, then undoes the version change; nothing is committed, pushed or published.
 

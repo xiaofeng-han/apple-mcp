@@ -1,3 +1,4 @@
+import AppCore
 import EventKit
 import ImageIO
 import Foundation
@@ -264,7 +265,7 @@ final class RemindersStore: @unchecked Sendable {
         }
         var completedCopy = false
         if changes["completed"] as? Bool == true, current.recurring, !current.completed {
-            guard Settings.allowCompletingRecurring else {
+            guard AppSettings.allowCompletingRecurring else {
                 throw StoreError("\"\(current.title)\" repeats, and the user turned off completing repeating reminders in Apple Reminders MCP's settings. Ask the user to check it off in Reminders.")
             }
             changes["completeRecurring"] = true

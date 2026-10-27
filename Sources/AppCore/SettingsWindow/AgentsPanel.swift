@@ -46,8 +46,11 @@ final class AgentsState: ObservableObject {
     /// The project folder skills go in; nil puts them in each assistant's own skills folder.
     @Published private(set) var folder: URL?
     private let language: () -> Language
+    /// The skill for a copy of the app.
+    private let skill: (Installation) -> String
 
-    init(language: @escaping () -> Language) {
+    init(skill: @escaping (Installation) -> String, language: @escaping () -> Language) {
+        self.skill = skill
         self.language = language
         refresh()
     }
@@ -72,7 +75,7 @@ final class AgentsState: ObservableObject {
 
     func readConfigs() {
         guard let installation else { return }
-        let skill = Skill.text(for: installation)
+        let skill = self.skill(installation)
         var read: [ConfigTarget: Registration] = [:]
         var skills: [String: Registration] = [:]
         for index in rows.indices {
@@ -149,7 +152,7 @@ final class AgentsState: ObservableObject {
         guard let installation, let target = rows.first(where: { $0.id == id })?.agent.skills else { return }
         update(id) { $0.activity = .working(("Setting up…", "正在配置…")) }
         do {
-            try target.install(Skill.text(for: installation), project: folder)
+            try target.install(self.skill(installation), project: folder)
             readConfigs()
             update(id) { $0.activity = .done(("New sessions will have it.", "新开的会话即可使用。")) }
         } catch {
@@ -239,6 +242,7 @@ final class AgentsState: ObservableObject {
 struct AgentsView: View {
     @ObservedObject var state: PanelState
     @ObservedObject var agents: AgentsState
+    let product = Product.current
 
     var body: some View {
         Form {
@@ -254,7 +258,7 @@ struct AgentsView: View {
                 }
             } header: {
                 HStack {
-                    Text("Apple Reminders MCP")
+                    Text(Product.current.name)
                     Spacer()
                     if agents.looking { ProgressView().controlSize(.small) }
                     Button(state.text("Refresh", "刷新")) { agents.refresh() }.disabled(agents.isWorking)
@@ -291,8 +295,8 @@ struct AgentsView: View {
                      ? state.text("The assistant starts this app as an MCP server, so its tools are always at hand.",
                                   "助手把本 App 当作 MCP 服务器启动，工具随时可用。")
                      : state.text(
-                        "A skill teaches the assistant to run the apple-reminders-mcp command when reminders come up, instead of starting a server. Without a folder it goes in the assistant's own skills folder and works in every project; with one, only in that project (in .claude/skills for Claude, .agents/skills for the others).",
-                        "技能会教助手在用到提醒事项时运行 apple-reminders-mcp 命令，而不是启动服务器。不选文件夹时，它放在助手自己的技能文件夹里，所有项目都能用；选了文件夹，就只在那个项目里可用（Claude 用 .claude/skills，其他助手用 .agents/skills）。"))
+                        "A skill teaches the assistant to run the \(product.command) command when \(product.subject.lowercased()) come up, instead of starting a server. Without a folder it goes in the assistant's own skills folder and works in every project; with one, only in that project (in .claude/skills for Claude, .agents/skills for the others).",
+                        "技能会教助手在用到\(product.chineseSubject)时运行 \(product.command) 命令，而不是启动服务器。不选文件夹时，它放在助手自己的技能文件夹里，所有项目都能用；选了文件夹，就只在那个项目里可用（Claude 用 .claude/skills，其他助手用 .agents/skills）。"))
                     .foregroundStyle(.secondary)
             }
             ForEach(vendors, id: \.self) { vendor in
@@ -311,11 +315,11 @@ struct AgentsView: View {
             } footer: {
                 Text(agents.mode == .server
                      ? state.text(
-                        "Set Up adds the server \"apple-reminders\" to the assistant's own settings file, and turns it on if the assistant had turned it off. Nothing else in the file changes. Before the first change of a day, the old file is kept next to it as <name>.bak-<date>-apple-reminders-mcp.",
-                        "「配置」会把服务器 apple-reminders 加进该助手自己的设置文件；如果助手把它关掉了，也会重新打开。文件里的其他内容不变。每天第一次修改前，旧文件会备份在旁边，名为 <文件名>.bak-<日期>-apple-reminders-mcp。")
+                        "Set Up adds the server \"\(product.serverName)\" to the assistant's own settings file, and turns it on if the assistant had turned it off. Nothing else in the file changes. Before the first change of a day, the old file is kept next to it as <name>.bak-<date>-\(product.command).",
+                        "「配置」会把服务器 \(product.serverName) 加进该助手自己的设置文件；如果助手把它关掉了，也会重新打开。文件里的其他内容不变。每天第一次修改前，旧文件会备份在旁边，名为 <文件名>.bak-<日期>-\(product.command)。")
                      : state.text(
-                        "Set Up writes apple-reminders/SKILL.md, which names the command above. Assistants that read the same folder share one file. A skill of that name that this app did not write is left alone.",
-                        "「配置」会写入 apple-reminders/SKILL.md，其中写明上面的命令。读同一个文件夹的助手共用一个文件。同名但不是本 App 写的技能不会被改动。"))
+                        "Set Up writes \(product.serverName)/SKILL.md, which names the command above. Assistants that read the same folder share one file. A skill of that name that this app did not write is left alone.",
+                        "「配置」会写入 \(product.serverName)/SKILL.md，其中写明上面的命令。读同一个文件夹的助手共用一个文件。同名但不是本 App 写的技能不会被改动。"))
                     .foregroundStyle(.secondary)
             }
         }

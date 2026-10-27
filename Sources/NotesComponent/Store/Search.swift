@@ -1,3 +1,4 @@
+import AppCore
 import CoreData
 import Foundation
 import NoteModel
@@ -211,7 +212,7 @@ final class Descriptions {
 
     let file: URL
 
-    init(file: URL = Settings.supportDirectory.appendingPathComponent("descriptions.json")) {
+    init(file: URL = AppSettings.supportDirectory.appendingPathComponent("descriptions.json")) {
         self.file = file
     }
 

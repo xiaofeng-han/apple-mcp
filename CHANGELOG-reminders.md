@@ -1,8 +1,21 @@
-# Changelog
+# Apple Reminders MCP changelog
 
-Each `## <version>` section is that version's release note, exactly as `scripts/release.sh <version>` publishes it: the English part, a line `---`, then the Chinese part. The script puts the requirements and the install commands for that version between the two, so they are not written here. Write the section before running the script; it stops if there is none.
+Each `## <version>` section is that version's release note, exactly as `scripts/release.sh reminders <version>` publishes it: the English part, a line `---`, then the Chinese part. The script puts the requirements and the install commands for that version between the two, so they are not written here. Write the section before running the script; it stops if there is none.
 
-Releases before 0.3.0 are on [GitHub Releases](https://github.com/xiaofeng-han/apple-reminders-mcp/releases).
+From 0.4.0 on, Apple Reminders MCP is released with tags `reminders-v<version>`. Earlier releases, up to 0.3.0, are tagged `v<version>` on this repository's [Releases](https://github.com/xiaofeng-han/apple-mcp/releases); the note of 0.3.0 is kept below.
+
+## 0.4.0
+
+**What's new**
+
+- **A new home.** This repository is now [apple-mcp](https://github.com/xiaofeng-han/apple-mcp) (old links redirect), where Apple Reminders MCP is developed and released together with Apple Notes MCP, on one shared base: the server, the command line, the settings window and setting up agents are written once for both. The app itself stays as it was: the same command, cask, server name, tools, permissions and settings, and agents set up for 0.3.0 stay set up. Releases are now tagged `reminders-v<version>`; `brew upgrade` follows by itself.
+- **Setting up and installing agents** no longer risks waiting forever on a program that has already finished, which could happen when several ran at once.
+
+The MCP tools and commands are unchanged from 0.3.0. A Reminders permission granted to 0.3.0 still applies after upgrading. Assistants started before the upgrade keep running the old server, so restart them once.
+
+---
+
+**更新**：本仓库改名为 [apple-mcp](https://github.com/xiaofeng-han/apple-mcp)（旧链接会自动跳转），Apple Reminders MCP 和 Apple Notes MCP 在这里一起开发和发布，共用一套底座（服务器、命令行、设置窗口和 agent 配置只写一份）。App 本身不变：命令、cask、服务器名、工具、权限和设置都和以前一样，为 0.3.0 配置好的 agent 不用重新配置。发版的 tag 改为 `reminders-v<版本>`，`brew upgrade` 会自动跟上。配置和安装 agent 时，不会再因为同时跑了几个程序而一直等一个早已结束的程序。MCP 工具和命令与 0.3.0 相同，升级后已有的权限仍然有效；升级前启动的助手要重启一次。需要 macOS 26 或更新、Apple 芯片。详见[文档（中文）](https://github.com/xiaofeng-han/apple-mcp/blob/reminders-v0.4.0/docs/reminders.zh-CN.md)。
 
 ## 0.3.0
 

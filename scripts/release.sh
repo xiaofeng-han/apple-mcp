@@ -1,43 +1,44 @@
 #!/bin/sh
-# Publishes a release in one command:
+# Publishes a release of one of the two apps in one command:
 #
-#   scripts/release.sh 0.3.1             # release 0.3.1
-#   scripts/release.sh --dry-run 0.3.1   # every local step, then undo; nothing is committed or published
+#   scripts/release.sh notes 0.4.0               # release Apple Notes MCP 0.4.0
+#   scripts/release.sh --dry-run reminders 0.4.0 # every local step, then undo; nothing is committed or published
 #
-# It sets the version in Resources/Info.plist (the build number is the previous one plus one) and
-# in the READMEs' install commands, runs swift test, builds the package with build-pkg.sh, commits
-# "Release <version>", tags v<version> and pushes both to main. Then it creates a draft GitHub
-# release with the package and its checksum, checks that GitHub has the very file, publishes it,
-# and points the Homebrew cask at it with update-cask.sh.
+# It sets the version in the app's Info.plist (Resources/Notes or Resources/Reminders; the build
+# number is the previous one plus one) and in the install commands of its documentation
+# (docs/notes.md, docs/reminders.md and their .zh-CN.md), runs swift test, builds the package with
+# build-pkg.sh, commits "Release <title> <version>", tags notes-v<version> or reminders-v<version>
+# and pushes both to main. Then it creates a draft GitHub release with the package and its
+# checksum, checks that GitHub has the very file, publishes it, and points the app's Homebrew cask
+# at it with update-cask.sh. Only that app is released; the other keeps its version.
 #
-# The release note is the "## <version>" section of CHANGELOG.md: the English part, a line "---",
-# then the Chinese part. The requirements and install commands for that version go in between.
+# The release note is the "## <version>" section of CHANGELOG-notes.md or CHANGELOG-reminders.md:
+# the English part, a line "---", then the Chinese part. The requirements and install commands for
+# that version go in between.
 #
-# Run it on main, up to date with origin, with nothing uncommitted, after scripts/e2e.py has
-# passed on this commit. It needs the signing identity build-app.sh uses (an ad-hoc signed build
-# would make every user grant the permissions again), gh logged in, and a clean checkout of
+# Run it on main, up to date with origin, with nothing uncommitted, after `scripts/e2e.py <app>`
+# has passed on this commit (both apps' checks, when the shared code changed since the last
+# release). It needs the signing identity build-app.sh uses (an ad-hoc signed build would make
+# every user grant the permissions again), gh logged in, and a clean checkout of
 # github.com/xiaofeng-han/homebrew-tap (by default ../homebrew-tap; TAP=<path> picks another).
 set -eu
 cd "$(dirname "$0")/.."
 
-APP=AppleRemindersMCP
-TITLE="Apple Reminders MCP"
-REPO=xiaofeng-han/apple-reminders-mcp
-CASK=apple-reminders-mcp
-
 DRY_RUN=0
 if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; shift; fi
-if [ $# -ne 1 ] || ! printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "usage: scripts/release.sh [--dry-run] <version>   (such as 0.3.1)" >&2
+if [ $# -ne 2 ] || ! printf '%s\n' "$2" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "usage: scripts/release.sh [--dry-run] notes|reminders <version>   (such as 0.4.0)" >&2
   exit 2
 fi
-VERSION=$1
-TAG=v$VERSION
+APP_ID=$1
+. scripts/app.sh
+VERSION=$2
+TAG=$TAG_PREFIX$VERSION
 PKG=dist/$APP-$VERSION.pkg
-NOTES=dist/release-notes-$VERSION.md
+NOTES=dist/release-notes-$APP_ID-$VERSION.md
 TAP=${TAP:-$(cd .. && pwd)/homebrew-tap}
 IDENTITY=${SIGNING_IDENTITY:-Xiaofeng Local Code Signing}
-EDITED="Resources/Info.plist README.md README.zh-CN.md"
+EDITED="$RESOURCES/Info.plist $DOC.md $DOC.zh-CN.md"
 
 STEP="checking"
 HINT=""
@@ -68,8 +69,8 @@ trim() {
 }
 
 # --- Checks: nothing is changed until they all pass.
-CURRENT=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
-BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)
+CURRENT=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$RESOURCES/Info.plist")
+BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$RESOURCES/Info.plist")
 higher "$VERSION" "$CURRENT" || fail "$VERSION is not higher than the current version, $CURRENT"
 git fetch -q origin
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || [ -n "$(git ls-remote --tags origin "refs/tags/$TAG")" ]; then
@@ -78,11 +79,11 @@ fi
 [ -z "$(git status --porcelain)" ] || fail "there are uncommitted changes; commit or set them aside first"
 security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\"" || fail "the signing identity \"$IDENTITY\" is not in the keychain"
 
-[ -f CHANGELOG.md ] || fail "there is no CHANGELOG.md"
-SECTION=$(awk -v heading="## $VERSION" '$0 == heading { on = 1; next } on && /^## / { exit } on { print }' CHANGELOG.md | trim)
+[ -f "$CHANGELOG" ] || fail "there is no $CHANGELOG"
+SECTION=$(awk -v heading="## $VERSION" '$0 == heading { on = 1; next } on && /^## / { exit } on { print }' "$CHANGELOG" | trim)
 if [ -z "$SECTION" ]; then
-  [ "$DRY_RUN" = 1 ] || fail "CHANGELOG.md has no \"## $VERSION\" section; write the release note there first"
-  echo "warning: CHANGELOG.md has no \"## $VERSION\" section; the release would stop here" >&2
+  [ "$DRY_RUN" = 1 ] || fail "$CHANGELOG has no \"## $VERSION\" section; write the release note there first"
+  echo "warning: $CHANGELOG has no \"## $VERSION\" section; the release would stop here" >&2
 fi
 
 if [ "$DRY_RUN" = 0 ]; then
@@ -95,15 +96,19 @@ if [ "$DRY_RUN" = 0 ]; then
   [ "$(git -C "$TAP" rev-parse HEAD)" = "$(git -C "$TAP" rev-parse origin/main)" ] || fail "$TAP is not the same as its origin/main; pull it first"
 fi
 
-# --- The version: Info.plist and the install commands in the READMEs.
+# --- The version: Info.plist and the install commands in the documentation.
 STEP="setting the version"
 HINT="Nothing is committed; undo the edits with: git checkout -- $EDITED"
-/usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION" -c "Set CFBundleVersion $((BUILD + 1))" Resources/Info.plist
-for readme in README.md README.zh-CN.md; do
-  sed -i '' -E -e "s/(gh release download v)[0-9]+\.[0-9]+\.[0-9]+/\1$VERSION/" \
-    -e "s/($APP-)[0-9]+\.[0-9]+\.[0-9]+(\.pkg)/\1$VERSION\2/" "$readme"
-  grep -q "gh release download $TAG " "$readme" && grep -q "$APP-$VERSION.pkg" "$readme" ||
-    fail "could not set the version in the install commands of $readme"
+/usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION" -c "Set CFBundleVersion $((BUILD + 1))" "$RESOURCES/Info.plist"
+# The download command names the release's tag and this repository (before the first release from
+# here it named a v<version> tag of apple-notes-mcp or apple-reminders-mcp), and the Releases link
+# leads here.
+for doc in "$DOC.md" "$DOC.zh-CN.md"; do
+  sed -i '' -E -e "s|gh release download [^ ]+ -R xiaofeng-han/[A-Za-z0-9._-]+|gh release download $TAG -R $REPO|" \
+    -e "s/($APP-)[0-9]+\.[0-9]+\.[0-9]+(\.pkg)/\1$VERSION\2/" \
+    -e "s|https://github.com/xiaofeng-han/$CASK/releases|https://github.com/$REPO/releases|" "$doc"
+  grep -q "gh release download $TAG -R $REPO " "$doc" && grep -q "$APP-$VERSION.pkg" "$doc" ||
+    fail "could not set the version in the install commands of $doc"
 done
 echo "version $VERSION, build $((BUILD + 1))"
 
@@ -113,7 +118,7 @@ swift test > dist/swift-test.log 2>&1 || { tail -40 dist/swift-test.log >&2; fai
 echo "swift test passed"
 
 STEP="building the package"
-./scripts/build-pkg.sh
+./scripts/build-pkg.sh "$APP_ID"
 codesign -d -r- "dist/$APP.app" 2>&1 | grep -q 'certificate leaf' || fail "dist/$APP.app is not signed with \"$IDENTITY\""
 
 STEP="writing the release note"
@@ -122,25 +127,26 @@ if [ -n "$SECTION" ]; then
   CHINESE=$(printf '%s\n' "$SECTION" | awk 'seen { print } /^---$/ { seen = 1 }' | trim)
   {
     printf '%s\n\n' "$ENGLISH"
-    sed "s/@VERSION@/$VERSION/g" <<'EOF'
-**Requirements:** macOS 26 or later on Apple silicon.
+    sed -e "s|@TAG@|$TAG|g" -e "s|@VERSION@|$VERSION|g" -e "s|@REPO@|$REPO|g" -e "s|@CASK@|$CASK|g" \
+      -e "s|@APP@|$APP|g" -e "s|@PERMISSIONS@|$PERMISSIONS|g" <<'EOF'
+**Requirements:** macOS 26 or later on Apple silicon. Permissions: @PERMISSIONS@.
 
 **Install or upgrade**
 
 With Homebrew:
 
 ```bash
-brew install --cask xiaofeng-han/tap/apple-reminders-mcp   # or: brew upgrade --cask apple-reminders-mcp
+brew install --cask xiaofeng-han/tap/@CASK@   # or: brew upgrade --cask @CASK@
 ```
 
 From the package:
 
 ```bash
-gh release download v@VERSION@ -R xiaofeng-han/apple-reminders-mcp -p '*.pkg'
-installer -pkg AppleRemindersMCP-@VERSION@.pkg -target CurrentUserHomeDirectory
+gh release download @TAG@ -R @REPO@ -p '*.pkg'
+installer -pkg @APP@-@VERSION@.pkg -target CurrentUserHomeDirectory
 ```
 
-Or open the package and choose to install for yourself only. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security. Then open the app: set up your agents in the **AI Assistants** tab, pick their tools in **Tools**, and allow access to Reminders under **General**.
+Or open the package and choose to install for yourself only. The package has no Developer ID signature: if macOS refuses to open one downloaded in a browser, allow it under System Settings → Privacy & Security. Then open the app: set up your agents in the **AI Assistants** tab, pick their tools in **Tools**, and give it its permissions under **General**.
 EOF
     [ -z "$CHINESE" ] || printf '\n---\n\n%s\n' "$CHINESE"
   } > "$NOTES"
@@ -156,7 +162,7 @@ fi
 STEP="committing and tagging"
 HINT="Nothing is pushed yet. To start over: git reset --hard origin/main; git tag -d $TAG (if it was made)"
 # shellcheck disable=SC2086
-git commit -q -m "Release $VERSION" -- $EDITED
+git commit -q -m "Release $TITLE $VERSION" -- $EDITED
 git tag -a "$TAG" -m "$TITLE $VERSION"
 
 STEP="pushing the release commit and tag"
@@ -166,7 +172,7 @@ STEP="creating the draft release"
 HINT="The release commit and $TAG are on GitHub. Finish by hand:
   gh release create $TAG $PKG $PKG.sha256 -R $REPO --draft --verify-tag --title \"$TITLE $VERSION\" --notes-file $NOTES
   gh release edit $TAG -R $REPO --draft=false
-  scripts/update-cask.sh \"$TAP\""
+  scripts/update-cask.sh $APP_ID \"$TAP\""
 gh release create "$TAG" "$PKG" "$PKG.sha256" -R "$REPO" --draft --verify-tag --title "$TITLE $VERSION" --notes-file "$NOTES" >/dev/null
 
 STEP="checking the draft's package"
@@ -179,12 +185,12 @@ DIGEST=$(gh release view "$TAG" -R "$REPO" --json assets --jq ".assets[] | selec
 STEP="publishing the release"
 HINT="The draft release $TAG is checked. Finish by hand:
   gh release edit $TAG -R $REPO --draft=false
-  scripts/update-cask.sh \"$TAP\""
+  scripts/update-cask.sh $APP_ID \"$TAP\""
 gh release edit "$TAG" -R "$REPO" --draft=false >/dev/null
 
 STEP="updating the Homebrew cask"
-HINT="The release is published. Finish by hand: scripts/update-cask.sh \"$TAP\""
-./scripts/update-cask.sh "$TAP"
+HINT="The release is published. Finish by hand: scripts/update-cask.sh $APP_ID \"$TAP\""
+./scripts/update-cask.sh "$APP_ID" "$TAP"
 
 STEP="done"
 echo "released $TITLE $VERSION: https://github.com/$REPO/releases/tag/$TAG (cask $CASK)"

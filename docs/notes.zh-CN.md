@@ -1,6 +1,8 @@
 # Apple Notes MCP
 
-[English](README.md) | **简体中文**
+[English](notes.md) | **简体中文**
+
+属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Reminders MCP](reminders.zh-CN.md)。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）读写 macOS「备忘录」的 MCP 服务器，格式都是原生的。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
@@ -290,23 +292,23 @@ apple-notes-mcp skill                                                 # 打印�
 ### 从源码构建
 
 ```bash
-./scripts/build-app.sh
+./scripts/build-app.sh notes
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 `CHANGELOG.md` 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py`，然后在 `main` 上运行：
+`./scripts/build-pkg.sh notes` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-notes.md`](../CHANGELOG-notes.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py notes`（改过共用代码时 `scripts/e2e.py reminders` 也要跑），然后在 `main` 上运行：
 
 ```bash
-scripts/release.sh 0.2.1             # 也可以先演练：scripts/release.sh --dry-run 0.2.1
+scripts/release.sh notes 0.4.0       # 也可以先演练：scripts/release.sh --dry-run notes 0.4.0
 ```
 
-- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打包，并检查包是用你的证书签名的；接着提交 `Release <版本>`、打 tag `v<版本>` 并一起推送。之后用安装包和 `CHANGELOG.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。
+- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打包，并检查包是用你的证书签名的；接着提交 `Release Apple Notes MCP <版本>`、打 tag `notes-v<版本>` 并一起推送。之后用安装包和 `CHANGELOG-notes.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh notes` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。
 - **某一步失败时：**它会说明哪些已经做完，以及剩下的怎么手动完成。
 - **`--dry-run`：**做到打好安装包为止，然后撤销版本号的改动；不提交、不推送、不发布。
 
 每个 pull request 和每次推送到 `main` 都会在 GitHub 托管的 Mac 上（用最新的 Xcode）编译并跑单元测试（`.github/workflows/check.yml`）。这个 workflow 不带任何密钥：签名只在你自己的 Mac 上、在 `scripts/release.sh` 里进行。
 
-图标的源文件是 Icon Composer 文档 `Resources/AppIcon.icon`，图稿由 `scripts/compose-icon.swift` 用 Apple Reminders MCP 的图标合成，两个 App 看起来是一对。改了之后运行 `./scripts/build-icon.sh`（要用 Xcode 里的 `actool`），再提交 `Resources/AppIcon-compiled`；平常构建只复制这个目录。
+图标的源文件是 Icon Composer 文档 `Resources/Notes/AppIcon.icon`，图稿由 `scripts/compose-icon.swift` 用 Apple Reminders MCP 的图标合成，两个 App 看起来是一对。改了之后运行 `./scripts/build-icon.sh notes`（要用 Xcode 里的 `actool`），再提交 `Resources/Notes/AppIcon-compiled`；平常构建只复制这个目录。
 
 ### 权限为什么记在这个 App 名下
 
@@ -316,7 +318,7 @@ macOS 把子进程的隐私权限算在「责任进程」头上：不处理的�
 
 ### 签名
 
-`build-app.sh` 默认用登录钥匙串里的自签名证书「Xiaofeng Local Code Signing」签名（`SIGNING_IDENTITY` 可以换）。签名要求是「bundle id + 证书」，所以重新编译后权限还在；用 ad-hoc 签名的话，每次重新编译都要重新授权。在新 Mac 上建这张证书的方法见 [Apple Reminders MCP 的 README](https://github.com/xiaofeng-han/apple-reminders-mcp/blob/main/README.zh-CN.md#签名)。
+`build-app.sh` 默认用登录钥匙串里的自签名证书「Xiaofeng Local Code Signing」签名（`SIGNING_IDENTITY` 可以换）。签名要求是「bundle id + 证书」，所以重新编译后权限还在；用 ad-hoc 签名的话，每次重新编译都要重新授权。在新 Mac 上建这张证书的方法见 [Apple Reminders MCP 的文档](reminders.zh-CN.md#签名)。
 
 ## 注册到客户端
 
@@ -342,13 +344,13 @@ App 的「AI 助手」标签页或 `apple-notes-mcp agents set-up` 会替你做�
 ## 测试
 
 ```bash
-/usr/bin/python3 -I scripts/e2e.py                              # 已安装的 App，针对真实的备忘录
-/usr/bin/python3 -I scripts/e2e.py .build/debug/AppleNotesMCP   # 开发版（用启动它的程序的权限）
+/usr/bin/python3 -I scripts/e2e.py notes                              # 已安装的 App，针对真实的备忘录
+/usr/bin/python3 -I scripts/e2e.py notes .build/debug/AppleNotesMCP   # 开发版（用启动它的程序的权限）
 swift test
 apple-notes-mcp --check-markdown                                # 每条笔记写成 Markdown 再读回来是否不变（只读）
 ```
 
-`e2e.py` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 145 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment` 和对识别文字的搜索，它会读你的一张图片；如果有带文字稿的录音，也会读一段。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
+`e2e.py notes` 经 stdio 跑遍所有工具，再跑一遍主要的命令行命令，共 145 项检查，开着写保护（`APPLE_NOTES_MCP_WRITE_GUARD=agent test`：只有标题以「agent test」开头的笔记、名字以它开头的文件夹能改）。它在自己建的文件夹「agent test」里操作，最后连同其中内容一起删掉，所以只在「最近删除」里留下它的笔记。为了检查 `read_attachment` 和对识别文字的搜索，它会读你的一张图片；如果有带文字稿的录音，也会读一段。工具选择读的是一个临时文件（`APPLE_NOTES_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。`swift test` 检查以下几项，涉及文件的都在临时目录里进行：
 - Markdown 转换，包括每种行都能原样读回；
 - 修改计划，以及存储正文的解码；
 - agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑、各 agent 设置的读写、各 agent 技能的位置；

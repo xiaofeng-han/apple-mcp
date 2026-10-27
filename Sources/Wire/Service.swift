@@ -12,11 +12,17 @@ public struct BadInput: Error, CustomStringConvertible, Sendable {
 public enum Content: Sendable {
     case text(String)
     case image(Data, mimeType: String)
+    case audio(Data, mimeType: String)
+    /// A file, as an embedded resource.
+    case file(Data, uri: String, mimeType: String)
 
     var json: JSON {
         switch self {
         case .text(let text): ["type": "text", "text": .string(text)]
         case .image(let data, let mime): ["type": "image", "data": .string(data.base64EncodedString()), "mimeType": .string(mime)]
+        case .audio(let data, let mime): ["type": "audio", "data": .string(data.base64EncodedString()), "mimeType": .string(mime)]
+        case .file(let data, let uri, let mime):
+            ["type": "resource", "resource": ["uri": .string(uri), "mimeType": .string(mime), "blob": .string(data.base64EncodedString())]]
         }
     }
 }
@@ -302,8 +308,10 @@ public final class Service: Sendable {
 /// Serves newline-delimited JSON-RPC on stdin and stdout until stdin closes, and tells the
 /// client when the user changes which tools are offered.
 public enum StdioServer {
-    public static func run(_ service: Service) async {
-        let output = Output(log: ProcessInfo.processInfo.environment["APPLE_REMINDERS_MCP_WIRE_LOG"])
+    /// `wireLog` names the environment variable that, when set to a file, logs every message sent
+    /// and received there (APPLE_NOTES_MCP_WIRE_LOG, say).
+    public static func run(_ service: Service, wireLog: String) async {
+        let output = Output(log: ProcessInfo.processInfo.environment[wireLog])
         let watch = service.exposure.map { exposure in
             FileWatch(exposure.file) { service.notices().forEach(output.send) }
         }
@@ -315,7 +323,7 @@ public enum StdioServer {
                 service.notices(afterReply: true).forEach(output.send)
             }
         } catch {
-            FileHandle.standardError.write(Data("apple-reminders-mcp: reading stdin failed: \(error)\n".utf8))
+            FileHandle.standardError.write(Data("\(service.name): reading stdin failed: \(error)\n".utf8))
         }
         watch?.stop()
     }

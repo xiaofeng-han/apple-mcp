@@ -1,12 +1,8 @@
-# Builds and runs the unit tests for every pull request and every push to main, on a GitHub-hosted
-# Mac, and checks that what users and agents see has not changed (scripts/golden.py against
-# Tests/Golden). It uses no secrets: releases are signed and published from a Mac with
-# scripts/release.sh.
-# scripts/e2e.py is not run here, since it needs real Notes or Reminders data and the apps' permissions.
-#
-# While the repositories are being merged (docs/MERGE-PLAN.md), Apple Notes MCP is its own package
-# under incoming/notes, so each package is built and tested on its own. Phase 1 of the plan makes
-# one package of both, and then this goes back to a single build.
+# Builds Apple Notes MCP and Apple Reminders MCP (one package), checks that what users and agents
+# see has not changed (scripts/golden.py against Tests/Golden), and runs the unit tests, for every
+# pull request and every push to main, on a GitHub-hosted Mac. It uses no secrets: releases are
+# signed and published from a Mac with scripts/release.sh. scripts/e2e.py is not run here, since it
+# needs real Notes and Reminders data and the apps' permissions.
 name: Check
 
 on:
@@ -23,22 +19,8 @@ concurrency:
 
 jobs:
   build-and-test:
-    name: build-and-test (${{ matrix.app }})
     runs-on: macos-26
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: reminders
-            path: .
-            product: AppleRemindersMCP
-          - app: notes
-            path: incoming/notes
-            product: AppleNotesMCP
-    defaults:
-      run:
-        working-directory: ${{ matrix.path }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -54,17 +36,16 @@ jobs:
       - name: Build
         run: swift build
       # Before the tests, which they do not need, so a test that hangs does not hold them back.
-      # Without Tests/Golden/<app> yet, this prints the recording to the log instead, to be committed.
       - name: Golden outputs
         timeout-minutes: 10
         run: |
-          /usr/bin/python3 -I "$GITHUB_WORKSPACE/scripts/golden.py" check ${{ matrix.app }} \
-            "$(swift build --show-bin-path)/${{ matrix.product }}" "$GITHUB_WORKSPACE/Tests/Golden/${{ matrix.app }}"
-      # Under a pseudo-terminal, so the output appears as it is written. On this runner the tests
-      # have hung when run in parallel: every test starts and almost none finishes. One at a time
-      # (--no-parallel) for now, which also names the test that hangs, if one does by itself.
+          bin=$(swift build --show-bin-path)
+          /usr/bin/python3 -I scripts/golden.py check notes "$bin/AppleNotesMCP" Tests/Golden/notes
+          /usr/bin/python3 -I scripts/golden.py check reminders "$bin/AppleRemindersMCP" Tests/Golden/reminders
+      # Under a pseudo-terminal, so the output appears as it is written, and with a time limit, so a
+      # test that hangs fails the check in minutes and the log shows where it stopped.
       - name: Test
         timeout-minutes: 10
         run: |
-          script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
+          script -q /dev/null sh -c 'swift test; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"

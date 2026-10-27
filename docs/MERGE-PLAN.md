@@ -251,6 +251,8 @@ public protocol Component: Sendable {
 
 因为填进去的值都和今天一样，用户已有的 agent 注册和技能在新版本里仍显示「已配置」，不需要任何兼容代码。测试夹具（`RegistrationTests`、`SkillTests`、`ConfigTextTests`）改用一个测试用 `Product`，两份几乎相同的测试只留一份。
 
+**阶段 1 实际的做法（2026-10-27）**：不是给每个函数加 `product` 参数，而是 `Agents` 里一个 `Product.current`（`Sources/Agents/Product.swift`，用 `Mutex` 保护），每个 App 在 `main.swift` 第一行设好，测试在每个 suite 的 `init()` 里设成测试用的值。上表里的常量（`Installation.bundleID`、`Registration.serverName`、`SkillTarget.name`/`marker` 等）都改成读它的计算属性，所以 `Agents` 的公开接口和两个 App 的代码几乎不用改；两个 App 的代码阶段 2 才进 `AppCore`，那时再按上表改成参数也不迟。`Product` 还多了 `subject`/`chineseSubject`（「Notes」/「备忘录」），让 grok-bot 的说明文字与今天逐字相同，而不是改成与产品无关的说法。
+
 ## 5. 设置窗口
 
 两个 App 仍各有自己的窗口，样子与今天相同：三个标签页，AI 助手、工具、通用。
@@ -332,7 +334,22 @@ public protocol Component: Sendable {
 - **Notes 仍从 `apple-notes-mcp` 发版，直到阶段 4。** `incoming/notes/scripts/release.sh` 在新仓库里跑不通：它默认的 tap 路径（`../homebrew-tap`）会落到 `incoming/homebrew-tap`，它把 tag 推到当前仓库、却在 `REPO=xiaofeng-han/apple-notes-mcp` 上建 release，`--verify-tag` 会失败。阶段 3 改脚本时一并解决。Reminders 一直照常从本仓库发版（它没有 `release.sh`，按 README 的步骤）。
 - **看 Notes 文件的历史**：`git blame incoming/notes/…` 能追到原来的 Notes 提交；`git log --follow` 追不过合并处的路径前缀。要看某个 Notes 文件在合并前的提交，用合并提交的第二个父提交和原路径：`git log <合并提交>^2 -- Sources/NoteModel/Markdown.swift`。这是保留原提交 ID 的代价（方案里引用了 Notes 的提交 ID，比如 `cf9f09a`），没有改写历史。
 
-## 10. 风险与待定
+### 阶段 1 的进度（2026-10-27）
+
+| 步骤 | 状态 |
+|---|---|
+| 一个 `Package.swift` | **已做**：根目录的 package（名为 `AppleMCP`）出两个可执行文件 `AppleNotesMCP`、`AppleRemindersMCP`；`incoming/notes/Package.swift` 删除，Notes 的 `Sources/{AppleNotesMCP,NoteModel,NotesShim}` 和 `Tests/NoteModelTests` 移到根目录 |
+| 共用 `Wire`、`Launcher` | **已做**：`Wire` 取 Notes 版（多 `Content.audio`、`.file`），Reminders 的命令行补上这两种内容（它的工具从不返回）；`StdioServer.run` 改为由 App 传入日志变量名（`APPLE_NOTES_MCP_WIRE_LOG` 等），stderr 前缀取服务名；`Launcher.h` 的注释改成与产品无关 |
+| `Agents` 参数化 | **已做**，见第 4 节末尾 |
+| 共享测试只留一份 | **已做**：`AgentsTests`、`WireTests` 只留一份，`TestProduct.swift` 提供测试用的 `Product` |
+| CI | **已做**：一个 job 构建一次，比对两个 App 的黄金输出，再并行跑全部测试（限时 10 分钟，输出边跑边显示） |
+| 并行测试卡死 | **已修**：阶段 0 发现在 3 核的 CI 机器上并行跑测试会卡死（旧 `apple-notes-mcp` 的 CI 也因此从没跑完过）。用诊断 job 逐步缩小：`NoteModelTests`、`WireTests` 并行都过，`AgentsTests` 卡住；去掉改 `HOME` 的测试仍卡，去掉 `stopsWhatRunsTooLong`、`runsWithoutATerminal` 两个启动进程的测试就全过。原因在 `Shell.runSync`：它阻塞调用方的线程等程序结束，而等程序结束（`waitpid`）的那段放在全局队列上；调用方都在协作线程池的少数几个线程上（`Shell.run`、测试），这些线程被占满时那段永远轮不到线程，调用方就一直等一个早已结束的程序。App 里设置窗口安装 agent 时也是这样调用的。改为给 `waitpid` 单开一个线程后，CI 上 `AgentsTests` 并行连跑 3 次、全部测试并行连跑 2 次都通过（95 个测试约 7 秒，逐个跑要 23 秒），于是 CI 改回并行，诊断 job 删掉 |
+| Notes 的构建脚本 | `incoming/notes/scripts/build-app.sh` 改成从根目录的 package 构建；资源、其他脚本和文档阶段 3 再搬 |
+| e2e | **待做，要在 Mac 上跑**：`python3 -I scripts/e2e.py .build/debug/AppleRemindersMCP`，`python3 -I incoming/notes/scripts/e2e.py .build/debug/AppleNotesMCP`（都在仓库根目录 `swift build` 之后） |
+
+本地（Linux 容器）只能用 `swiftc -parse` 做语法检查，编译和测试靠 CI。
+
+
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。
 - **R2 Reminders 改在 RunLoop 下跑**：服务器和命令行都要在真机上过一遍 `e2e.py reminders`（阶段 2）。

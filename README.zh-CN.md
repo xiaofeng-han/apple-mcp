@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-> **本仓库已改名为 `apple-mcp`**（原名 `apple-reminders-mcp`，旧链接会自动跳转到这里），之后在同一个共用底座上出 Apple Reminders MCP 和 [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) 两个 App（[方案](docs/MERGE-PLAN.md)）。对用户没有变化：每个 App 的名字、命令、cask 和权限都不变。搬家期间，Notes 的代码在 `incoming/notes/` 下，Apple Notes MCP 仍从它自己的仓库发版。
+> **本仓库已改名为 `apple-mcp`**（原名 `apple-reminders-mcp`，旧链接会自动跳转到这里），之后在同一个共用底座上出 Apple Reminders MCP 和 [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) 两个 App（[方案](docs/MERGE-PLAN.md)）。对用户没有变化：每个 App 的名字、命令、cask 和权限都不变。两个 App 已经从本仓库的同一个 package 构建（`swift build`）；搬家期间，Notes 的资源、脚本和文档在 `incoming/notes/` 下，Apple Notes MCP 仍从它自己的仓库发版。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
@@ -355,7 +355,7 @@ scripts/release.sh 0.3.1             # 也可以先演练：scripts/release.sh -
 - **某一步失败时：**它会说明哪些已经做完，以及剩下的怎么手动完成。
 - **`--dry-run`：**做到打好安装包为止，然后撤销版本号的改动；不提交、不推送、不发布。
 
-每个 pull request 和每次推送到 `main` 都会在 GitHub 托管的 Mac 上（用最新的 Xcode）编译两个 App 并跑单元测试（搬家期间 Apple Notes MCP 在 `incoming/notes` 里），再用 `scripts/golden.py` 检查用户和 agent 看到的东西有没有变（`.github/workflows/check.yml`）。这个 workflow 不带任何密钥：签名只在你自己的 Mac 上、在 `scripts/release.sh` 里进行。
+每个 pull request 和每次推送到 `main` 都会在 GitHub 托管的 Mac 上（用最新的 Xcode）编译两个 App（同一个 package）并跑单元测试，再用 `scripts/golden.py` 检查用户和 agent 看到的东西有没有变（`.github/workflows/check.yml`）。这个 workflow 不带任何密钥：签名只在你自己的 Mac 上、在 `scripts/release.sh` 里进行。
 
 图标的源文件是 Icon Composer 文档 `Resources/AppIcon.icon`。改了之后运行 `./scripts/build-icon.sh`（要用 Xcode 里的 `actool`），再提交 `Resources/AppIcon-compiled`；平常构建只复制这个目录。图稿要画成铺满的正方形，由 macOS 裁成它的圆角形状：自己画了形状、四周透明的图标，会被缩小放进一个灰色底框里。`swift scripts/flatten-icon.swift <图标.png> Resources/AppIcon.icon/Assets/artwork.png` 能把「透明背景上画一个圆角方块」的图标转成这种图稿。
 

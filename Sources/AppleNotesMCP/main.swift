@@ -5,6 +5,10 @@ import Launcher
 import NoteModel
 import Wire
 
+Product.current = Product(name: "Apple Notes MCP", bundleID: "com.xiaofeng.apple-notes-mcp", appName: "AppleNotesMCP",
+                          command: "apple-notes-mcp", serverName: "apple-notes", environmentPrefix: "APPLE_NOTES_MCP",
+                          subject: "Notes", chineseSubject: "备忘录")
+
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
 let words = Array(CommandLine.arguments.dropFirst())
 
@@ -190,7 +194,7 @@ case .serve:
     let service = Service(name: "apple-notes-mcp", version: version, instructions: instructions,
                           tools: tools, exposure: Settings.exposure)
     runThenExit {
-        await StdioServer.run(service)
+        await StdioServer.run(service, wireLog: "APPLE_NOTES_MCP_WIRE_LOG")
         return 0
     }
 }

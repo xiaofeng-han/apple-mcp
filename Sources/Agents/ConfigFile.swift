@@ -3,7 +3,7 @@ import Foundation
 /// Reading and writing agents' config files. A symbolic link is followed, so a config kept in a
 /// dotfiles repository stays a link; the file keeps its permissions (new files are private to the
 /// user); and before the first change of a day the old contents are copied next to it as
-/// `<name>.bak-<yyyyMMdd>-apple-reminders-mcp`.
+/// `<name>.bak-<yyyyMMdd>-<command>` (`apple-notes-mcp`, say).
 public enum ConfigFile {
     /// The file's text, or nil when there is no such file.
     public static func read(_ url: URL) throws -> String? {
@@ -51,7 +51,7 @@ public enum ConfigFile {
         throw ConfigError("\(url.path) keeps changing; try again")
     }
 
-    /// Copies the file next to itself as `<name>.bak-<yyyyMMdd>-apple-reminders-mcp`, unless that
+    /// Copies the file next to itself as `<name>.bak-<yyyyMMdd>-<command>`, unless that
     /// day's copy exists. Returns the copy made.
     @discardableResult
     public static func backUp(_ url: URL) throws -> URL? {
@@ -60,7 +60,7 @@ public enum ConfigFile {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd"
         let copy = target.deletingLastPathComponent()
-            .appendingPathComponent("\(target.lastPathComponent).bak-\(formatter.string(from: Date()))-apple-reminders-mcp")
+            .appendingPathComponent("\(target.lastPathComponent).bak-\(formatter.string(from: Date()))-\(Product.current.command)")
         guard FileManager.default.fileExists(atPath: target.path), !FileManager.default.fileExists(atPath: copy.path) else { return nil }
         try FileManager.default.copyItem(at: target, to: copy)
         return copy

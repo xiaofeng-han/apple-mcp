@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where an agent looks for Agent Skills: a folder of its own that every project sees, or one
-/// inside a project. This app's skill is `apple-reminders/SKILL.md` there. Several agents can
+/// inside a project. This app's skill is `<server name>/SKILL.md` there (`apple-notes/SKILL.md`, say). Several agents can
 /// share a folder (most read ~/.agents/skills).
 public enum SkillTarget: String, Sendable, CaseIterable {
     /// Claude Code and the Code tab of the Claude app: ~/.claude/skills (CLAUDE_CONFIG_DIR moves
@@ -18,9 +18,9 @@ public enum SkillTarget: String, Sendable, CaseIterable {
     /// The Antigravity CLI: ~/.gemini/antigravity-cli/skills.
     case antigravityCLI
 
-    public static let name = "apple-reminders"
+    public static var name: String { Product.current.serverName }
     /// In the skill's frontmatter: a skill without it is someone else's, and is left alone.
-    public static let marker = "generated-by: apple-reminders-mcp"
+    public static var marker: String { "generated-by: \(Product.current.command)" }
 
     /// The skill's file, in the agent's own folder or, with `project`, in that project.
     public func file(project: URL? = nil, home: URL = Shell.home) -> URL {

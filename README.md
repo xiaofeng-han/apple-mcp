@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-> **This repository is now `apple-mcp`** (formerly `apple-reminders-mcp`; old links redirect here), becoming the home of both Apple Reminders MCP and [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) on one shared base ([plan](docs/MERGE-PLAN.md), in Chinese). Nothing changes for users: each app keeps its name, command, cask and permissions. During the move, Notes' code sits under `incoming/notes/` and Apple Notes MCP is still released from its own repository.
+> **This repository is now `apple-mcp`** (formerly `apple-reminders-mcp`; old links redirect here), becoming the home of both Apple Reminders MCP and [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) on one shared base ([plan](docs/MERGE-PLAN.md), in Chinese). Nothing changes for users: each app keeps its name, command, cask and permissions. Both apps now build from this repository's one package (`swift build`); during the move, Notes' resources, scripts and documentation sit under `incoming/notes/`, and Apple Notes MCP is still released from its own repository.
 
 An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) fully read and write Reminders on macOS. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
@@ -355,7 +355,7 @@ scripts/release.sh 0.3.1             # or first: scripts/release.sh --dry-run 0.
 - **If a step fails:** it says what is already done and how to finish by hand.
 - **`--dry-run`:** does everything up to the package, then undoes the version change; nothing is committed, pushed or published.
 
-Every pull request and every push to `main` is built and unit-tested on a GitHub-hosted Mac with the newest Xcode, for both apps (Apple Notes MCP from `incoming/notes` during the move), and `scripts/golden.py` checks that what users and agents see has not changed (`.github/workflows/check.yml`). That workflow holds no secrets: signing happens only on your Mac, in `scripts/release.sh`.
+Every pull request and every push to `main` is built and unit-tested on a GitHub-hosted Mac with the newest Xcode, for both apps (one package), and `scripts/golden.py` checks that what users and agents see has not changed (`.github/workflows/check.yml`). That workflow holds no secrets: signing happens only on your Mac, in `scripts/release.sh`.
 
 The icon's source is the Icon Composer document `Resources/AppIcon.icon`. After changing it, run `./scripts/build-icon.sh` (it needs Xcode for `actool`) and commit `Resources/AppIcon-compiled`; ordinary builds only copy that folder. Draw the artwork as a full-bleed square, which macOS masks to its rounded shape: an icon that is transparent around its own shape is shown shrunk inside a grey tile. `swift scripts/flatten-icon.swift <icon.png> Resources/AppIcon.icon/Assets/artwork.png` turns an icon drawn as a rounded square on a transparent background into that artwork.
 

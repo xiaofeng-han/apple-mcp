@@ -8,6 +8,8 @@ func skill(_ command: String, body: String = "# Apple Reminders\n") -> String {
 }
 
 @Suite struct SkillTests {
+    init() { Product.current = .testing }
+
     @Test func folders() throws {
         let box = try Sandbox()
         let home = box.home.path

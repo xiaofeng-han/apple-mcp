@@ -1,7 +1,7 @@
 import Foundation
 
 /// Which tools agents may see, as the user chose them: a JSON file that maps tool names to true
-/// or false, {"tools": {"create_reminder": true, "delete_reminder": false}}. No file means every
+/// or false, {"tools": {"create_note": true, "delete_note": false}}. No file means every
 /// tool. It is read afresh whenever it is needed, so a change reaches every running server.
 ///
 /// The format only grows: a later version may add top-level keys, but an entry under "tools" always

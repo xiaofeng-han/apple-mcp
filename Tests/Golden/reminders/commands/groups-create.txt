@@ -1,0 +1,8 @@
+usage: apple-reminders-mcp groups create NAME
+
+Create a group, which holds lists in the sidebar (put lists in it with lists update --group).
+
+  NAME           New group name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

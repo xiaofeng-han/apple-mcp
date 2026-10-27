@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp lists delete LIST [flags]
+
+Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first). Its reminders go to Recently Deleted.
+
+  LIST                             List name or id
+  --[no-]confirm-delete-reminders  Delete a list that still has reminders
+  --json json|-                    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                       Show this help
+

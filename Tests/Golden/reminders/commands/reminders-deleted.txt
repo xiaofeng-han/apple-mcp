@@ -1,0 +1,7 @@
+usage: apple-reminders-mcp reminders deleted
+
+List reminders in Recently Deleted that restore can bring back, newest first. With Full Disk Access for the app this is everything in Recently Deleted; without it, what this app deleted.
+
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

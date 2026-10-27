@@ -1,0 +1,10 @@
+usage: apple-notes-mcp folders rename FOLDER NAME [flags]
+
+Rename a folder. A shared folder needs --allow-shared, after asking the user: the new name changes it for everyone.
+
+  FOLDER               Path or id
+  NAME                 New name, for rename
+  --[no-]allow-shared  The user agreed to renaming or moving a shared folder
+  --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help           Show this help
+

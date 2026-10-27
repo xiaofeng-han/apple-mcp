@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+> **This repository is now `apple-mcp`** (formerly `apple-reminders-mcp`; old links redirect here), becoming the home of both Apple Reminders MCP and [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) on one shared base ([plan](docs/MERGE-PLAN.md), in Chinese). Nothing changes for users: each app keeps its name, command, cask and permissions. During the move, Notes' code sits under `incoming/notes/` and Apple Notes MCP is still released from its own repository.
+
 An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) fully read and write Reminders on macOS. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
 Writes go through Apple's private ReminderKit framework, the same path Reminders.app itself uses. So everything below is native and shows up correctly on iPhone too:

@@ -1,0 +1,3 @@
+Read an attachment: Opens an attachment from a ![…](attachment:id) placeholder in read_note: images, scans, drawings, PDFs, audio (recordings with Notes' transcript and summary), video, tables, links and files.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Attachment id","type":"string"},"text_only":{"description":"Only the text, no images or files","type":"boolean"}},"required":["id"],"type":"object"}

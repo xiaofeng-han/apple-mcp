@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp sections create LIST NAME
+
+Create a section in a list (put reminders in it with --section).
+
+  LIST           List name or id
+  NAME           New section name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

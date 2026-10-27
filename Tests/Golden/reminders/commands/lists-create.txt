@@ -1,0 +1,16 @@
+usage: apple-reminders-mcp lists create NAME [flags]
+
+Create a list.
+
+  NAME                       New list name
+  --color string             red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or #RRGGBB
+  --icon string              An emoji, or an emblem name such as nature2; empty for the default
+  --group string             Group name or id to put it in
+  --[no-]pinned              Pin to the top of the sidebar
+  --type standard|groceries  List type
+  --sort string              How Reminders sorts the list (default, manual, due-date, due-date-latest-first, created-newest-first, created-oldest-first, priority, priority-lowest-first, title, title-reverse)
+  --after string             Put it after this: List name or id
+  --before string            Put it before this: List name or id
+  --json json|-              Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                 Show this help
+

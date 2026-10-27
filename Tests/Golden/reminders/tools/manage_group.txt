@@ -1,0 +1,3 @@
+Create, rename or delete a list group: Groups hold lists in the sidebar. create, rename, or delete an empty group; put lists in a group with manage_list.
+
+Input schema: {"additionalProperties":false,"properties":{"action":{"description":"What to do","enum":["create","rename","delete"],"type":"string"},"group":{"description":"New group name for create; group name or id otherwise","type":"string"},"new_name":{"description":"For rename","type":"string"}},"required":["action","group"],"type":"object"}

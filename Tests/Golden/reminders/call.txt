@@ -1,0 +1,16 @@
+list_lists        List reminder lists
+find_reminders    Find reminders
+get_reminder      Read a reminder
+read_image        Look at an image on a reminder
+list_tags         List tags
+list_deleted      List recently deleted reminders
+create_reminder   Create a reminder
+update_reminder   Update a reminder
+delete_reminder   Delete a reminder
+restore_reminder  Restore a deleted reminder
+manage_list       Create, change or delete a list
+manage_group      Create, rename or delete a list group
+manage_section    Create, rename, move or delete a section
+manage_smart_list Create, change or delete a smart list
+manage_tag        Rename or delete a tag
+manage_template   Save, use or delete a list template

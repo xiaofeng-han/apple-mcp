@@ -1,0 +1,14 @@
+apple-reminders-mcp lists
+├── list                        The lists (with counts, sections and the people on shared ones), groups, smart lists and templates (the default)
+├── create NAME                 Create a list
+│       --color string --icon string --group string --[no-]pinned --type standard|groceries --sort string
+│       --after string --before string
+├── update LIST                 Change a list's name, color, icon, group, pin, type, sort order or place in the sidebar
+│       --new-name string --color string --icon string --group string --[no-]pinned --type standard|groceries
+│       --sort string --after string --before string
+├── clear-completed LIST        Move a list's completed reminders to Recently Deleted
+└── delete LIST                 Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first)
+        --[no-]confirm-delete-reminders
+
+Every lists command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

@@ -1,0 +1,3 @@
+[mcp_servers.apple-notes]
+command = "<EXECUTABLE>"
+args = ["--stdio"]

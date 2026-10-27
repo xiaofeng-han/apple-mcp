@@ -1,0 +1,15 @@
+apple-notes-mcp folders
+├── list                        The folders, with how many notes each holds (the default)
+│       --depth int
+├── create PATH                 Create a folder; a path such as Projects/Ideas makes it inside another
+│       --tag string… --match any|all
+├── rename FOLDER NAME          Rename a folder
+│       --[no-]allow-shared
+├── move FOLDER INTO            Move a folder into another, or to the top level with ""
+│       --[no-]allow-shared
+├── delete FOLDER               Delete an empty folder, or with --recursive --expected-notes N everything in it (ask the user first)
+│       --[no-]recursive --expected-notes int
+└── export FOLDER TO            Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip
+
+Every folders command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.

@@ -1,0 +1,3 @@
+Manage a tag: Renames a tag in every note that has it, or deletes it from every note (the notes stay; delete needs expected_notes, the number of notes overview lists with the tag). Ask the user before deleting a tag.
+
+Input schema: {"additionalProperties":false,"properties":{"action":{"description":"What to do","enum":["rename","delete"],"type":"string"},"expected_notes":{"description":"For delete: the number of notes with the tag","type":"integer"},"name":{"description":"For rename: the new name","type":"string"},"tag":{"description":"The tag, # optional","type":"string"}},"required":["action","tag"],"type":"object"}

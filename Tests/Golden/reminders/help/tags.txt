@@ -1,0 +1,7 @@
+apple-reminders-mcp tags
+├── list                        Every tag in use, with how many open and how many reminders in all have it (the default)
+├── rename TAG NEW_NAME         Rename a tag on every reminder that has it, merging into a tag of that name if there is one
+└── delete TAG                  Remove a tag from every reminder
+
+Every tags command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

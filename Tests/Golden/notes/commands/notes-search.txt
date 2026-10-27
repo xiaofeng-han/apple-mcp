@@ -1,0 +1,20 @@
+usage: apple-notes-mcp notes search QUERY [flags]
+
+Full-text search of titles, text and the text Notes found in attachments, best matches first.
+
+  QUERY                             Words to find
+  --match all|any                   Every word (all, default) or any of them
+  --folder string                   Path or id; includes its folders; a smart folder; or Recently Deleted
+  --tag string…                     Only notes with all these tags (# optional) (repeat for more)
+  --only string…                    Only notes in all of these groups (unchecked: with unticked checklist items; calls: call recordings) (repeat for more)
+  --attachment string…              Only notes with an attachment of one of these kinds; any, or none (repeat for more)
+  --modified-after string           YYYY-MM-DD, inclusive
+  --modified-before string          YYYY-MM-DD, exclusive
+  --created-after string            YYYY-MM-DD, inclusive
+  --created-before string           YYYY-MM-DD, exclusive
+  --sort modified|created|title|opened
+                                    Instead of best match: newest modified, created or opened first, or by title
+  --limit int                       1 to 100 (default 10)
+  --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                        Show this help
+

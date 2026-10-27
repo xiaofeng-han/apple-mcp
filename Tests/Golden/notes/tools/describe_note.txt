@@ -1,0 +1,3 @@
+Describe notes: Saves one-line descriptions of notes, which overview shows. Several notes per call.
+
+Input schema: {"additionalProperties":false,"properties":{"descriptions":{"description":"1 to 200 notes","items":{"additionalProperties":false,"properties":{"description":{"description":"One line, under 80 characters","type":"string"},"id":{"description":"Note id","type":"string"}},"required":["id","description"],"type":"object"},"type":"array"}},"required":["descriptions"],"type":"object"}

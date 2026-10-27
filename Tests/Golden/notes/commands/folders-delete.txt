@@ -1,0 +1,10 @@
+usage: apple-notes-mcp folders delete FOLDER [flags]
+
+Delete an empty folder, or with --recursive --expected-notes N everything in it (ask the user first). The notes go to Recently Deleted. --expected-notes is the number of notes you saw in it and its folders.
+
+  FOLDER                Path or id
+  --[no-]recursive      Also everything in it
+  --expected-notes int  With --recursive: the notes you saw in it and its folders
+  --json json|-         Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help            Show this help
+

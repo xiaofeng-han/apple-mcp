@@ -1,0 +1,10 @@
+usage: apple-reminders-mcp reminders image REMINDER_ID IMAGE_ID
+
+Save an image on a reminder (ids from get) and print where; needs Full Disk Access.
+
+  REMINDER_ID      Reminder id
+  IMAGE_ID         Image id
+  --output string  Where to save the image; default a file in the temporary folder
+  --json json|-    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help       Show this help
+

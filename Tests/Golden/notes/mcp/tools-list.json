@@ -1,0 +1,693 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "result": {
+    "tools": [
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Create a note"
+        },
+        "description": "Creates a note from Markdown; its first line is the title. ![name](/path/to/file) attaches a file, ![](https://…) adds a link card. Or copies a note with everything in it (copy_of).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "copy_of": {
+              "description": "Instead of markdown: the id of a note to copy, attachments and all",
+              "type": "string"
+            },
+            "folder": {
+              "description": "Path or id; default Notes, or for a copy the note's own folder",
+              "type": "string"
+            },
+            "markdown": {
+              "description": "The note",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "create_note",
+        "title": "Create a note"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Delete notes"
+        },
+        "description": "Moves a note, or several (notes), to Recently Deleted, where move_note can bring them back. A note changed since its version was read is refused.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Note id",
+              "type": "string"
+            },
+            "notes": {
+              "description": "Instead of id and version: up to 100 notes",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "description": "Note id",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Its version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "version": {
+              "description": "The version read_note, overview or search gave",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "delete_note",
+        "title": "Delete notes"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Describe notes"
+        },
+        "description": "Saves one-line descriptions of notes, which overview shows. Several notes per call.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "descriptions": {
+              "description": "1 to 200 notes",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "description": "One line, under 80 characters",
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "Note id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "descriptions"
+          ],
+          "type": "object"
+        },
+        "name": "describe_note",
+        "title": "Describe notes"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Edit a note"
+        },
+        "description": "Changes a note in one call: replace (exact Markdown from read_note, pairs applied in order), insert (Markdown at the end, the start, or under a heading), or rewrite (the whole note); check, uncheck and checklist tick, untick, sort or clear checklist items; pinned pins it. Only what changes is written; the rest keeps all its formatting. A note changed since its version was read is refused.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "at": {
+              "description": "end (default), start, or a heading's text; list items join that section's list",
+              "type": "string"
+            },
+            "check": {
+              "description": "Tick the checklist items with these texts",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "checklist": {
+              "description": "Every checklist item: tick, untick, move the ticked ones to the bottom of their list, or delete them",
+              "enum": [
+                "check_all",
+                "uncheck_all",
+                "move_checked_down",
+                "delete_checked"
+              ],
+              "type": "string"
+            },
+            "id": {
+              "description": "Note id",
+              "type": "string"
+            },
+            "insert": {
+              "description": "Markdown to add",
+              "type": "string"
+            },
+            "pinned": {
+              "description": "Pin (true) or unpin (false) the note",
+              "type": "boolean"
+            },
+            "replace": {
+              "description": "Replacements",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "description": "Replace every occurrence",
+                    "type": "boolean"
+                  },
+                  "new": {
+                    "description": "Markdown",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact Markdown; must be unique unless all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "rewrite": {
+              "description": "The whole note as Markdown",
+              "type": "string"
+            },
+            "uncheck": {
+              "description": "Untick the checklist items with these texts",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "version": {
+              "description": "The version read_note, overview or search gave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "name": "edit_note",
+        "title": "Edit a note"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Manage a folder"
+        },
+        "description": "Creates (folder is the new path; with tags, a smart folder of the notes with them), renames, moves (into another folder, or the top level), deletes or exports a folder. delete takes an empty folder, or with recursive and expected_notes everything in it (the notes go to Recently Deleted). export writes it and its folders as Markdown with the original attachments, to a new folder or .zip. Renaming or moving a shared folder needs allow_shared, after asking the user.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "create",
+                "rename",
+                "move",
+                "delete",
+                "export"
+              ],
+              "type": "string"
+            },
+            "allow_shared": {
+              "description": "The user agreed to renaming or moving a shared folder",
+              "type": "boolean"
+            },
+            "expected_notes": {
+              "description": "delete with recursive: the notes you saw in it and its folders",
+              "type": "integer"
+            },
+            "folder": {
+              "description": "Path or id; for create, the new folder's path",
+              "type": "string"
+            },
+            "into": {
+              "description": "For move: the folder to put it in; empty for the top level",
+              "type": "string"
+            },
+            "match": {
+              "description": "For a smart folder: notes with any of the tags (default) or all of them",
+              "enum": [
+                "any",
+                "all"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "New name, for rename",
+              "type": "string"
+            },
+            "recursive": {
+              "description": "delete: also everything in it",
+              "type": "boolean"
+            },
+            "tags": {
+              "description": "For create: make a smart folder showing the notes with these tags",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "to": {
+              "description": "For export: a new folder or .zip path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "folder"
+          ],
+          "type": "object"
+        },
+        "name": "manage_folder",
+        "title": "Manage a folder"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Manage a tag"
+        },
+        "description": "Renames a tag in every note that has it, or deletes it from every note (the notes stay; delete needs expected_notes, the number of notes overview lists with the tag). Ask the user before deleting a tag.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "rename",
+                "delete"
+              ],
+              "type": "string"
+            },
+            "expected_notes": {
+              "description": "For delete: the number of notes with the tag",
+              "type": "integer"
+            },
+            "name": {
+              "description": "For rename: the new name",
+              "type": "string"
+            },
+            "tag": {
+              "description": "The tag, # optional",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "tag"
+          ],
+          "type": "object"
+        },
+        "name": "manage_tag",
+        "title": "Manage a tag"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Move notes"
+        },
+        "description": "Moves a note, or several (notes), to another folder, or back from Recently Deleted. A move into or out of a shared folder needs allow_shared, after asking the user. A note changed since its version was read is refused.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "allow_shared": {
+              "description": "The user agreed to changing who can see the notes",
+              "type": "boolean"
+            },
+            "folder": {
+              "description": "Path or id",
+              "type": "string"
+            },
+            "id": {
+              "description": "Note id",
+              "type": "string"
+            },
+            "notes": {
+              "description": "Instead of id and version: up to 100 notes",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "description": "Note id",
+                    "type": "string"
+                  },
+                  "version": {
+                    "description": "Its version",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "version": {
+              "description": "The version read_note, overview or search gave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "folder"
+          ],
+          "type": "object"
+        },
+        "name": "move_note",
+        "title": "Move notes"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Overview of notes"
+        },
+        "description": "The folders with their note counts, the smart folders, and the tags. Given a folder, dates, tags, groups, attachment kinds or sort: the notes, one line each (id | version | title | date | size | description). folder \"Recently Deleted\" lists deleted notes, which move_note brings back. undescribed: true lists notes that need a description, with their opening text, for describe_note.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "attachments": {
+              "description": "Only notes with an attachment of one of these kinds; any, or none",
+              "items": {
+                "enum": [
+                  "image",
+                  "scan",
+                  "drawing",
+                  "table",
+                  "PDF",
+                  "audio",
+                  "video",
+                  "link",
+                  "file",
+                  "any",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_after": {
+              "description": "YYYY-MM-DD, inclusive",
+              "type": "string"
+            },
+            "created_before": {
+              "description": "YYYY-MM-DD, exclusive",
+              "type": "string"
+            },
+            "depth": {
+              "description": "Folder levels shown when listing folders, 1 to 10 (default 1)",
+              "type": "integer"
+            },
+            "folder": {
+              "description": "Path such as \"Projects/Ideas\", or id; includes its folders; a smart folder; or Recently Deleted",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Notes listed, 1 to 500 (default 30, 50 with undescribed)",
+              "type": "integer"
+            },
+            "modified_after": {
+              "description": "YYYY-MM-DD, inclusive",
+              "type": "string"
+            },
+            "modified_before": {
+              "description": "YYYY-MM-DD, exclusive",
+              "type": "string"
+            },
+            "only": {
+              "description": "Only notes in all of these groups (unchecked: with unticked checklist items; calls: call recordings)",
+              "items": {
+                "enum": [
+                  "pinned",
+                  "shared",
+                  "locked",
+                  "quick-notes",
+                  "math-notes",
+                  "calls",
+                  "checklists",
+                  "unchecked",
+                  "tagged",
+                  "untagged",
+                  "mentions"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "sort": {
+              "description": "Newest first by modified (default), created or opened (last opened in Notes), or by title",
+              "enum": [
+                "modified",
+                "created",
+                "title",
+                "opened"
+              ],
+              "type": "string"
+            },
+            "tags": {
+              "description": "Only notes with all these tags (# optional)",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "undescribed": {
+              "description": "Only notes without a current description",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "name": "overview",
+        "title": "Overview of notes"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Read an attachment"
+        },
+        "description": "Opens an attachment from a ![…](attachment:id) placeholder in read_note: images, scans, drawings, PDFs, audio (recordings with Notes' transcript and summary), video, tables, links and files.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Attachment id",
+              "type": "string"
+            },
+            "text_only": {
+              "description": "Only the text, no images or files",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "read_attachment",
+        "title": "Read an attachment"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Read a note"
+        },
+        "description": "Notes as Markdown, each with the version to pass back when changing it. By id, several ids, or exact title. A long note can be read one section at a time, or as an outline first.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Note id",
+              "type": "string"
+            },
+            "ids": {
+              "description": "Up to 20 note ids",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "outline": {
+              "description": "Only the headings, with each section's size",
+              "type": "boolean"
+            },
+            "section": {
+              "description": "Only the section under this heading",
+              "type": "string"
+            },
+            "title": {
+              "description": "The exact title, instead of an id",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "read_note",
+        "title": "Read a note"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Search notes"
+        },
+        "description": "Full-text search of titles, text, and the text Notes found in attachments (in images and scans, handwriting, recording transcripts), best matches first, with the text around each match.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "attachments": {
+              "description": "Only notes with an attachment of one of these kinds; any, or none",
+              "items": {
+                "enum": [
+                  "image",
+                  "scan",
+                  "drawing",
+                  "table",
+                  "PDF",
+                  "audio",
+                  "video",
+                  "link",
+                  "file",
+                  "any",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_after": {
+              "description": "YYYY-MM-DD, inclusive",
+              "type": "string"
+            },
+            "created_before": {
+              "description": "YYYY-MM-DD, exclusive",
+              "type": "string"
+            },
+            "folder": {
+              "description": "Path or id; includes its folders; a smart folder; or Recently Deleted",
+              "type": "string"
+            },
+            "limit": {
+              "description": "1 to 100 (default 10)",
+              "type": "integer"
+            },
+            "match": {
+              "description": "Every word (all, default) or any of them",
+              "enum": [
+                "all",
+                "any"
+              ],
+              "type": "string"
+            },
+            "modified_after": {
+              "description": "YYYY-MM-DD, inclusive",
+              "type": "string"
+            },
+            "modified_before": {
+              "description": "YYYY-MM-DD, exclusive",
+              "type": "string"
+            },
+            "only": {
+              "description": "Only notes in all of these groups (unchecked: with unticked checklist items; calls: call recordings)",
+              "items": {
+                "enum": [
+                  "pinned",
+                  "shared",
+                  "locked",
+                  "quick-notes",
+                  "math-notes",
+                  "calls",
+                  "checklists",
+                  "unchecked",
+                  "tagged",
+                  "untagged",
+                  "mentions"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "query": {
+              "description": "Words to find",
+              "type": "string"
+            },
+            "sort": {
+              "description": "Instead of best match: newest modified, created or opened first, or by title",
+              "enum": [
+                "modified",
+                "created",
+                "title",
+                "opened"
+              ],
+              "type": "string"
+            },
+            "tags": {
+              "description": "Only notes with all these tags (# optional)",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        },
+        "name": "search",
+        "title": "Search notes"
+      }
+    ]
+  }
+}

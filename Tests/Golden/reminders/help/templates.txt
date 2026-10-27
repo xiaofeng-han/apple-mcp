@@ -1,0 +1,9 @@
+apple-reminders-mcp templates
+├── create NAME --list string   Save a list as a template (Reminders copies its reminders in the background)
+│       --[no-]include-completed
+├── use TEMPLATE                Make a new list from a template
+│       --list string
+└── delete TEMPLATE             Delete a template
+
+Every templates command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

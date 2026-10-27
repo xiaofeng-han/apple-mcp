@@ -1,0 +1,28 @@
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "apple-reminders-mcp",
+        "version": "dev"
+      }
+    },
+    "cacheScope": "public",
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Apple Reminders on this Mac, synced through iCloud to the user's devices. find_reminders and list_lists read; pass a reminder's id and version to update_reminder or delete_reminder. Times are local to GMT: due and start take 2026-10-21 (all day) or 2026-10-21T09:00, and a due time adds an alert then. urgent makes that alert ring like an alarm and needs a due time; repeat and early_alerts need a due date. Tags are native, written without #. Subtasks are one level deep (parent_id); sections divide a list. Lists marked shared are seen by other people: confirm with the user before adding to or changing them, and assign with assigned_to. Deleted reminders go to Recently Deleted; list_deleted and restore_reminder bring them back.\n\nThe user chooses which of these tools are offered, in the Tools tab of the Apple Reminders MCP settings window (opened by opening the app). A tool named here that is not in your tool list is turned off there.",
+    "resultType": "complete",
+    "serverInfo": {
+      "name": "apple-reminders-mcp",
+      "version": "dev"
+    },
+    "supportedVersions": [
+      "2026-07-28"
+    ],
+    "ttlMs": 3600000
+  }
+}

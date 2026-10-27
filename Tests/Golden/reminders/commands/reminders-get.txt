@@ -1,0 +1,8 @@
+usage: apple-reminders-mcp reminders get ID
+
+Read one reminder in full: alarms, early alerts, images, subtasks, and its current version.
+
+  ID             Reminder id
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

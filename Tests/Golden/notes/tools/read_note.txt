@@ -1,0 +1,3 @@
+Read a note: Notes as Markdown, each with the version to pass back when changing it. By id, several ids, or exact title. A long note can be read one section at a time, or as an outline first.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Note id","type":"string"},"ids":{"description":"Up to 20 note ids","items":{"type":"string"},"type":"array"},"outline":{"description":"Only the headings, with each section's size","type":"boolean"},"section":{"description":"Only the section under this heading","type":"string"},"title":{"description":"The exact title, instead of an id","type":"string"}},"type":"object"}

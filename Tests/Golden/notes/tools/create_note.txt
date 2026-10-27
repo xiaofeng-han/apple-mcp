@@ -1,0 +1,3 @@
+Create a note: Creates a note from Markdown; its first line is the title. ![name](/path/to/file) attaches a file, ![](https://…) adds a link card. Or copies a note with everything in it (copy_of).
+
+Input schema: {"additionalProperties":false,"properties":{"copy_of":{"description":"Instead of markdown: the id of a note to copy, attachments and all","type":"string"},"folder":{"description":"Path or id; default Notes, or for a copy the note's own folder","type":"string"},"markdown":{"description":"The note","type":"string"}},"type":"object"}

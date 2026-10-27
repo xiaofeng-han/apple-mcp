@@ -8,8 +8,38 @@ struct SearchHit: Sendable {
     let length: Int
 }
 
+/// Text Notes got out of an attachment, which search looks in besides the note's own text.
+struct AttachmentText: Sendable {
+    /// The attachment to open with read_attachment: for a page of a scan, the scan.
+    let attachmentID: String
+    /// What the text is, as search shows it: "the text of image", "the transcript of audio".
+    let label: String
+    let text: String
+}
+
 enum NoteOrder: String, CaseIterable {
-    case modified, created, title
+    case modified, created, title, opened
+
+    /// Sorts newest first by the date, or by title; notes never opened go last.
+    func sort(_ notes: inout [NoteInfo]) {
+        switch self {
+        case .modified: notes.sort { $0.modified > $1.modified }
+        case .created: notes.sort { $0.created > $1.created }
+        case .title: notes.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .opened: notes.sort { ($0.opened ?? .distantPast, $0.modified) > ($1.opened ?? .distantPast, $1.modified) }
+        }
+    }
+
+    /// The date a list shows for a note in this order.
+    @MainActor func date(of note: NoteInfo) -> String {
+        switch self {
+        case .created: Output.day(note.created)
+        case .opened: note.opened.map(Output.day) ?? "never"
+        case .modified, .title: Output.day(note.modified)
+        }
+    }
+
+    var column: String { self == .created || self == .opened ? rawValue : "modified" }
 }
 
 /// A date range: from inclusive, until exclusive.
@@ -69,28 +99,88 @@ extension NotesStore {
         return kinds
     }
 
-    /// Notes whose title or text has the words, best first (more words, words in the title),
-    /// or in `order`. Notes in Recently Deleted are left out.
-    func search(_ query: String, matchAll: Bool, in scope: Set<String>?, modified: DateWindow, created: DateWindow,
-                order: NoteOrder?, limit: Int) throws(NotesError) -> (total: Int, hits: [SearchHit]) {
+    /// Text Notes got out of the attachments of these notes, by note: what it recognized in images
+    /// and scans, the handwriting it recognized in drawings, and the transcripts of recordings.
+    /// Cached per attachment until it changes.
+    func attachmentTexts(_ ids: Set<String>) throws(NotesError) -> [String: [AttachmentText]] {
+        var texts: [String: [AttachmentText]] = [:]
+        for attachment in try fetch("ICAttachment", NSPredicate(format: "markedForDeletion == NO AND note != nil")) {
+            guard let note = attachment.get("note") as? NSManagedObject else { continue }
+            let noteID = string(note, "identifier")
+            guard ids.contains(noteID) else { continue }
+            let id = string(attachment, "identifier")
+            func text(_ key: String) -> String { (attachment.get(key) as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
+            let recognized = text("ocrSummary"), handwriting = text("handwritingSummary")
+            let audio = AttachmentKind.of(type: string(attachment, "typeUTI")) == "audio"
+            let data = audio ? attachment.get("mergeableData") as? Data : nil
+            guard !recognized.isEmpty || !handwriting.isEmpty || data != nil else { continue }
+            let modified = (attachment.get("modificationDate") as? Date)?.timeIntervalSinceReferenceDate ?? 0
+            let key = "\(modified)|\(recognized.count)|\(handwriting.count)|\(data?.count ?? 0)"
+            if let cached = attachmentTextCache[id], cached.key == key {
+                texts[noteID, default: []] += cached.texts
+                continue
+            }
+            // A page of a scan is opened through the scan.
+            let shown = (attachment.get("parentAttachment") as? NSManagedObject) ?? attachment
+            let name = AttachmentKind.of(type: string(shown, "typeUTI")) + " " + ShortID.of(string(shown, "identifier"))
+            var found: [AttachmentText] = []
+            if !recognized.isEmpty { found.append(AttachmentText(attachmentID: string(shown, "identifier"), label: "the text of \(name)", text: recognized)) }
+            if !handwriting.isEmpty { found.append(AttachmentText(attachmentID: string(shown, "identifier"), label: "the handwriting of \(name)", text: handwriting)) }
+            if let transcript = recording(attachment)?.transcript, !transcript.isEmpty {
+                found.append(AttachmentText(attachmentID: id, label: "the transcript of \(name)", text: transcript))
+            }
+            attachmentTextCache[id] = (key, found)
+            texts[noteID, default: []] += found
+        }
+        return texts
+    }
+
+    /// Notes whose title, text or attachment text has the words, best first (more words, words
+    /// in the title, words in the note's own text), or in `order`. Notes in Recently Deleted are
+    /// left out, unless the scope is Recently Deleted.
+    func search(_ query: String, matchAll: Bool, in scope: Scope?, modified: DateWindow, created: DateWindow,
+                filter: NoteFilter = NoteFilter(), order: NoteOrder?, limit: Int) throws(NotesError) -> (total: Int, hits: [SearchHit]) {
         let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !words.isEmpty else { throw .refused("the search has no words") }
-        let notes = try notes(inFolders: scope).filter { !$0.locked && modified.contains($0.modified) && created.contains($0.created) }
-        let texts = try plainTexts(Set(notes.map(\.id)))
+        let candidates: [NoteInfo]
+        switch scope {
+        case nil: candidates = try notes(inFolders: nil)
+        case .folder(let root): candidates = try notes(inFolders: Set(try folders().filter { $0.names.starts(with: root.names) }.map(\.id)))
+        case .smart(let smart): candidates = try notes(in: smart)
+        case .recentlyDeleted: candidates = try recentlyDeletedNotes().map(\.note)
+        }
+        let notes = try matching(candidates.filter { !$0.locked && modified.contains($0.modified) && created.contains($0.created) }, filter)
+        let ids = Set(notes.map(\.id))
+        let texts = try plainTexts(ids)
+        let extras = try attachmentTexts(ids)
         func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
         var scored: [(hit: SearchHit, score: Int)] = []
         for note in notes {
             let text = texts[note.id] ?? ""
-            let found = words.filter { has(note.title, $0) || has(text, $0) }
+            let others = extras[note.id] ?? []
+            let inText = words.filter { has(text, $0) }
+            let inTitle = words.filter { has(note.title, $0) }
+            let found = words.filter { word in inText.contains(word) || inTitle.contains(word) || others.contains { has($0.text, word) } }
             guard matchAll ? found.count == words.count : !found.isEmpty else { continue }
-            let inTitle = words.filter { has(note.title, $0) }.count
-            scored.append((SearchHit(note: note, snippet: Self.snippet(text, words: found), length: text.count), found.count * 10 + inTitle * 100))
+            // The text around a word in the note itself; failing that, in the attachment that has
+            // the most of the words.
+            var snippet = Self.snippet(text, words: found)
+            if inText.isEmpty, let best = others.max(by: { a, b in found.filter { has(a.text, $0) }.count < found.filter { has(b.text, $0) }.count }),
+                found.contains(where: { has(best.text, $0) })
+            {
+                snippet = "in \(best.label): " + Self.snippet(best.text, words: found)
+            }
+            let inNote = Set(inText + inTitle).count
+            let score = inNote * 10 + (found.count - inNote) * 5 + inTitle.count * 100
+            scored.append((SearchHit(note: note, snippet: snippet, length: text.count), score))
         }
-        switch order {
-        case nil: scored.sort { ($0.score, $0.hit.note.modified) > ($1.score, $1.hit.note.modified) }
-        case .modified: scored.sort { $0.hit.note.modified > $1.hit.note.modified }
-        case .created: scored.sort { $0.hit.note.created > $1.hit.note.created }
-        case .title: scored.sort { $0.hit.note.title.localizedStandardCompare($1.hit.note.title) == .orderedAscending }
+        if let order {
+            var sorted = scored.map(\.hit.note)
+            order.sort(&sorted)
+            let rank = Dictionary(uniqueKeysWithValues: sorted.enumerated().map { ($0.element.id, $0.offset) })
+            scored.sort { rank[$0.hit.note.id]! < rank[$1.hit.note.id]! }
+        } else {
+            scored.sort { ($0.score, $0.hit.note.modified) > ($1.score, $1.hit.note.modified) }
         }
         return (scored.count, scored.prefix(limit).map(\.hit))
     }

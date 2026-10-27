@@ -152,3 +152,47 @@ python3 -I scripts/pbshape.py /tmp/x/NoteStore.sqlite
   之后轮询 `cloudState` 的 `currentLocalVersion` / `latestVersionSyncedToCloud`。表格是单独的记录。
 - **AppleScript 的坑**：`move folder` 报告成功却把文件夹删掉；`exists note id` 对「最近删除」里的笔记也是 true，要看
   「最近删除」文件夹的 `id of notes`；列表结果没有 stringValue，要逐项读；数据库比 Notes.app 落后几分钟，删除/改名后要自己记住。
+
+## 8. 功能补齐时的新发现（2026-10-21，Notes 4.13 / macOS 27.0.1）
+
+方法：Notes.app 的菜单（MainMenu.loctable，183 条）、App Intents（51 个 action）、NotesShared 的 Core Data 模型
+（NoteData.mom），以及在本机进程里 dlopen NotesShared 后用 ObjC 运行时列出的类和方法；能只读验证的都在只读库上跑过，
+写入只在标题以「agent test」开头的测试笔记上做。
+
+- **录音的文字稿和摘要** [观测]：在附件（`com.apple.m4a-audio`）的 `mergeableData` 里，是 `ICTTAudioDocument`。
+  `+registerWithICCRCoder` 后 `+unarchiveFromData:replicaID:`（replica 随便给一个新 UUID）就能读出
+  `transcriptAsPlainText`（通话录音带说话人）、`recordingSummaryAsPlainText`、`topLineSummaryAsPlainText`、`isCallRecording`，
+  不需要共享上下文。音频本身在子附件里（各段录音）。
+- **附件里的文字** [观测]：`ocrSummary`（图片、扫描）、`handwritingSummary`（手绘）、`imageClassificationSummary`、`summary`
+  都是附件行的列；Notes 自己的搜索走 Spotlight（`ICSearchQueryParser` 生成查询串），外部进程用不了，所以本仓库自己搜这些列。
+- **标签** [观测]：行内附件 `com.apple.notes.inlinetextattachment.hashtag`，`altText` 是 `#name`，`tokenContentIdentifier`
+  是大写的标准名；另有 `ICHashtag`（displayText、standardizedContent）。新建用
+  `+[ICInlineAttachment newHashtagAttachmentWithIdentifier:hashtagText:creatingHashtagIfNecessary:note:parentAttachment:]`
+  （hashtagText 不带 #）。**坑**：保存后 Notes 会把新 ICHashtag 标成删除（`-[ICAccount deleteUnusedHashtagsWithStandardizedContent:]`
+  数用量时还没算上新的那处；也可能是 Notes.app 上传时保存它自己那份旧笔记），所以写完、上传完还要再看一眼，必要时
+  `unmarkForDeletion` + `updateChangeCountWithReason:`。写入上下文里的对象可能是旧的，判断要用只读库。
+  改名：`+[ICHashtag renameHashtagsWithStandardizedContent:newDisplayText:context:]`（会新建一个 ICHashtag，旧的标删除）。
+- **笔记链接 / 分割线** [观测]：`newLinkAttachmentWithIdentifier:toNote:fromNote:parentAttachment:`（token 是
+  `applenotes:note/<小写 id>?ownerIdentifier=…`）、`newDividerLineAttachmentWithIdentifier:note:parentAttachment:`
+  （类型 `…inlinetextattachment.dividerline`，altText `---`）。反向链接：查 token 里含 `applenotes:note/<id>` 的链接附件。
+- **智能文件夹** [观测]：`smartFolderQueryJSON` 不为空的 ICFolder（folderType 2）。`-[ICFolder smartFolderQueryObjC].predicate`
+  是一个能直接在只读库上执行的 NSPredicate；`smartFolderDescriptionObjC` 是可读描述（`#oracle, #project`）。新建：
+  `ICTagSelection initWithManagedObjectContext:includedObjectIDs:excludedObjectIDs:tagOperator:`（**0 = 任一，1 = 全部**）→
+  `+[ICQueryObjC objc_queryForNotesMatchingTagSelection:]` → `+[ICFolder objc_smartFolderWithQuery:account:]`。
+  经 NotesShared 写的文件夹改动（新建、改名、移动、删除），Notes 会在半分钟内自己上传，不用 AppleScript 触发。
+- **各种分组的定义**（`ICQuery`）[观测]：通话录音 `hostApplicationIdentifier ==[cd] com.apple.mobilephone`；数学笔记
+  `com.apple.greyparrot` 或 `com.apple.calculator`；快速备忘录 `isSystemPaper == 1`；共享 = 笔记或任一级父文件夹有
+  `serverShareData`，或 `zoneOwnerName` 不是 `__defaultOwner__`（本仓库原来只看 serverShareData，已改）。
+  清单用 ICNote 的 `hasChecklist` / `hasChecklistInProgress`；最近打开用 `lastOpenedDate`。
+- **置顶** [观测]：AppleScript 没有这个属性；`-[ICNote setIsPinned:]` + `updateChangeCountWithReason:`，再按老办法触发上传。
+- **复制笔记** [观测]：`+[ICNote duplicateNote:intoFolder:isPasswordProtected:removeOriginalNote:]` 在 **NotesUI** 里，
+  不在 NotesShared。加载 NotesUI 可能像 NotesEditor 一样影响之后的保存 [推断]，所以本仓库另起一个本 App 进程
+  （`--copy-note`）做复制。`removeOriginalNote:YES` 应该就是跨账户移动的做法 [推断，未用]。
+- **加附件** [观测]：`-[ICNote addAttachmentWithFileURL:]`（复制文件、建 ICMedia）、`-[ICNote addURLAttachmentWithURL:]`
+  （链接卡片，预览由 Notes 之后去取）；要在正文编辑会话之外调用，和表格一样。预览图本仓库不生成 [未知：其他设备上是否正常显示]。
+- **移动文件夹** [观测]：`setParent:` + `parentModificationDate` + `updateChangeCountWithReason:`，Notes.app 的 AppleScript 视图
+  几秒内就看到新位置，iCloud 也收到了。子文件夹的排序（`subFolderOrderMergeableData`）没动 [未知：其他设备上的位置/顺序]。
+- **高亮颜色** [推断]：TTEmphasis 1–5，按 App Intents 的 EmphasisColor 顺序对应紫、粉、橙、薄荷绿、蓝；本机只有 1 号在用。
+- **新段落样式 Caption** [观测：App Intents 里有；未知：编号]：本机没有用到的笔记；读成正文，改这一行的文字时原样式保留。
+- **跨进程通知** [观测，未用]：`ICNotesCrossProcessChangeCoordinator`（`postEditorExtensionDidSaveNotification`）是扩展通知 Notes.app
+  合并的通道；`startSharedContextWithOptions:0` 没开它。也许能代替「把笔记移到原文件夹」触发上传，没有实验。

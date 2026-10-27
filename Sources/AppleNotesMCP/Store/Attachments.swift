@@ -59,6 +59,13 @@ extension NotesStore {
         if let t = text("imageClassificationSummary") { texts.append(("What Notes thinks the image shows (may be wrong)", t)) }
         // A table's summary repeats its cells, which the rows give anyway.
         if type != "com.apple.notes.table", let t = text("summary") { texts.append(("Summary", t)) }
+        if let recording = recording(attachment) {
+            if !recording.headline.isEmpty { texts.append(("Headline Notes wrote (may be wrong)", recording.headline)) }
+            if !recording.summary.isEmpty { texts.append(("Summary Notes wrote (may be wrong)", recording.summary)) }
+            if !recording.transcript.isEmpty {
+                texts.append(("Transcript Notes made\(recording.call ? " of the call" : "") (may be wrong)", recording.transcript))
+            }
+        }
         let pages = ((attachment.get("subAttachments") as? Set<NSManagedObject>) ?? [])
             .filter { $0.get("markedForDeletion") as? Bool != true }
             .sorted { ($0.get("creationDate") as? Date ?? .distantPast) < ($1.get("creationDate") as? Date ?? .distantPast) }
@@ -68,5 +75,15 @@ extension NotesStore {
             title: text("title") ?? text("userTitle") ?? fileName ?? "", noteID: string(note, "identifier"), noteTitle: string(note, "title"),
             size: attachment.get("fileSize") as? Int ?? 0, file: file, fileName: fileName, url: text("urlString"), texts: texts, pages: pages,
             rows: type == "com.apple.notes.table" ? ANNotes.rowsOfTableAttachment(attachment) : nil)
+    }
+
+    /// The transcript and summaries of a recording made in Notes, which keeps them in the
+    /// attachment's mergeable data (its audio is in the attachments under it). Nil for audio files
+    /// added to a note, which have neither.
+    func recording(_ attachment: NSManagedObject) -> ANRecording? {
+        guard AttachmentKind.of(type: string(attachment, "typeUTI")) == "audio",
+            let data = attachment.get("mergeableData") as? Data, !data.isEmpty
+        else { return nil }
+        return ANRecording(data: StoredBody.inflate(data) ?? data)
     }
 }

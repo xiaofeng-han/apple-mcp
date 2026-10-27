@@ -38,12 +38,26 @@ def notify(method):
     proc.stdin.flush()
 
 
+writes = []  # answers of successful writes, newest last
+
+
 def call(tool, **args):
     r = rpc("tools/call", {"name": tool, "arguments": args})
     if "error" in r:
         return ("RPCERR", r["error"]["message"], [])
     res = r["result"]
+    if not res["isError"] and tool in ("create_note", "edit_note", "move_note"):
+        writes.append(res["content"][0]["text"])
     return ("ERR" if res["isError"] else "OK", res["content"][0]["text"], res["content"][1:])
+
+
+def _last_write():
+    return writes[-1] if writes else ""
+
+
+def listed_line(text, nid):
+    """The line of a note in an overview or search answer: id | version | title | …"""
+    return next((line for line in text.splitlines() if line.startswith(nid + " | ")), None)
 
 
 fails = []
@@ -74,7 +88,7 @@ check("initialize", init["result"]["serverInfo"]["name"] == "apple-notes-mcp", i
 notify("notifications/initialized")
 check("tools can change", init["result"]["capabilities"]["tools"]["listChanged"] is True, init)
 tools = [t["name"] for t in rpc("tools/list")["result"]["tools"]]
-check("10 tools", len(tools) == 10, tools)
+check("11 tools", len(tools) == 11, tools)
 check("tools listed by name", tools == sorted(tools), tools)
 READING = ["overview", "read_attachment", "read_note", "search"]
 
@@ -113,7 +127,7 @@ time.sleep(0.5)
 rpc("ping")
 check("no announcement without a change", len(notices) == mark, notices)
 selfcheck = subprocess.run([APP, "--self-check"], env=env, capture_output=True, text=True).stdout
-check("self-check counts the tools", "Tools offered to AI assistants: 4 of 10 (turned off: create_note," in selfcheck, selfcheck)
+check("self-check counts the tools", "Tools offered to AI assistants: 4 of 11 (turned off: create_note," in selfcheck, selfcheck)
 mark = len(notices)
 with open(TOOLS_FILE, "w") as f:
     f.write("{not json")
@@ -146,7 +160,7 @@ def from_modern(wait=5):
 to_modern({"jsonrpc": "2.0", "id": 1, "method": "server/discover", "params": {"_meta": META}}); m = from_modern()
 check("stateless: discover offers tool changes", m and m["result"]["capabilities"]["tools"].get("listChanged") is True, m)
 to_modern({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {"_meta": META}}); m = from_modern()
-check("stateless: list has caching hints", m and m["result"].get("ttlMs") == 0 and m["result"].get("cacheScope") == "private" and len(m["result"]["tools"]) == 10, m)
+check("stateless: list has caching hints", m and m["result"].get("ttlMs") == 0 and m["result"].get("cacheScope") == "private" and len(m["result"]["tools"]) == 11, m)
 to_modern({"jsonrpc": "2.0", "id": 3, "method": "subscriptions/listen", "params": {"_meta": META, "notifications": {"toolsListChanged": True}}}); m = from_modern()
 check("stateless: listen acknowledged", m and m.get("method") == "notifications/subscriptions/acknowledged"
       and m["params"]["_meta"]["io.modelcontextprotocol/subscriptionId"] == 3 and m["params"]["notifications"] == {"toolsListChanged": True}, m)
@@ -157,7 +171,7 @@ m = from_modern()
 check("stateless: change sent on the stream", m and m.get("method") == "notifications/tools/list_changed"
       and m["params"]["_meta"]["io.modelcontextprotocol/subscriptionId"] == 3, m)
 to_modern({"jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {"_meta": META}}); m = from_modern()
-check("stateless: list follows the change", m and len(m["result"]["tools"]) == 9, m)
+check("stateless: list follows the change", m and len(m["result"]["tools"]) == 10, m)
 # Requests are handled in order, so the ping's reply shows the cancel has been handled.
 to_modern({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 3}})
 to_modern({"jsonrpc": "2.0", "id": 5, "method": "ping", "params": {"_meta": META}}); m = from_modern()
@@ -213,20 +227,28 @@ N = field(t, "id")
 st, t, _ = call("read_note", id=N); check("rich note reads back exactly", st == "OK" and body(t) == rich, t)
 v = field(t, "version")
 
-# Edits in place.
-st, t, _ = call("edit_note", id=N, replace=[{"old": "- [ ] todo one", "new": "- [x] todo one"}]); check("tick a checkbox", st == "OK", t)
-st, t, _ = call("edit_note", id=N, insert="- [ ] todo three", at="Section A"); check("insert under heading", st == "OK", t)
+# Edits in place. Every change names the version it was made against; each write answers with the new one.
+st, t, _ = call("edit_note", id=N, insert="x"); check("an edit without a version refused", st != "OK" and "version" in t, t)
+st, t, _ = call("edit_note", id=N, version="000000000000", insert="x"); check("an insert on a stale version refused", st == "ERR" and "changed after" in t, t)
+st, t, _ = call("edit_note", id=N, version=v, replace=[{"old": "- [ ] todo one", "new": "- [x] todo one"}]); check("tick a checkbox", st == "OK", t)
+v = field(t, "version")
+st, t, _ = call("edit_note", id=N, version=v, insert="- [ ] todo three", at="Section A"); check("insert under heading", st == "OK", t)
 st, t, _ = call("read_note", id=N)
 check("checkbox ticked and item joins the list", "- [x] todo one\n- [x] todo done\n- [ ] todo three\n* bullet" in body(t), body(t))
-st, t, _ = call("edit_note", id=N, insert="intro line", at="start"); check("insert at start", st == "OK", t)
+check("a write answers with the version read_note gives", field(t, "version") == field(_last_write(), "version"), t[:120])
+v = field(t, "version")
+st, t, _ = call("edit_note", id=N, version=v, insert="intro line", at="start"); check("insert at start", st == "OK", t)
+v = field(t, "version")
 st, t, _ = call("read_note", id=N); check("start is below the title", body(t).startswith("# agent test rich 文本\nintro line\n## Section A"), body(t)[:80])
-st, t, _ = call("edit_note", id=N, replace=[{"old": "| a | b<br>c |", "new": "| a2 | b<br>c |\n| new | row |"}]); check("edit table in place", st == "OK", t)
+st, t, _ = call("edit_note", id=N, version=v, replace=[{"old": "| a | b<br>c |", "new": "| a2 | b<br>c |\n| new | row |"}]); check("edit table in place", st == "OK", t)
+v = field(t, "version")
 st, t, _ = call("read_note", id=N); check("table changed", "| a2 | b<br>c |\n| new | row |" in body(t), body(t))
-st, t, _ = call("edit_note", id=N, replace=[{"old": "Plain **bold**", "new": "Plain **bold** and new"}, {"old": "end with", "new": "ends with"}])
+st, t, _ = call("edit_note", id=N, version=v, replace=[{"old": "Plain **bold**", "new": "Plain **bold** and new"}, {"old": "end with", "new": "ends with"}])
 check("two replacements in one call", st == "OK", t)
+v = field(t, "version")
 st, t, _ = call("read_note", id=N); check("both applied", "Plain **bold** and new *italic*" in body(t) and "ends with 中文" in body(t), body(t))
-st, t, _ = call("edit_note", id=N, replace=[{"old": "no such text", "new": "x"}]); check("missing text refused", st == "ERR" and "Not found" in t, t)
-st, t, _ = call("edit_note", id=N, replace=[{"old": "todo", "new": "task"}]); check("ambiguous text refused", st == "ERR" and "appears" in t, t)
+st, t, _ = call("edit_note", id=N, version=v, replace=[{"old": "no such text", "new": "x"}]); check("missing text refused", st == "ERR" and "Not found" in t, t)
+st, t, _ = call("edit_note", id=N, version=v, replace=[{"old": "todo", "new": "task"}]); check("ambiguous text refused", st == "ERR" and "appears" in t, t)
 st, t, _ = call("edit_note", id=N, rewrite="# agent test x", version="000000000000"); check("stale version refused", st == "ERR" and "changed after" in t, t)
 st, t, _ = call("read_note", id=N, outline=True); check("outline", st == "OK" and "## Section A" in t and "## Section B" in t, t)
 st, t, _ = call("read_note", id=N, section="Section B"); check("section", st == "OK" and body(t).startswith("## Section B\nends with"), t)
@@ -245,19 +267,30 @@ st, t, _ = call("read_note", id=N); check("rewrite reads back", body(t).startswi
 st, t, _ = call("create_note", markdown="# agent test zebra quokka\nsecond note body", folder="agent test/agent test sub2")
 check("create in subfolder", st == "OK", t)
 M = field(t, "id")
+vm = field(t, "version")
 st, t, _ = call("search", query="zebra quokka"); check("search", st == "OK" and M in t, t)
+line = listed_line(t, M); check("search lines give the version", line and line.split(" | ")[1] == vm, t)
 st, t, _ = call("search", query="zebra nothingmatches"); check("search all words", st == "OK" and "No notes match" in t, t)
 st, t, _ = call("search", query="zebra nothingmatches", match="any"); check("search any word", st == "OK" and M in t, t)
 st, t, _ = call("describe_note", descriptions=[{"id": M, "description": "A test note about zebras"}]); check("describe", st == "OK", t)
 st, t, _ = call("overview", folder="agent test"); check("overview lists notes and description", st == "OK" and "A test note about zebras" in t and N in t, t)
-st, t, _ = call("move_note", id=M, folder="agent test"); check("move note", st == "OK" and "Moved" in t, t)
-st, t, _ = call("delete_note", id=M); check("delete note", st == "OK", t)
+st, t, _ = call("move_note", id=M, folder="agent test", version="000000000000"); check("a move on a stale version refused", st == "ERR" and "changed after" in t, t)
+st, t, _ = call("move_note", id=M, folder="agent test", version=vm); check("move note", st == "OK" and "Moved" in t and field(t, "version") == vm, t)
+st, t, _ = call("delete_note", id=M, version="000000000000"); check("a delete on a stale version refused", st == "ERR" and "changed after" in t, t)
+st, t, _ = call("delete_note", id=M, version=vm); check("delete note", st == "OK", t)
 st, t, _ = call("read_note", id=M); check("deleted note is in Recently Deleted", st == "OK" and "Recently Deleted" in t, t[:200])
-st, t, _ = call("delete_note", id=M); check("no second delete", st == "ERR", t)
-st, t, _ = call("move_note", id=M, folder="agent test"); check("restore", st == "OK" and "Restored" in t, t)
+st, t, _ = call("delete_note", id=M, version=vm); check("no second delete", st == "ERR", t)
+st, t, _ = call("overview"); check("the folder list counts Recently Deleted", st == "OK" and re.search(r"^Recently Deleted \(\d+\)", t, re.M), t[-300:])
+st, t, _ = call("overview", folder="Recently Deleted", limit=500)
+line = listed_line(t, M)
+check("Recently Deleted lists the note, its version and days left", st == "OK" and line and line.split(" | ")[1] == vm and "30 days left" in line, t[:400])
+st, t, _ = call("search", query="zebra quokka", folder="Recently Deleted"); check("search in Recently Deleted", st == "OK" and M in t, t)
+st, t, _ = call("search", query="zebra quokka"); check("search elsewhere leaves deleted notes out", st == "OK" and M not in t, t)
+st, t, _ = call("move_note", id=M, folder="agent test", version=vm); check("restore", st == "OK" and "Restored" in t, t)
+st, t, _ = call("overview", folder="Recently Deleted", limit=500); check("a restored note leaves Recently Deleted", st == "OK" and listed_line(t, M) is None, t[:300])
 
 # Attachments: a placeholder must stay, and an attachment can be read.
-check("unknown attachment refused", call("edit_note", id=N, insert="![image](attachment:FFFFFFFF)")[0] == "ERR")
+check("unknown attachment refused", call("edit_note", id=N, version=v, insert="![image](attachment:FFFFFFFF)")[0] == "ERR")
 st, t, _ = call("overview", limit=500, sort="modified")
 image = None
 for nid in re.findall(r"^([0-9A-F]{8}) \| .*image", t, re.M)[:20]:
@@ -271,11 +304,111 @@ if image:
 else:
     print("SKIP read an image (no image found)")
 
+# Search looks in the text Notes recognized in images: a word of it that the note's own text lacks.
+word = None
+for nid in re.findall(r"^([0-9A-F]{8}) \| .*image", call("overview", limit=500, sort="modified")[1], re.M)[:40]:
+    own = body(call("read_note", id=nid)[1])
+    for aid in re.findall(r"!\[image\]\(attachment:([0-9A-F]{8})\)", own):
+        st, t, _ = call("read_attachment", id=aid, text_only=True)
+        recognized = t.split("Text Notes recognized (may be wrong):\n", 1)[1].split("\n\n", 1)[0] if "Text Notes recognized" in t else ""
+        word = next((w for w in re.findall(r"[A-Za-z]{6,}", recognized) if w.lower() not in own.lower()), None)
+        if word:
+            break
+    if word:
+        break
+if word:
+    st, t, _ = call("search", query=word, limit=100); check("search finds text in an image", st == "OK" and f"in the text of image {aid}" in t, (word, t[:600]))
+else:
+    print("SKIP search finds text in an image (no image with recognized text)")
+
+# A recording made in Notes is read with its transcript.
+recording = None
+for nid in re.findall(r"^([0-9A-F]{8}) \| .*audio", call("overview", limit=500, sort="modified")[1], re.M)[:20]:
+    for aid in re.findall(r"!\[audio[^\]]*\]\(attachment:([0-9A-F]{8})\)", call("read_note", id=nid)[1]):
+        st, t, _ = call("read_attachment", id=aid, text_only=True)
+        if "Transcript Notes made" in t:
+            recording = aid
+            break
+    if recording:
+        break
+if recording:
+    check("read a recording's transcript", True)
+    first = re.search(r"Transcript Notes made[^\n]*:\n(?:\S+\n)?(\S+ \S+)", t)
+    if first:
+        st, t, _ = call("search", query=first.group(1), limit=100); check("search finds words of a transcript", st == "OK" and "in the transcript of audio" in t, t[:400])
+else:
+    print("SKIP read a recording's transcript (no recording with a transcript)")
+
+# Tags, links, divider lines, highlight colors, files and link cards, written as Markdown.
+attach_dir = tempfile.mkdtemp()
+with open(os.path.join(attach_dir, "agent test file.txt"), "w") as f:
+    f.write("attached by e2e\n")
+inline = f"""# agent test inline
+tagged #agenttesttag and a link to [](note:{N}) here
+---
+<mark class="pink">pink</mark> and <mark>purple</mark>
+![e2e file]({os.path.join(attach_dir, "agent test file.txt")})
+![](https://www.apple.com/notes/)"""
+st, t, _ = call("create_note", markdown=inline, folder="agent test"); check("create with a tag, link, divider, file and link card", st == "OK" and "Warning" not in t, t)
+I = field(t, "id")
+st, t, _ = call("read_note", id=I)
+b = body(t) if st == "OK" else ""
+check("tag and note link read back", "tagged #agenttesttag and a link to [agent test rich 文本](note:" + N + ") here" in b, b)
+check("divider and highlight colors read back", "\n---\n<mark class=\"pink\">pink</mark> and <mark>purple</mark>\n" in b, b)
+check("file and link card are attachments", re.search(r"!\[file: e2e file\]\(attachment:[0-9A-F]{8}\)", b) and re.search(r"!\[link: https://www.apple.com/notes/\]\(attachment:", b), b)
+vi = field(t, "version")
+st, t, _ = call("read_note", id=N); check("the linked note lists its backlink", st == "OK" and f"linked from: agent test inline ({I})" in t, t[:300])
+st, t, _ = call("create_note", markdown="# agent test bad file\n![](~/Library/Preferences/x.plist)", folder="agent test")
+check("a file from ~/Library refused", st == "ERR" and "not in a place" in t, t)
+st, t, _ = call("overview"); check("the folder list shows the tag", st == "OK" and re.search(r"Tags: .*#agenttesttag \(1\)", t), t[-300:])
+st, t, _ = call("overview", tags=["agenttesttag"]); check("overview by tag", st == "OK" and I in t and N not in t, t)
+st, t, _ = call("search", query="pink", tags=["#agenttesttag"]); check("search by tag", st == "OK" and I in t, t)
+st, t, _ = call("manage_folder", action="create", folder="agent test smart", tags=["agenttesttag"]); check("create a smart folder", st == "OK" and "1 note now" in t, t)
+st, t, _ = call("overview", folder="agent test smart"); check("list a smart folder", st == "OK" and I in t, t)
+st, t, _ = call("move_note", id=I, folder="agent test smart", version=vi); check("a smart folder is no destination", st == "ERR" and "smart folder" in t, t)
+st, t, _ = call("manage_tag", action="rename", tag="agenttesttag", name="agenttesttag2"); check("rename a tag", st == "OK" and "in 1 note" in t, t)
+st, t, _ = call("read_note", id=I); check("the rename shows in the note", "tagged #agenttesttag2 and" in body(t), body(t)[:200])
+st, t, _ = call("manage_folder", action="delete", folder="agent test smart"); check("delete a smart folder", st == "OK" and "notes stay" in t, t)
+st, t, _ = call("manage_tag", action="delete", tag="agenttesttag2", expected_notes=2); check("deleting a tag needs the right count", st == "ERR", t)
+st, t, _ = call("manage_tag", action="delete", tag="agenttesttag2", expected_notes=1); check("delete a tag", st == "OK" and "out of 1 note" in t, t)
+st, t, _ = call("read_note", id=I); check("the tag is gone from the text", st == "OK" and "tagged and a link" in body(t), body(t)[:200])
+vi = field(t, "version")
+
+# Pinning, checklists, copies.
+st, t, _ = call("edit_note", id=I, version=vi, pinned=True); check("pin", st == "OK" and t.startswith("Pinned"), t)
+st, t, _ = call("read_note", id=I, outline=True); check("read shows pinned", "| pinned" in t, t[:200])
+st, t, _ = call("overview", only=["pinned"]); check("overview of pinned notes", st == "OK" and I in t, t)
+st, t, _ = call("edit_note", id=I, version=vi, pinned=False, insert="- [x] one\n- [ ] two\n- [x] three\n- [ ] four"); check("unpin and insert", st == "OK" and "unpinned" in t, t)
+vi = field(t, "version")
+st, t, _ = call("edit_note", id=I, version=vi, check=["two"], uncheck=["three"], checklist="move_checked_down"); check("tick, untick and sort", st == "OK", t)
+vi = field(t, "version")
+st, t, _ = call("read_note", id=I); check("checklist sorted", body(t).rstrip().endswith("- [ ] three\n- [ ] four\n- [x] one\n- [x] two"), body(t)[-120:])
+st, t, _ = call("edit_note", id=I, version=vi, checklist="delete_checked"); check("delete ticked items", st == "OK", t)
+vi = field(t, "version")
+st, t, _ = call("read_note", id=I); check("ticked items gone", "- [x]" not in body(t) and "- [ ] four" in body(t), body(t)[-120:])
+st, t, _ = call("edit_note", id=I, version=vi, check=["no such item"]); check("an unknown item refused", st == "ERR" and "checklist item" in t, t)
+st, t, _ = call("overview", folder="agent test", only=["checklists", "unchecked"], attachments=["file"]); check("filters combine", st == "OK" and I in t and N not in t, t)
+st, t, _ = call("overview", only=["quick-notes"], sort="opened", limit=5); check("Quick Notes, by last opened", st == "OK" and "Quick Notes" in t, t[:200])
+st, t, _ = call("create_note", copy_of=I, folder="agent test/agent test sub2"); check("copy a note with its attachments", st == "OK" and "copy" in t, t)
+K = field(t, "id")
+st, t, _ = call("read_note", id=K or "none"); check("the copy has the file", st == "OK" and "![file: e2e file](attachment:" in body(t), t[:300])
+
+# Several notes at once; a folder moved.
+st, t, _ = call("overview", folder="agent test", limit=500)
+vk = listed_line(t, K).split(" | ")[1] if K and listed_line(t, K) else "none"
+vi = listed_line(t, I).split(" | ")[1] if listed_line(t, I) else "none"
+st, t, _ = call("move_note", folder="agent test", notes=[{"id": K, "version": vk}, {"id": I, "version": "000000000000"}])
+check("move several notes, each checked", st == "OK" and t.startswith("Moved 1 note to agent test") and "Not moved" in t and "changed after" in t, t)
+st, t, _ = call("manage_folder", action="create", folder="agent test/agent test moving"); check("create a folder to move", st == "OK", t)
+st, t, _ = call("manage_folder", action="move", folder="agent test/agent test moving", into="agent test/agent test sub2"); check("move a folder", st == "OK" and "agent test sub2/agent test moving" in t, t)
+st, t, _ = call("overview", depth=3); check("the moved folder is in its new place", st == "OK" and "    agent test moving (0)" in t, t)
+st, t, _ = call("delete_note", notes=[{"id": K, "version": vk}]); check("delete through notes", st == "OK" and "Recently Deleted" in t, t)
+
 # Guard on a real note.
 st, t, _ = call("overview", limit=5)
 real = re.findall(r"^([0-9A-F]{8}) \| (?!agent test)", t, re.M)
 if real:
-    check("guard blocks real notes", call("edit_note", id=real[0], insert="x")[0] == "ERR")
+    check("guard blocks real notes", call("edit_note", id=real[0], version="000000000000", insert="x")[0] == "ERR")
 
 # The command line runs the same tools: apple-notes-mcp <noun> <verb> [flags]. Each command is
 # its own process, so this also checks that a write is in the store when one exits.
@@ -287,7 +420,8 @@ code, out, err = cli("notes", "create", "-", "--folder", "agent test", stdin=typ
 check("cli: notes create - reads stdin (a title may say setup)", code == 0 and "Created" in out, (code, out, err))
 C = field(out, "id")
 code, out, err = cli("notes", "read", C or "none"); check("cli: notes read", code == 0 and body(out) == typed + "\n", (code, out, err))
-code, out, err = cli("notes", "edit", C or "none", "--insert", "- [ ] second", "--at", "end")
+code, out, err = cli("notes", "edit", C or "none", "--insert", "- [ ] second"); check("cli: an edit needs --version", code == 2 and "--version" in err, (code, out, err))
+code, out, err = cli("notes", "edit", C or "none", "--insert", "- [ ] second", "--at", "end", "--version", field(out, "version") or field(cli("notes", "read", C or "none")[1], "version") or "none")
 check("cli: notes edit --insert", code == 0 and "Updated" in out, (code, out, err))
 code, out, err = cli("notes", "read", C or "none"); check("cli: the edit is in the store", code == 0 and body(out).endswith("- [ ] first\n- [ ] second\n"), (code, out, err))
 code, out, err = cli("notes", "search", "命令行", "--folder", "agent test"); check("cli: notes search QUERY --folder", code == 0 and C in out, (code, out, err))
@@ -296,11 +430,13 @@ check("cli: a stale version exits 1", code == 1 and "changed after" in err and o
 code, out, err = cli("notes", "create", "--json", "-", stdin=json.dumps({"markdown": "# agent test JSON 标准输入", "folder": "agent test"}))
 check("cli: --json - from stdin", code == 0 and "Created" in out, (code, out, err))
 J = field(out, "id")
+vj = field(out, "version")
 code, out, err = cli("notes", "--folder", "agent test"); check("cli: notes lists by default", code == 0 and C in out and J in out, (code, out, err))
 code, out, err = cli("folders"); check("cli: folders lists by default", code == 0 and re.search(r"^agent test \(", out, re.M), (code, out, err))
 code, out, err = cli("call", "overview", json.dumps({"folder": "agent test"})); check("cli: call", code == 0 and C in out, (code, out, err))
-code, out, err = cli("notes", "delete", J or "none"); check("cli: notes delete", code == 0 and "Recently Deleted" in out, (code, out, err))
-code, out, err = cli("notes", "move", J or "none", "agent test"); check("cli: notes move restores", code == 0 and "Restored" in out, (code, out, err))
+code, out, err = cli("notes", "delete", J or "none", "--version", vj or "none"); check("cli: notes delete", code == 0 and "Recently Deleted" in out, (code, out, err))
+code, out, err = cli("notes", "list", "--folder", "Recently Deleted", "--limit", "500"); check("cli: notes list --folder \"Recently Deleted\"", code == 0 and J in out, (code, out, err))
+code, out, err = cli("notes", "move", J or "none", "agent test", "--version", vj or "none"); check("cli: notes move restores", code == 0 and "Restored" in out, (code, out, err))
 code, out, err = cli("notes", "list", "--bogus"); check("cli: an unknown flag exits 2", code == 2 and "--bogus" in err and out == "", (code, out, err))
 code, out, err = cli("folders", "create", "Not allowed"); check("cli: a guarded write exits 1", code == 1 and "write guard" in err, (code, out, err))
 code, out, err = cli("folders", "delete", "agent test", "--recursive")

@@ -16,7 +16,8 @@ func attachmentTools(_ store: NotesStore) -> [Tool] {
         Tool("read_attachment", title: "Read an attachment",
              summary: """
                  Opens an attachment from a ![…](attachment:id) placeholder in read_note: images, scans, \
-                 drawings, PDFs, audio, video, tables, links and files.
+                 drawings, PDFs, audio (recordings with Notes' transcript and summary), video, tables, links \
+                 and files.
                  """,
              input: Schema.object([
                  "id": Schema.text("Attachment id"),
@@ -52,11 +53,13 @@ enum Opening {
         if let rows = details.rows { lines.append("\n" + Markdown.render([.table(Table(id: details.id, rows: rows))])) }
         for (label, text) in details.texts { add(label, text) }
 
+        // A scan holds pages; a recording made in Notes, parts recorded one after another.
+        let part = details.kind == "audio" ? "part" : "page"
         let pages = details.pages.isEmpty ? [details] : Array(details.pages.prefix(maxPages))
-        if details.pages.count > maxPages { lines.append("(the first \(maxPages) of \(details.pages.count) pages)") }
+        if details.pages.count > maxPages { lines.append("(the first \(maxPages) of \(details.pages.count) \(part)s)") }
         for (index, page) in pages.enumerated() {
             if !details.pages.isEmpty {
-                for (label, text) in page.texts { add("Page \(index + 1), \(label.prefix(1).lowercased() + label.dropFirst())", text) }
+                for (label, text) in page.texts { add("\(part.capitalized) \(index + 1), \(label.prefix(1).lowercased() + label.dropFirst())", text) }
             }
             guard let file = page.file else { continue }
             let type = UTType(filenameExtension: file.pathExtension) ?? UTType(page.type)

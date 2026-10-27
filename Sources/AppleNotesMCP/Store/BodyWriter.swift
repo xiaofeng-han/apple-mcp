@@ -40,6 +40,18 @@ final class BodyWriter {
     private var removedTables: [String] = []
     /// Table attachments this write changed in place.
     private(set) var tablesEdited: [NSManagedObject] = []
+    /// Attachments that are part of the text (tags) the rehearsal added, in order, and the ones
+    /// made for the real run, which adds them in the same order.
+    private var rehearsalInline: [String: Attachment] = [:]
+    private var inlineWanted: [Attachment] = []
+    private var newInline: [(id: String, type: String)] = []
+    /// The tag attachments this write made, and everything it added.
+    private(set) var tagsMade: [String] = []
+    private(set) var added: [String] = []
+    /// The rehearsal's stand-in ids, in the order the real ones are made.
+    private var rehearsalIDs: [String] = []
+    /// What the note reads as once written, with the ids of what this write added; nil until written.
+    private(set) var expected: [Block]?
     /// Each attachment's attributes in the body, so one moved within its line keeps them.
     private let attachmentAttributes: [String: [NSAttributedString.Key: Any]]
 
@@ -87,7 +99,7 @@ final class BodyWriter {
 
         rehearsing = true
         try run(steps)
-        let rehearsed = try BodyReader(context: context, tables: rehearsalTables).blocks(mirror)
+        let rehearsed = try BodyReader(context: context, tables: rehearsalTables, inline: rehearsalInline).blocks(mirror)
         guard rehearsed == target else {
             let line = zip(rehearsed, target).enumerated().first { $0.element.0 != $0.element.1 }?.offset ?? min(rehearsed.count, target.count)
             throw .failed("internal check failed before writing (line \(line + 1) would not come out as asked); the note was not changed")
@@ -105,6 +117,15 @@ final class BodyWriter {
         for case .insert(_, let blocks) in steps {
             for case .table(let table) in blocks { newTables.append(try makeTable(table)) }
         }
+        for wanted in inlineWanted { newInline.append(try makeInline(wanted)) }
+        tagsMade = newInline.filter { $0.type == Self.textTypes["tag"] }.map(\.id)
+        added = newInline.map(\.id)
+        // Files and link cards read back as what they became, by their new ids.
+        let made = Dictionary(uniqueKeysWithValues: zip(rehearsalIDs, newInline))
+        expected = rehearsed.mappingAttachments { a in
+            guard let real = made[a.id], a.kind == Attachment.newFile || a.kind == Attachment.newLinkCard else { return a }
+            return Attachment(id: real.id, kind: AttachmentKind.of(type: real.type))
+        }
 
         try shim { try edit.begin() }
         try run(steps)
@@ -112,17 +133,91 @@ final class BodyWriter {
         for id in removedTables {
             if let attachment = try fetchAttachment(id) { try shim { try ANNotes.mark(forDeletion: attachment) } }
         }
+        // Tags taken out of the text go, as when they are deleted in Notes.
+        let kept = Set(Self.markers(in: mirror).map(\.id))
+        for (id, type) in Self.markers(in: original) where !kept.contains(id) && Self.isTextType(type) {
+            if let attachment = try fetchObject("ICInlineAttachment", id) { try shim { try ANNotes.mark(forDeletion: attachment) } }
+        }
+    }
+
+    /// The attachment markers in a body, in order.
+    static func markers(in body: NSAttributedString) -> [(id: String, type: String)] {
+        var found: [(String, String)] = []
+        body.enumerateAttribute(NoteKey.attachment, in: NSRange(location: 0, length: body.length)) { value, _, _ in
+            guard let marker = value as? NSObject, let id = ANNotes.markerID(marker) else { return }
+            found.append((id, ANNotes.markerType(marker) ?? ""))
+        }
+        return found
+    }
+
+    /// Types of the attachments that are part of the text, which a write may add and remove.
+    static let textTypes = [
+        "tag": "com.apple.notes.inlinetextattachment.hashtag", "note link": "com.apple.notes.inlinetextattachment.link",
+        "divider": "com.apple.notes.inlinetextattachment.dividerline",
+    ]
+    static func isTextType(_ type: String) -> Bool { textTypes.values.contains(type) }
+
+    /// The marker for an attachment that is part of the text and new in this write: a stand-in in
+    /// the rehearsal, which notes what the real run needs; the one made for it in the real run.
+    private func newInlineMarker(_ a: Attachment) throws(NotesError) -> NSObject {
+        let id: String, type: String
+        if rehearsing {
+            id = "rehearsal-" + UUID().uuidString
+            type = Self.textTypes[a.kind] ?? "public.data"
+            var standIn = a
+            standIn.id = id
+            rehearsalInline[id] = standIn
+            rehearsalIDs.append(id)
+            inlineWanted.append(a)
+        } else {
+            guard !newInline.isEmpty else { throw .failed("internal error: a new \(a.kind) was not made") }
+            (id, type) = newInline.removeFirst()
+        }
+        guard let marker = ANNotes.attachmentMarker(withID: id, type: type) as? NSObject else {
+            throw .failed("NotesShared cannot make an attachment marker in this version of macOS")
+        }
+        return marker
+    }
+
+    private func makeInline(_ a: Attachment) throws(NotesError) -> (id: String, type: String) {
+        switch a.kind {
+        case "tag":
+            let name = String(a.label.dropFirst())
+            return (try shim { try ANNotes.newTag(named: name, in: note) }, Self.textTypes["tag"]!)
+        case "note link":
+            guard let (text, reference) = a.linkParts else { throw .refused("a note link needs the note's id: [text](note:ID)") }
+            let target = try linkTarget(reference)
+            return (try shim { try ANNotes.newLink(to: target, text: text, in: note) }, Self.textTypes["note link"]!)
+        case "divider":
+            return (try shim { try ANNotes.newDivider(in: note) }, Self.textTypes["divider"]!)
+        case Attachment.newFile:
+            let (path, title) = Self.split(a.label)
+            let file = try Self.attachable(path)
+            var type: NSString?
+            let id = try shim { try ANNotes.addFile(file, title: title, to: note, type: &type) }
+            return (id, (type as String?) ?? "public.data")
+        case Attachment.newLinkCard:
+            let (address, _) = Self.split(a.label)
+            guard let url = URL(string: address), url.host != nil else { throw .refused("\(address) is not a web address") }
+            var type: NSString?
+            let id = try shim { try ANNotes.addLinkCard(url, to: note, type: &type) }
+            return (id, (type as String?) ?? "public.url")
+        default:
+            throw .failed("internal error: \(a.kind) cannot be added")
+        }
     }
 
     /// Attachments are placeholders: an edit may move one within its line but not drop it, and
-    /// Markdown cannot add one. Tables are the exception; they can be added, changed and removed.
+    /// Markdown cannot add one. Tables and what is part of the text (tags) are the exception; they
+    /// can be added and removed.
     static func checkAttachments(_ old: [Block], _ new: [Block]) throws(NotesError) {
-        let before = Dictionary(old.attachments.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        let after = Set(new.attachments.map(\.id))
-        if let lost = old.attachments.first(where: { !after.contains($0.id) }) {
+        let oldOnes = old.attachments.filter { !$0.isText }, newOnes = new.attachments.filter { !$0.isText }
+        let before = Dictionary(oldOnes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let after = Set(newOnes.map(\.id))
+        if let lost = oldOnes.first(where: { !after.contains($0.id) }) {
             throw .refused("the change would remove an attachment (\(lost.caption), id \(ShortID.of(lost.id))). Keep its \(Markdown.placeholder(lost)) placeholder; attachments cannot be removed here")
         }
-        if let unknown = new.attachments.first(where: { before[$0.id] == nil }) {
+        if let unknown = newOnes.first(where: { before[$0.id] == nil }) {
             throw .refused("attachment:\(unknown.id) is not in this note; attachments cannot be added from Markdown")
         }
     }
@@ -235,6 +330,10 @@ final class BodyWriter {
                     var attributes: [NSAttributedString.Key: Any] = [NoteKey.style: style]
                     if p.style != .monospaced { Self.setMarks(run, on: &attributes) }
                     line.append(NSAttributedString(string: run.text, attributes: attributes))
+                case .attachment(let a) where a.isText:
+                    var attributes: [NSAttributedString.Key: Any] = [NoteKey.style: style]
+                    attributes[NoteKey.attachment] = try newInlineMarker(a)
+                    line.append(NSAttributedString(string: "\u{FFFC}", attributes: attributes))
                 case .attachment(let a):
                     throw .refused("attachment:\(ShortID.of(a.id)) cannot move to a new line; keep it in the line it is in")
                 }
@@ -273,15 +372,17 @@ final class BodyWriter {
 
     // MARK: Text
 
-    /// One Unicode scalar, or an attachment (one U+FFFC in the note).
+    /// One Unicode scalar, or an attachment (one U+FFFC in the note): by its id, or for one that
+    /// is part of the text, by what it shows.
     enum Token: Equatable {
         case scalar(UInt32)
         case attachment(String)
+        case text(Attachment)
 
         var length: Int {
             switch self {
             case .scalar(let value): value > 0xFFFF ? 2 : 1
-            case .attachment: 1
+            case .attachment, .text: 1
             }
         }
     }
@@ -290,7 +391,7 @@ final class BodyWriter {
         paragraph.pieces.flatMap { piece -> [Token] in
             switch piece {
             case .text(let run): run.text.unicodeScalars.map { .scalar($0.value) }
-            case .attachment(let a): [.attachment(a.id)]
+            case .attachment(let a): [a.isText ? .text(a) : .attachment(a.id)]
             }
         }
     }
@@ -332,6 +433,11 @@ final class BodyWriter {
                 case .attachment(let id):
                     flush()
                     inserted.append(NSAttributedString(string: "\u{FFFC}", attributes: attachmentAttributes[id] ?? base))
+                case .text(let a):
+                    flush()
+                    var attributes = base
+                    attributes[NoteKey.attachment] = try newInlineMarker(a)
+                    inserted.append(NSAttributedString(string: "\u{FFFC}", attributes: attributes))
                 }
             }
             flush()
@@ -366,11 +472,7 @@ final class BodyWriter {
         attributes[NoteKey.hints] = hints == 0 ? nil : hints
         attributes[NoteKey.strike] = run.marks.contains(.strike) ? 1 : nil
         attributes[NoteKey.underline] = run.marks.contains(.underline) ? 1 : nil
-        if !run.marks.contains(.highlight) {
-            attributes[NoteKey.highlight] = nil
-        } else if ((attributes[NoteKey.highlight] as? Int) ?? 0) == 0 {
-            attributes[NoteKey.highlight] = 1  // Notes' first highlight color
-        }
+        attributes[NoteKey.highlight] = run.marks.contains(.highlight) ? run.color : nil
         let link = (attributes[NoteKey.link] as? URL)?.absoluteString ?? attributes[NoteKey.link] as? String
         if link != run.link {
             attributes[NoteKey.link] = run.link.map { URL(string: $0) ?? $0 as Any }
@@ -417,7 +519,73 @@ final class BodyWriter {
     // MARK: Tables
 
     private func fetchAttachment(_ id: String) throws(NotesError) -> NSManagedObject? {
-        let request = NSFetchRequest<NSManagedObject>(entityName: "ICAttachment")
+        try fetchObject("ICAttachment", id)
+    }
+
+    /// A new attachment's path or address, and the name it is to show.
+    static func split(_ label: String) -> (String, String) {
+        let parts = label.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        return (String(parts[0]), parts.count > 1 ? String(parts[1]) : "")
+    }
+
+    /// Largest file a note takes from Markdown.
+    static let maxFile = 200 * 1024 * 1024
+
+    /// A file that may go into a note. This app can read any file (it has Full Disk Access), so
+    /// a file is taken only from where a user keeps files: the home folder outside ~/Library and
+    /// hidden folders, a temporary folder, or an external drive.
+    static func attachable(_ path: String) throws(NotesError) -> URL {
+        let expanded = (path as NSString).expandingTildeInPath
+        let url = URL(fileURLWithPath: expanded).standardizedFileURL.resolvingSymlinksInPath()
+        let home = FileManager.default.homeDirectoryForCurrentUser.resolvingSymlinksInPath().path
+        let temporary = [NSTemporaryDirectory(), "/tmp", "/private/tmp", "/private/var/folders"].map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+        let p = url.path
+        func inside(_ root: String) -> Bool { p.hasPrefix(root.hasSuffix("/") ? root : root + "/") }
+        let underHome = inside(home) && !inside(home + "/Library")
+            && !p.dropFirst(home.count + 1).split(separator: "/").contains { $0.hasPrefix(".") }
+        guard underHome || temporary.contains(where: inside) || inside("/Volumes") else {
+            throw .refused("\(path) is not in a place notes take files from: the home folder (not ~/Library or a hidden folder), a temporary folder, or an external drive")
+        }
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: p, isDirectory: &directory) else { throw .notFound("the file \(path)") }
+        guard !directory.boolValue else { throw .refused("\(path) is a folder; attach the files in it one by one, or zip it") }
+        guard FileManager.default.isReadableFile(atPath: p) else { throw .refused("\(path) cannot be read") }
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= maxFile else { throw .refused("\(path) is larger than \(maxFile / 1024 / 1024) MB") }
+        return url
+    }
+
+    /// The note a new link goes to, by its id or the start of it.
+    private func linkTarget(_ reference: String) throws(NotesError) -> NSManagedObject {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "ICNote")
+        request.predicate = NSPredicate(format: "identifier BEGINSWITH[c] %@ AND markedForDeletion == NO", reference)
+        let found: [NSManagedObject]
+        do {
+            found = try context.fetch(request)
+        } catch {
+            throw .failed("finding the linked note failed: \(error.localizedDescription)")
+        }
+        guard reference.count >= 4, found.count == 1 else {
+            throw found.isEmpty ? .notFound("the note \(reference) to link to") : .refused("\(reference) names several notes; give more of its id")
+        }
+        if found[0] == note { throw .refused("a note cannot link to itself") }
+        return found[0]
+    }
+
+    /// After the save: Notes counts a tag's uses while saving and marks a tag it finds unused as
+    /// deleted, which a new tag's first use is to it. Brings such tags back; true when it did.
+    func reviveTags() throws(NotesError) -> Bool {
+        var revived = false
+        for id in tagsMade {
+            guard let attachment = try fetchObject("ICInlineAttachment", id) else { continue }
+            try shim { try ANNotes.reviveTag(of: attachment) }
+            revived = true
+        }
+        return revived
+    }
+
+    private func fetchObject(_ entity: String, _ id: String) throws(NotesError) -> NSManagedObject? {
+        let request = NSFetchRequest<NSManagedObject>(entityName: entity)
         request.predicate = NSPredicate(format: "identifier == %@", id)
         request.fetchLimit = 1
         do {

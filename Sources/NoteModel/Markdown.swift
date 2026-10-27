@@ -8,7 +8,9 @@ import Foundation
 //   # title   ## heading   ### subheading   * bullet   - dash   1. numbered   - [ ] / - [x] checkbox
 //   > quote (per level)   two spaces per indent level   ``` monospaced lines ```
 //   **bold**  *italic*  ~~strike~~  <u>underline</u>  <mark>highlight</mark>  [text](url)
-//   | table | cells |   ![kind: label](attachment:id)
+//   <mark class="pink">: the other highlight colors (pink, orange, mint, blue; purple is <mark>)
+//   | table | cells |   ![kind: label](attachment:id)   #tag   [text](note:id)   --- (a divider line)
+//   ![name](/path/to/file) and ![](https://…) add a file or a link card
 
 public enum Markdown {
     // MARK: Rendering
@@ -45,6 +47,10 @@ public enum Markdown {
                 lines.append(prefix + fence)
                 lines += texts.map { prefix + $0 }
                 lines.append(prefix + fence)
+            case .paragraph(let p) where p.style == .body && p.pieces == [.attachment(.divider)]:
+                numbers = [:]
+                lines.append(linePrefix(quote: p.quote, indent: p.indent) + "---")
+                index += 1
             case .paragraph(let p):
                 let marker: String
                 switch p.style {
@@ -96,7 +102,7 @@ public enum Markdown {
     /// fence, table row or indentation) is written with a leading backslash.
     static func needsLineEscape(_ text: String) -> Bool {
         guard let first = text.first else { return false }
-        if " \t>|".contains(first) || text.hasPrefix("```") { return true }
+        if " \t>|".contains(first) || text.hasPrefix("```") || isDivider(Substring(text)) { return true }
         return marker(in: Substring(text)) != nil
     }
 
@@ -111,23 +117,32 @@ public enum Markdown {
         (.italic, "*", "*"), (.bold, "**", "**"),
     ]
 
+    /// The opening tag of a highlight of this color.
+    static func markTag(_ color: Int) -> String {
+        guard color != Highlight.purple, let name = Highlight.names[color] else { return "<mark>" }
+        return "<mark class=\"\(name)\">"
+    }
+
     static func inline(_ pieces: [Piece], attachment: ((Attachment) -> String?)? = nil) -> String {
         var out = ""
         var open: [Marks] = []  // innermost last
-        func switchTo(_ marks: Marks) {
-            // Close from the innermost mark down to the first one that ends, then open what is new.
-            let keep = open.firstIndex { !marks.contains($0) } ?? open.count
+        var openColor = 0
+        func switchTo(_ marks: Marks, color: Int = 0) {
+            // Close from the innermost mark down to the first one that ends (or a highlight that
+            // changes color), then open what is new.
+            let keep = open.firstIndex { !marks.contains($0) || ($0 == .highlight && color != openColor) } ?? open.count
             for mark in open[keep...].reversed() { out += delimiters.first { $0.mark == mark }!.close }
             open.removeSubrange(keep...)
             for d in delimiters where marks.contains(d.mark) && !open.contains(d.mark) {
-                out += d.open
+                out += d.mark == .highlight ? markTag(color) : d.open
+                if d.mark == .highlight { openColor = color }
                 open.append(d.mark)
             }
         }
-        for piece in pieces {
+        for (index, piece) in pieces.enumerated() {
             switch piece {
             case .text(let run):
-                switchTo(run.marks)
+                switchTo(run.marks, color: run.color)
                 if let link = run.link {
                     out += "[" + escape(run.text) + "](" + escapeLink(link) + ")"
                 } else {
@@ -135,15 +150,23 @@ public enum Markdown {
                 }
             case .attachment(let a):
                 switchTo([])
-                out += attachment?(a) ?? placeholder(a)
+                if let replaced = attachment?(a) {
+                    out += replaced
+                } else if let tag = tagText(a), out.last.map(canPrecedeTag) ?? true, !startsWithTagCharacter(pieces, after: index) {
+                    out += tag
+                } else if let (text, note) = a.linkParts, !note.contains(")"), !note.contains("\\") {
+                    out += "[" + escape(text) + "](note:" + note + ")"
+                } else {
+                    out += placeholder(a)
+                }
             }
         }
         switchTo([])
         return out
     }
 
-    /// Escapes only what would otherwise be read as syntax, so text stays readable: `_` and `#`
-    /// inside a line are left alone.
+    /// Escapes only what would otherwise be read as syntax, so text stays readable: `_` inside a
+    /// line is left alone, and `#` only where a tag could start.
     public static func escape(_ text: String) -> String {
         let chars = Array(text)
         var out = ""
@@ -151,15 +174,51 @@ public enum Markdown {
             switch c {
             case "\\", "*", "[", "]":
                 out += "\\" + String(c)
+            case "#" where tagName(chars, after: i) != nil:
+                out += "\\#"
             case "~" where i == 0 || i == chars.count - 1 || chars[i - 1] == "~" || chars[i + 1] == "~":
                 out += "\\~"
-            case "<" where ["u>", "/u>", "mark>", "/mark>"].contains(where: { chars[(i + 1)...].starts(with: $0) }):
+            case "<" where ["u>", "/u>", "mark>", "/mark>", "mark class="].contains(where: { chars[(i + 1)...].starts(with: $0) }):
                 out += "\\<"
             default:
                 out.append(c)
             }
         }
         return out
+    }
+
+    // MARK: Tags
+
+    /// A tag's name is letters, digits, `_` and `-`, with at least one letter: `#1` and `C#` are
+    /// not tags.
+    static func isTagCharacter(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "_" || c == "-" }
+
+    /// The name of a tag whose `#` is at `index`, if the characters after it make one.
+    static func tagName(_ chars: [Character], after index: Int) -> String? {
+        let name = chars[(index + 1)...].prefix(while: isTagCharacter)
+        return name.contains(where: \.isLetter) ? String(name) : nil
+    }
+
+    /// A tag starts a word: at the start of the line, or after a space, an opening bracket or
+    /// quote, a comma, semicolon or colon, or CJK punctuation ("标签：#x"). Not after a letter or
+    /// digit (C#) or a slash (a web address's /#part).
+    static func canPrecedeTag(_ c: Character) -> Bool {
+        if c.isWhitespace || "([{\"'“‘,;:".contains(c) { return true }
+        guard let scalar = c.unicodeScalars.first, c.isPunctuation else { return false }
+        return (0x3000...0x303F).contains(scalar.value) || (0xFF00...0xFF65).contains(scalar.value)
+    }
+
+    /// "#name" for a tag whose name Markdown can write.
+    static func tagText(_ a: Attachment) -> String? {
+        guard a.kind == "tag", a.label.hasPrefix("#") else { return nil }
+        let chars = Array(a.label)
+        return tagName(chars, after: 0) == String(chars.dropFirst()) ? a.label : nil
+    }
+
+    /// Whether the text after piece `index` would run into a tag written there.
+    static func startsWithTagCharacter(_ pieces: [Piece], after index: Int) -> Bool {
+        guard index + 1 < pieces.count, case .text(let run) = pieces[index + 1], let first = run.text.first else { return false }
+        return run.link == nil && isTagCharacter(first)
     }
 
     public static func escapeLink(_ url: String) -> String {
@@ -228,6 +287,11 @@ public enum Markdown {
                 blocks.append(.table(Table(rows: rows.map { $0 + Array(repeating: "", count: width - $0.count) })))
                 continue
             }
+            if isDivider(rest) {
+                blocks.append(.paragraph(Paragraph(.body, indent: indent, quote: quote, [.attachment(.divider)])))
+                i += 1
+                continue
+            }
             var style = Style.body
             var text = rest
             if let (found, length) = marker(in: rest) {
@@ -264,6 +328,12 @@ public enum Markdown {
         return (quote, indent, rest)
     }
 
+    /// A divider line: three or more of `-`, `*` or `_`, alone.
+    static func isDivider(_ line: Substring) -> Bool {
+        guard let first = line.first, "-*_".contains(first), line.count >= 3 else { return false }
+        return line.allSatisfy { $0 == first }
+    }
+
     /// The paragraph style a line starts with, and the length of its marker.
     static func marker(in line: Substring) -> (Style, Int)? {
         let fixed: [(String, Style)] = [
@@ -296,6 +366,8 @@ public enum Markdown {
         case text(String)
         case stars(Int)
         case tag(Marks, opening: Bool, source: String)
+        /// The opening tag of a highlight, with its color.
+        case mark(Int, source: String)
         case strike
         case link(String, String)
         case attachment(Attachment)
@@ -322,6 +394,18 @@ public enum Markdown {
         }
         if !plain.isEmpty { pieces.append(.text(Run(plain))) }
         return pieces
+    }
+
+    /// An attachment to add: a file by its path (absolute, ~/…, or file://), or a card for a web
+    /// address. The label is the path or address, then the name to show after a newline.
+    static func addition(label: String, target: String) -> Attachment? {
+        let name = label.isEmpty ? "" : "\n" + label
+        if target.hasPrefix("https://") || target.hasPrefix("http://") { return Attachment(id: "", kind: Attachment.newLinkCard, label: target + name) }
+        if target.hasPrefix("file://"), let path = URL(string: target)?.path, !path.isEmpty {
+            return Attachment(id: "", kind: Attachment.newFile, label: path + name)
+        }
+        if target.hasPrefix("/") || target.hasPrefix("~/") { return Attachment(id: "", kind: Attachment.newFile, label: target + name) }
+        return nil
     }
 
     static func attachment(label: String, id: String) -> Attachment {
@@ -371,16 +455,29 @@ public enum Markdown {
                 flush()
                 tokens.append(.tag(mark, opening: opening, source: source))
                 i += source.count
+            } else if c == "<", let (color, source) = Highlight.names.lazy.map({ ($0.key, markTag($0.key)) }).first(where: { at(i, $0.1) && $0.0 != Highlight.purple }) {
+                flush()
+                tokens.append(.mark(color, source: source))
+                i += source.count
             } else if c == "!", i + 1 < chars.count, chars[i + 1] == "[", let (label, target, end) = bracket(chars, at: i + 1),
-                target.hasPrefix("attachment:")
+                let added = target.hasPrefix("attachment:") ? attachment(label: label, id: String(target.dropFirst("attachment:".count)))
+                    : addition(label: label, target: target)
             {
                 flush()
-                tokens.append(.attachment(attachment(label: label, id: String(target.dropFirst("attachment:".count)))))
+                tokens.append(.attachment(added))
                 i = end
             } else if c == "[", let (label, target, end) = bracket(chars, at: i) {
                 flush()
-                tokens.append(.link(label, target))
+                if target.hasPrefix("note:"), target.count > 5 {
+                    tokens.append(.attachment(.noteLink(label, to: String(target.dropFirst(5)))))
+                } else {
+                    tokens.append(.link(label, target))
+                }
                 i = end
+            } else if c == "#", i == 0 || canPrecedeTag(chars[i - 1]), let name = tagName(chars, after: i) {
+                flush()
+                tokens.append(.attachment(.tag(name)))
+                i += 1 + name.count
             } else {
                 plain.append(c)
                 i += 1
@@ -394,17 +491,18 @@ public enum Markdown {
     private static func build(_ tokens: [Token], literal: Set<Int>) -> ([Piece], Set<Int>) {
         var pieces: [Piece] = []
         var marks: Marks = []
+        var color = 0
         var stars: [(mark: Marks, token: Int)] = []  // open italic and bold, innermost last
         var openedBy: [Int: Int] = [:]  // mark raw value → token that opened it
         func text(_ s: String) {
             guard !s.isEmpty else { return }
-            pieces.append(.text(Run(s, marks: marks)))
+            pieces.append(.text(Run(s, marks: marks, color: color)))
         }
         func source(_ token: Token) -> String {
             switch token {
             case .stars(let n): String(repeating: "*", count: n)
             case .strike: "~~"
-            case .tag(_, _, let s): s
+            case .tag(_, _, let s), .mark(_, let s): s
             default: ""
             }
         }
@@ -417,7 +515,7 @@ public enum Markdown {
             case .text(let s):
                 text(s)
             case .link(let label, let target):
-                if !label.isEmpty { pieces.append(.text(Run(label, marks: marks, link: target))) }
+                if !label.isEmpty { pieces.append(.text(Run(label, marks: marks, link: target, color: color))) }
             case .attachment(let a):
                 pieces.append(.attachment(a))
             case .strike:
@@ -428,9 +526,18 @@ public enum Markdown {
                     marks.insert(.strike)
                     openedBy[Marks.strike.rawValue] = index
                 }
+            case .mark(let c, let s):
+                if !marks.contains(.highlight) {
+                    marks.insert(.highlight)
+                    color = c
+                    openedBy[Marks.highlight.rawValue] = index
+                } else {
+                    text(s)
+                }
             case .tag(let mark, let opening, let s):
                 if opening, !marks.contains(mark) {
                     marks.insert(mark)
+                    if mark == .highlight { color = Highlight.purple }
                     openedBy[mark.rawValue] = index
                 } else if !opening, marks.contains(mark) {
                     marks.remove(mark)
@@ -506,8 +613,9 @@ public enum Markdown {
 
     // MARK: Tables
 
+    /// A table's separator row. It has a pipe: "---" alone is a divider line.
     static func isSeparator(_ line: String) -> Bool {
-        guard line.hasPrefix("|") || line.hasPrefix(":") || line.hasPrefix("-") else { return false }
+        guard line.hasPrefix("|") || line.hasPrefix(":") || line.hasPrefix("-"), line.contains("|") else { return false }
         let row = cells(of: Substring(line))
         return !row.isEmpty && row.allSatisfy { cell in
             let t = cell.trimmingCharacters(in: .whitespaces)

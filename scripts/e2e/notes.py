@@ -456,8 +456,18 @@ if image:
     code, out, err = cli("attachments", "read", image, "--output-dir", folder)
     saved = re.findall(r"^Saved to (.+)$", out, re.M)
     check("cli: attachments read saves the image", code == 0 and saved and all(os.path.exists(p) for p in saved), (code, out, err))
+def names_this_copy(skill):
+    """The skill's command is this copy of the app: its executable, or, installed with Homebrew,
+    the cask's wrapper in …/bin, which execs it."""
+    m = re.search(r'^  command: (".*")$', skill, re.M)
+    if not m: return False
+    command, app = json.loads(m.group(1)), os.path.realpath(APP)
+    if command == app: return True
+    try:
+        with open(command) as f: return os.path.basename(os.path.dirname(command)) == "bin" and app in f.read()
+    except OSError: return False
 code, out, err = cli("skill")
-check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-notes\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
+check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-notes\n") and names_this_copy(out), out[:400])
 # The choice of tools holds on the command line too, which the skill uses.
 with open(TOOLS_FILE + ".new", "w") as f:
     json.dump({"tools": {name: name not in ("read_note", "manage_folder") for name in tools}}, f)

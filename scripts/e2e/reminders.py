@@ -9,7 +9,7 @@ tools.json, so the user's own choice neither hides tools from the checks nor cha
 
 The app needs the Reminders permission (run it with `setup` once).
 """
-import json, os, select, struct, subprocess, sys, tempfile, time, zlib, datetime
+import json, os, re, select, struct, subprocess, sys, tempfile, time, zlib, datetime
 
 APP = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Applications/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP")
 TOOLS_FILE = os.path.join(tempfile.mkdtemp(), "tools.json")
@@ -335,18 +335,39 @@ call("manage_smart_list", action="update", smart_list="agent test smart e2e", fi
 st, t = call("manage_smart_list", action="create", smart_list="agent test smart e2e 2", filters={"flagged": True, "lists": {"include": ["agent test"]}})
 check("create a second smart list", st == "OK", t); SL2 = obj(t)
 ids = lambda t: sorted(r["id"] for r in obj(t)["reminders"])
-st, t = call("find_reminders", smart_list="agent test smart e2e"); check("smart_list shows the matching parent and subtask", st == "OK" and ids(t) == sorted([P["id"], PS["id"]]), t)
-st, t = call("find_reminders", smart_list="agent test smart e2e", include_completed=True)
+def settled(fetch, ok, seconds=15):
+    """What a smart list shows comes from Reminders' own index, which can lag the writes just made
+    (a new tag, a subtask just completed) by a few seconds, in the released app as much as in a new
+    build. Asks again until the answer is the expected one, for up to `seconds`; the check then
+    judges the last answer, so one that never comes still fails."""
+    deadline = time.time() + seconds
+    while True:
+        result = fetch()
+        if ok(result) or time.time() >= deadline: return result
+        time.sleep(0.5)
+st, t = settled(lambda: call("find_reminders", smart_list="agent test smart e2e"), lambda r: r[0] == "OK" and ids(r[1]) == sorted([P["id"], PS["id"]]))
+check("smart_list shows the matching parent and subtask", st == "OK" and ids(t) == sorted([P["id"], PS["id"]]), t)
+st, t = settled(lambda: call("find_reminders", smart_list="agent test smart e2e", include_completed=True),
+                lambda r: r[0] == "OK" and ids(r[1]) == sorted([P["id"], PS["id"], PD["id"]]))
 check("smart_list with completed", st == "OK" and ids(t) == sorted([P["id"], PS["id"], PD["id"]]), t)
-st, t = call("find_reminders", smart_list=SL2["id"], query="智能子"); check("smart_list by id combines with other filters", st == "OK" and ids(t) == [PS["id"]], t)
+st, t = settled(lambda: call("find_reminders", smart_list=SL2["id"], query="智能子"), lambda r: r[0] == "OK" and ids(r[1]) == [PS["id"]])
+check("smart_list by id combines with other filters", st == "OK" and ids(t) == [PS["id"]], t)
 st, t = call("find_reminders", smart_list="agent test smart none"); check("unknown smart list fails", st == "ERR" and "No smart list" in t, t)
 both = {"agent test smart e2e", "agent test smart e2e 2"}
-st, t = call("find_reminders", list="agent test"); rows = obj(t)["reminders"]; R = {r["id"]: set(r.get("smart_lists", [])) for r in rows}
-check("each reminder once, naming the smart lists that show it", st == "OK" and len(rows) == len(R) and both <= R[P["id"]] and both <= R[PS["id"]]
-      and not both & R[PR["id"]] and not both & R[PO["id"]], t)
-st, t = call("find_reminders", smart_list="agent test smart e2e"); st2, t2 = call("find_reminders", smart_list="agent test smart e2e 2")
-check("overlapping smart lists give one id and version", {(r["id"], r["version"]) for r in obj(t)["reminders"]}
-      == {(r["id"], r["version"]) for r in obj(t2)["reminders"] if r["id"] in (P["id"], PS["id"])}, (t, t2))
+def named_once(result):
+    st, t = result
+    if st != "OK": return False
+    rows = obj(t)["reminders"]; R = {r["id"]: set(r.get("smart_lists", [])) for r in rows}
+    return (len(rows) == len(R) and both <= R.get(P["id"], set()) and both <= R.get(PS["id"], set())
+            and not both & R.get(PR["id"], set()) and not both & R.get(PO["id"], set()))
+st, t = settled(lambda: call("find_reminders", list="agent test"), named_once)
+check("each reminder once, naming the smart lists that show it", named_once((st, t)), t)
+def one_version(result):
+    (st, t), (st2, t2) = result
+    return st == st2 == "OK" and {(r["id"], r["version"]) for r in obj(t)["reminders"]} \
+        == {(r["id"], r["version"]) for r in obj(t2)["reminders"] if r["id"] in (P["id"], PS["id"])} != set()
+pair = settled(lambda: (call("find_reminders", smart_list="agent test smart e2e"), call("find_reminders", smart_list="agent test smart e2e 2")), one_version)
+check("overlapping smart lists give one id and version", one_version(pair), pair)
 st, t = call("get_reminder", id=P["id"]); call("delete_reminder", id=P["id"], version=obj(t)["version"])
 call("delete_reminder", id=PO["id"], version=PO["version"])
 st, t = call("manage_smart_list", action="delete", smart_list="agent test smart e2e 2"); check("delete the second smart list", st == "OK", t)
@@ -402,8 +423,18 @@ code, out, err = cli("call", "find_reminders", json.dumps({"list": "agent test 4
 check("cli: call", code == 0 and obj(out)["count"] == 2, (code, out, err))
 code, out, err = cli("reminders", "find", "--bogus"); check("cli: an unknown flag exits 2", code == 2 and "--bogus" in err and out == "", (code, out, err))
 code, out, err = cli("lists", "create", "Not allowed"); check("cli: a guarded write exits 1", code == 1 and "limited" in err, (code, out, err))
+def names_this_copy(skill):
+    """The skill's command is this copy of the app: its executable, or, installed with Homebrew,
+    the cask's wrapper in …/bin, which execs it."""
+    m = re.search(r'^  command: (".*")$', skill, re.M)
+    if not m: return False
+    command, app = json.loads(m.group(1)), os.path.realpath(APP)
+    if command == app: return True
+    try:
+        with open(command) as f: return os.path.basename(os.path.dirname(command)) == "bin" and app in f.read()
+    except OSError: return False
 code, out, err = cli("skill")
-check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-reminders\n") and f"command: {json.dumps(os.path.realpath(APP))}" in out, out[:400])
+check("cli: skill names this copy's command", code == 0 and out.startswith("---\nname: apple-reminders\n") and names_this_copy(out), out[:400])
 # The choice of tools holds on the command line too, which the skill uses.
 with open(TOOLS_FILE + ".new", "w") as f: json.dump({"tools": {name: name not in ("list_tags", "manage_list") for name in tools}}, f)
 os.replace(TOOLS_FILE + ".new", TOOLS_FILE)

@@ -1,11 +1,8 @@
-# Builds and runs the unit tests for every pull request and every push to main, on a GitHub-hosted
-# Mac, and checks that what users and agents see has not changed (scripts/golden.py against
-# Tests/Golden). It uses no secrets: releases are signed and published from a Mac.
-# scripts/e2e.py is not run here, since it needs real Notes or Reminders data and the apps' permissions.
-#
-# While the repositories are being merged (docs/MERGE-PLAN.md), Apple Notes MCP is its own package
-# under incoming/notes, so each package is built and tested on its own. Phase 1 of the plan makes
-# one package of both, and then this goes back to a single build.
+# Builds Apple Notes MCP and Apple Reminders MCP (one package), checks that what users and agents
+# see has not changed (scripts/golden.py against Tests/Golden), and runs the unit tests, for every
+# pull request and every push to main, on a GitHub-hosted Mac. It uses no secrets: releases are
+# signed and published from a Mac. scripts/e2e.py is not run here, since it needs real Notes and
+# Reminders data and the apps' permissions.
 name: Check
 
 on:
@@ -22,22 +19,8 @@ concurrency:
 
 jobs:
   build-and-test:
-    name: build-and-test (${{ matrix.app }})
     runs-on: macos-26
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: reminders
-            path: .
-            product: AppleRemindersMCP
-          - app: notes
-            path: incoming/notes
-            product: AppleNotesMCP
-    defaults:
-      run:
-        working-directory: ${{ matrix.path }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -53,17 +36,60 @@ jobs:
       - name: Build
         run: swift build
       # Before the tests, which they do not need, so a test that hangs does not hold them back.
-      # Without Tests/Golden/<app> yet, this prints the recording to the log instead, to be committed.
       - name: Golden outputs
         timeout-minutes: 10
         run: |
-          /usr/bin/python3 -I "$GITHUB_WORKSPACE/scripts/golden.py" check ${{ matrix.app }} \
-            "$(swift build --show-bin-path)/${{ matrix.product }}" "$GITHUB_WORKSPACE/Tests/Golden/${{ matrix.app }}"
-      # Under a pseudo-terminal, so the output appears as it is written. On this runner the tests
-      # have hung when run in parallel: every test starts and almost none finishes. One at a time
-      # (--no-parallel) for now, which also names the test that hangs, if one does by itself.
+          bin=$(swift build --show-bin-path)
+          /usr/bin/python3 -I scripts/golden.py check notes "$bin/AppleNotesMCP" Tests/Golden/notes
+          /usr/bin/python3 -I scripts/golden.py check reminders "$bin/AppleRemindersMCP" Tests/Golden/reminders
+      # Under a pseudo-terminal, so the output appears as it is written. One at a time: on this
+      # runner the tests hang when run in parallel (see the parallel-tests job below).
       - name: Test
         timeout-minutes: 10
         run: |
           script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"
+
+  # Diagnosis only, never fails the check: runs each test target in parallel, as `swift test` does
+  # by default, with a time limit, to find out whether the hang comes from the tests that start
+  # processes (AgentsTests) or from parallel runs on this runner as such.
+  parallel-tests:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+      - name: Build the tests
+        run: swift build --build-tests
+      - name: Each test target in parallel, 90 seconds each
+        continue-on-error: true
+        run: |
+          for target in NoteModelTests WireTests AgentsTests; do
+            echo "::group::$target"
+            /usr/bin/python3 -I - "$target" <<'EOF'
+          import os, pty, select, signal, subprocess, sys, time
+          target = sys.argv[1]
+          leader, follower = pty.openpty()
+          process = subprocess.Popen(["swift", "test", "--skip-build", "--filter", target], stdout=follower, stderr=follower,
+                                     stdin=subprocess.DEVNULL, start_new_session=True)
+          os.close(follower)
+          deadline, lines, finished = time.time() + 90, 0, 0
+          while time.time() < deadline and process.poll() is None:
+              if select.select([leader], [], [], 1)[0]:
+                  try:
+                      chunk = os.read(leader, 65536).decode(errors="replace")
+                  except OSError:
+                      break
+                  sys.stdout.write(chunk)
+                  finished += chunk.count("✔ Test ") + chunk.count("✘ Test ")
+          if process.poll() is None:
+              os.killpg(process.pid, signal.SIGKILL)
+              print(f"\nRESULT {target}: hung, {finished} tests finished in 90 seconds")
+          else:
+              print(f"\nRESULT {target}: exit status {process.returncode}, {finished} tests finished")
+          EOF
+            echo "::endgroup::"
+          done

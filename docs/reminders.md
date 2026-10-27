@@ -409,10 +409,10 @@ To check: `claude mcp list`, `grok mcp doctor`, `pi mcp list`. For debugging, se
 
 ```bash
 /usr/bin/python3 -I scripts/e2e.py reminders                              # the installed app, against your real reminders
-/usr/bin/python3 -I scripts/e2e.py reminders .build/debug/AppleRemindersMCP   # a development build (uses its parent's permissions)
+/usr/bin/python3 -I scripts/e2e.py reminders dist/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP   # this checkout, after scripts/build-app.sh reminders
 ```
 
-Runs every tool and rule over stdio, and the main command-line commands, 167 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes. The choice of tools comes from a throwaway file (`APPLE_REMINDERS_MCP_TOOLS_FILE`), so yours is neither used nor changed.
+A build in `dist/` is signed like a release, so it holds the Reminders permission you gave the installed app; a bare `.build/debug/AppleRemindersMCP` has only that of the app that starts it (your terminal), and the checks stop at once without it. The checks run every tool and rule over stdio, and the main command-line commands, 167 checks in all. The write guard (`APPLE_REMINDERS_MCP_WRITE_GUARD`, several names separated by commas; lists, groups, smart lists and templates all count) limits writes to a few throwaway names (`agent test`, `agent test 2`, …). The test first clears anything an interrupted run left behind, and at the end deletes what it created; its items remain in Recently Deleted. It temporarily changes the "complete repeating reminders" setting and restores the default when it finishes. The choice of tools comes from a throwaway file (`APPLE_REMINDERS_MCP_TOOLS_FILE`), so yours is neither used nor changed.
 
 `swift test` checks the agent setup and the command line, in throwaway folders:
 - the JSON and TOML editing that keeps the rest of a file as it was;

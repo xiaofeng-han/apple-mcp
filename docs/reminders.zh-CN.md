@@ -409,10 +409,10 @@ App 的「AI 助手」标签页或 `apple-reminders-mcp agents set-up` 会替你
 
 ```bash
 /usr/bin/python3 -I scripts/e2e.py reminders                              # 已安装的 App，针对真实的提醒事项
-/usr/bin/python3 -I scripts/e2e.py reminders .build/debug/AppleRemindersMCP   # 开发版（用启动它的程序的权限）
+/usr/bin/python3 -I scripts/e2e.py reminders dist/AppleRemindersMCP.app/Contents/MacOS/AppleRemindersMCP   # 当前代码，先跑 scripts/build-app.sh reminders
 ```
 
-通过 stdio 把所有工具和规则走一遍，再跑一遍主要的命令行命令，共 167 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。工具选择读的是一个临时文件（`APPLE_REMINDERS_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。
+`dist/` 里的构建和正式版签名相同，所以沿用你给已安装 App 的提醒事项权限；裸的 `.build/debug/AppleRemindersMCP` 只有启动它的程序（你的终端）的权限，没有权限时检查会立刻停下。检查通过 stdio 把所有工具和规则走一遍，再跑一遍主要的命令行命令，共 167 项检查。写保护（`APPLE_REMINDERS_MCP_WRITE_GUARD`，用逗号分隔多个名字，清单、分组、智能清单、模板都算）把写入限制在几个临时名字里（`agent test`、`agent test 2`…）。测试开头会清掉上次中断留下的数据，结尾也会删掉自己建的；「最近删除」里会留下测试项。测试会临时改动「勾完成重复提醒」设置，结束时恢复默认。工具选择读的是一个临时文件（`APPLE_REMINDERS_MCP_TOOLS_FILE`），所以既不受你的选择影响，也不会改动它。
 
 `swift test` 检查 agent 配置和命令行，都在临时目录里进行：
 - 保持文件其余部分原样的 JSON 和 TOML 编辑；

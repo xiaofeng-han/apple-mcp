@@ -52,10 +52,17 @@ jobs:
           swift --version
       - name: Build
         run: swift build
-      - name: Test
-        run: swift test
+      # Before the tests, which they do not need, so a test that hangs does not hold them back.
       # Without Tests/Golden/<app> yet, this prints the recording to the log instead, to be committed.
       - name: Golden outputs
+        timeout-minutes: 10
         run: |
           /usr/bin/python3 -I "$GITHUB_WORKSPACE/scripts/golden.py" check ${{ matrix.app }} \
             "$(swift build --show-bin-path)/${{ matrix.product }}" "$GITHUB_WORKSPACE/Tests/Golden/${{ matrix.app }}"
+      # Under a pseudo-terminal, so the output appears as it is written: on this runner swift test
+      # has printed nothing and run into the job's time limit, so the test that hangs is unknown.
+      - name: Test
+        timeout-minutes: 10
+        run: |
+          script -q /dev/null sh -c 'swift test --verbose; echo $? > "$RUNNER_TEMP/test-status"'
+          exit "$(cat "$RUNNER_TEMP/test-status")"

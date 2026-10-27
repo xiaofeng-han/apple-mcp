@@ -1,0 +1,6 @@
+apple-notes-mcp attachments
+└── read ID                     Open an attachment from a ![…](attachment:ID) placeholder: print its text, save its images, audio and files
+        --[no-]text-only --output-dir string
+
+Every attachments command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.

@@ -1,0 +1,9 @@
+usage: apple-notes-mcp notes create MARKDOWN [flags]
+
+Create a note from Markdown; its first line is the title. ![name](/path/to/file) in the Markdown attaches a file, ![](https://…) adds a link card.
+
+  MARKDOWN         The note as Markdown; - reads it from stdin
+  --folder string  Path or id; default Notes, or for a copy the note's own folder
+  --json json|-    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help       Show this help
+

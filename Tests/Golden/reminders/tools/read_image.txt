@@ -1,0 +1,3 @@
+Look at an image on a reminder: Returns an image attached to a reminder (ids from get_reminder). Needs Full Disk Access for the app.
+
+Input schema: {"additionalProperties":false,"properties":{"image_id":{"description":"Image id","type":"string"},"reminder_id":{"description":"Reminder id","type":"string"}},"required":["reminder_id","image_id"],"type":"object"}

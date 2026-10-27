@@ -1,0 +1,61 @@
+apple-notes-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask to control Notes, and show where to give Full Disk Access
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── notes
+│   ├── list                    List notes, newest first, one line each (id | version | title | date | size | description) (the default)
+│   │       --folder string --tag string… --only string… --attachment string… --modified-after string
+│   │       --modified-before string --created-after string --created-before string
+│   │       --sort modified|created|title|opened --[no-]undescribed --limit int
+│   ├── search QUERY            Full-text search of titles, text and the text Notes found in attachments, best matches first
+│   │       --match all|any --folder string --tag string… --only string… --attachment string…
+│   │       --modified-after string --modified-before string --created-after string --created-before string
+│   │       --sort modified|created|title|opened --limit int
+│   ├── read [ID]               Print notes as Markdown, each with the version that notes edit takes
+│   │       --id string… --title string --section string --[no-]outline
+│   ├── create MARKDOWN         Create a note from Markdown; its first line is the title
+│   │       --folder string
+│   ├── copy ID                 Copy a note with everything in it, into its own folder or --folder
+│   │       --folder string
+│   ├── edit ID --version string  Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned
+│   │       --replace json --insert string --at string --rewrite string --check string… --uncheck string…
+│   │       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned
+│   ├── delete [ID]             Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them)
+│   │       --notes json --version string
+│   ├── move [ID] FOLDER        Move a note to another folder, or back from Recently Deleted
+│   │       --[no-]allow-shared --notes json --version string
+│   └── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
+├── tags
+│   ├── rename TAG NAME         Rename a tag in every note that has it
+│   └── delete TAG --expected-notes int  Take a tag out of every note that has it (ask the user first); the notes stay
+├── attachments
+│   └── read ID                 Open an attachment from a ![…](attachment:ID) placeholder: print its text, save its images, audio and files
+│           --[no-]text-only --output-dir string
+├── folders
+│   ├── list                    The folders, with how many notes each holds (the default)
+│   │       --depth int
+│   ├── create PATH             Create a folder; a path such as Projects/Ideas makes it inside another
+│   │       --tag string… --match any|all
+│   ├── rename FOLDER NAME      Rename a folder
+│   │       --[no-]allow-shared
+│   ├── move FOLDER INTO        Move a folder into another, or to the top level with ""
+│   │       --[no-]allow-shared
+│   ├── delete FOLDER           Delete an empty folder, or with --recursive --expected-notes N everything in it (ask the user first)
+│   │       --[no-]recursive --expected-notes int
+│   └── export FOLDER TO        Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+
+Every notes, tags, attachments, folders command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.
+Output is the tool's answer. Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.

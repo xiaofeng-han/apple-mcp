@@ -1,0 +1,7 @@
+apple-reminders-mcp groups
+├── create NAME                 Create a group, which holds lists in the sidebar (put lists in it with lists update --group)
+├── rename GROUP NEW_NAME       Rename a group
+└── delete GROUP                Delete an empty group
+
+Every groups command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

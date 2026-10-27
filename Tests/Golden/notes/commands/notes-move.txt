@@ -1,0 +1,14 @@
+usage: apple-notes-mcp notes move [ID] FOLDER [flags]
+
+Move a note to another folder, or back from Recently Deleted. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused. A move into or out of a shared folder needs --allow-shared, after asking the user. --folder "Recently Deleted" on notes list shows the deleted notes.
+
+  ID                   Note id
+  FOLDER               Path or id
+  --[no-]allow-shared  The user agreed to changing who can see the notes
+  --notes json         Instead of id and version: up to 100 notes
+                           id: Note id
+                           version: Its version
+  --version string     The version read_note, overview or search gave
+  --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help           Show this help
+

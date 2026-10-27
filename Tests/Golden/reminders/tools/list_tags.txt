@@ -1,0 +1,3 @@
+List tags: Lists every tag in use, with how many open and how many reminders in all have it.
+
+Input schema: {"additionalProperties":false,"properties":{},"type":"object"}

@@ -1,0 +1,9 @@
+usage: apple-notes-mcp notes copy ID [flags]
+
+Copy a note with everything in it, into its own folder or --folder.
+
+  ID               Instead of markdown: the id of a note to copy, attachments and all
+  --folder string  Path or id; default Notes, or for a copy the note's own folder
+  --json json|-    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help       Show this help
+

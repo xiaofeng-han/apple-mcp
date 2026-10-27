@@ -1,0 +1,26 @@
+apple-notes-mcp notes
+├── list                        List notes, newest first, one line each (id | version | title | date | size | description) (the default)
+│       --folder string --tag string… --only string… --attachment string… --modified-after string
+│       --modified-before string --created-after string --created-before string
+│       --sort modified|created|title|opened --[no-]undescribed --limit int
+├── search QUERY                Full-text search of titles, text and the text Notes found in attachments, best matches first
+│       --match all|any --folder string --tag string… --only string… --attachment string…
+│       --modified-after string --modified-before string --created-after string --created-before string
+│       --sort modified|created|title|opened --limit int
+├── read [ID]                   Print notes as Markdown, each with the version that notes edit takes
+│       --id string… --title string --section string --[no-]outline
+├── create MARKDOWN             Create a note from Markdown; its first line is the title
+│       --folder string
+├── copy ID                     Copy a note with everything in it, into its own folder or --folder
+│       --folder string
+├── edit ID --version string    Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned
+│       --replace json --insert string --at string --rewrite string --check string… --uncheck string…
+│       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned
+├── delete [ID]                 Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them)
+│       --notes json --version string
+├── move [ID] FOLDER            Move a note to another folder, or back from Recently Deleted
+│       --[no-]allow-shared --notes json --version string
+└── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
+
+Every notes command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.

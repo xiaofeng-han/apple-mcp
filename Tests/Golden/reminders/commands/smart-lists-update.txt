@@ -1,0 +1,20 @@
+usage: apple-reminders-mcp smart-lists update SMART_LIST [flags]
+
+Change a smart list's name, color, icon, match or filters (--filters replaces them all).
+
+  SMART_LIST         Smart list name or id
+  --new-name string  New name
+  --filters json     A JSON object
+                         date: today, none, {before|on|after: "2026-10-21"}, {from: date, until: date}, or {next|past: 10, unit: hour|day|week|month|year, include_past_due: bool}
+                         flagged: Flagged or not flagged
+                         lists: {include: [list names or ids]} or {exclude: [...]}
+                         location: none, getting-in-car, getting-out-of-car, or {latitude, longitude, radius, title, when: arriving|leaving}
+                         priorities: low|medium|high. Any of these priorities
+                         tags: any, untagged, or {include: [tags], exclude: [tags], match: all|any}
+                         time: morning|afternoon|evening|night|none. Time of day of the due time
+  --match all|any    Whether a reminder must match all filters or any; default all
+  --color string     red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or #RRGGBB
+  --icon string      An emoji, or an emblem name such as nature2; empty for the default
+  --json json|-      Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help         Show this help
+

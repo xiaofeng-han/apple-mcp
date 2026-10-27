@@ -1,0 +1,17 @@
+usage: apple-reminders-mcp lists update LIST [flags]
+
+Change a list's name, color, icon, group, pin, type, sort order or place in the sidebar. A groceries list sorts its items into aisles.
+
+  LIST                       List name or id
+  --new-name string          New name
+  --color string             red, orange, yellow, green, light-blue, blue, indigo, pink, purple, brown, gray, rose, or #RRGGBB
+  --icon string              An emoji, or an emblem name such as nature2; empty for the default
+  --group string             Group name or id to put it in; --no-group takes it out
+  --[no-]pinned              Pin to the top of the sidebar
+  --type standard|groceries  List type
+  --sort string              How Reminders sorts the list (default, manual, due-date, due-date-latest-first, created-newest-first, created-oldest-first, priority, priority-lowest-first, title, title-reverse)
+  --after string             Put it after this: List name or id
+  --before string            Put it before this: List name or id
+  --json json|-              Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                 Show this help
+

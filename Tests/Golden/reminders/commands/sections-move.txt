@@ -1,0 +1,11 @@
+usage: apple-reminders-mcp sections move LIST SECTION (--after string | --before string)
+
+Move a section next to another one.
+
+  LIST             List name or id
+  SECTION          Section name or id
+  --after string   Put it after this: Section name
+  --before string  Put it before this: Section name
+  --json json|-    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help       Show this help
+

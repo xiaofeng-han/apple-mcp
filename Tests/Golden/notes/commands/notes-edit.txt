@@ -1,0 +1,21 @@
+usage: apple-notes-mcp notes edit ID --version string [flags]
+
+Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from notes read, applied in order. --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the rest keeps all its formatting.
+
+  ID                                Note id
+  --version string                  From notes read, list or search (required)
+  --replace json                    A JSON list of {old, new, all}, applied in order
+                                        all: Replace every occurrence
+                                        new: Markdown
+                                        old: Exact Markdown; must be unique unless all
+  --insert string                   Markdown to add; - reads it from stdin
+  --at string                       end (default), start, or a heading's text; list items join that section's list
+  --rewrite string                  The whole note as Markdown; - reads it from stdin
+  --check string…                   Tick the checklist items with these texts (repeat for more)
+  --uncheck string…                 Untick the checklist items with these texts (repeat for more)
+  --checklist check_all|uncheck_all|move_checked_down|delete_checked
+                                    Every checklist item: tick, untick, move the ticked ones to the bottom of their list, or delete them
+  --[no-]pinned                     Pin (true) or unpin (false) the note
+  --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                        Show this help
+

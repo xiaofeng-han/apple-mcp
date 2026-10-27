@@ -1,0 +1,9 @@
+apple-reminders-mcp smart-lists
+├── create NAME --filters json  Create a smart list, which shows the reminders matching its filters
+│       --match all|any --color string --icon string
+├── update SMART_LIST           Change a smart list's name, color, icon, match or filters (--filters replaces them all)
+│       --new-name string --filters json --match all|any --color string --icon string
+└── delete SMART_LIST           Delete a smart list; no reminders are deleted
+
+Every smart-lists command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

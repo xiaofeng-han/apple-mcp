@@ -1,0 +1,10 @@
+usage: apple-reminders-mcp templates create NAME --list string [flags]
+
+Save a list as a template (Reminders copies its reminders in the background).
+
+  NAME                      New template name
+  --list string             The list to save (name or id) (required)
+  --[no-]include-completed  Keep completed reminders too; default false
+  --json json|-             Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                Show this help
+

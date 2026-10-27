@@ -1,0 +1,3 @@
+List recently deleted reminders: Lists reminders in Recently Deleted that restore_reminder can bring back, newest first.
+
+Input schema: {"additionalProperties":false,"properties":{},"type":"object"}

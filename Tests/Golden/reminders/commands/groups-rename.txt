@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp groups rename GROUP NEW_NAME
+
+Rename a group.
+
+  GROUP          Group name or id
+  NEW_NAME       New name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

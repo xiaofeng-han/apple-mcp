@@ -1,0 +1,8 @@
+usage: apple-reminders-mcp groups delete GROUP
+
+Delete an empty group.
+
+  GROUP          Group name or id
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

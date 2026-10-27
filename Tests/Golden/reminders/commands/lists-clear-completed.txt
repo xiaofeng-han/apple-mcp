@@ -1,0 +1,8 @@
+usage: apple-reminders-mcp lists clear-completed LIST
+
+Move a list's completed reminders to Recently Deleted.
+
+  LIST           List name or id
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

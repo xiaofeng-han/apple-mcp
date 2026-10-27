@@ -1,0 +1,17 @@
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Apple Notes on this Mac, synced through iCloud. Find notes with overview or search, then read_note; every change (edit_note, move_note, delete_note) passes back the version they gave, and a note changed since is refused. Make all changes to one note in a single edit_note call. Each note paragraph is one Markdown line: # title, ## heading, ### subheading, * and - lists, 1. numbered, - [ ] / - [x] checkboxes, > quote, two spaces per indent level, ``` monospaced, **bold**, *italic*, ~~strike~~, <u>underline</u>, <mark>highlight</mark>, [link](url), | tables |, #tag, [text](note:id) a link to a note, --- a divider. Keep ![…](attachment:…) placeholders where they are; ![name](/path/to/file) attaches a file. Deleted notes stay 30 days in Recently Deleted (overview folder \"Recently Deleted\"). To describe many notes: overview with undescribed: true, then one describe_note call.\n\nThe user chooses which of these tools are offered, in the Tools tab of the Apple Notes MCP settings window (opened by opening the app). A tool named here that is not in your tool list is turned off there.",
+    "protocolVersion": "2025-11-25",
+    "serverInfo": {
+      "name": "apple-notes-mcp",
+      "version": "dev"
+    }
+  }
+}

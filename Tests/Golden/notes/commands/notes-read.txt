@@ -1,0 +1,12 @@
+usage: apple-notes-mcp notes read [ID] [flags]
+
+Print notes as Markdown, each with the version that notes edit takes. By id, several (--id repeats, up to 20), or --title. A long note can be read one --section at a time, or as an --outline first.
+
+  ID                Note id
+  --id string…      Up to 20 note ids (repeat for more)
+  --title string    The exact title, instead of an id
+  --section string  Only the section under this heading
+  --[no-]outline    Only the headings, with each section's size
+  --json json|-     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help        Show this help
+

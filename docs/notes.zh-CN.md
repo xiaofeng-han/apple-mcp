@@ -148,6 +148,8 @@ apple-notes-mcp notes create - --folder Projects <<'EOF'
 EOF
 ```
 
+给编辑器和脚本用的 `apple-notes-mcp --list-json [查询]` 每行打印一个 JSON 对象，含完整的 `id`、`title`、`folder` 和 `modified`：不带查询时是所有没上锁的笔记，最新的在前；带查询时是搜索结果，最匹配的在前（最多 100 条），每条多一个 `snippet`。上面的列表会截短标题和 id，这里给的都是完整的值。
+
 ## 安装
 
 发布的包只支持 Apple 芯片，需要 macOS 26 或更新。默认用 Homebrew 安装和配置：

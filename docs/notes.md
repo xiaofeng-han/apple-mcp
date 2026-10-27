@@ -148,6 +148,8 @@ apple-notes-mcp notes create - --folder Projects <<'EOF'
 EOF
 ```
 
+For editors and scripts, `apple-notes-mcp --list-json [QUERY]` prints one JSON object per line, with the full `id`, `title`, `folder` and `modified`: every note that is not locked, newest first, or with a query the search results, best match first (at most 100), each with a `snippet`. The lists above cut titles and shorten ids; these values are whole.
+
 ## Install
 
 Releases are built for Apple silicon and need macOS 26 or later. The default way to install and set up is with Homebrew:

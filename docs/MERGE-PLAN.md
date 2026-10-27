@@ -322,7 +322,7 @@ public protocol Component: Sendable {
 
 | 步骤 | 状态 |
 |---|---|
-| 并入 Notes 历史 | **已做**，在 `apple-mcp`（原 `apple-reminders-mcp`）的分支 `claude/merge-notes-reminders-mcp-bc72bx` 上，还没合入 `main`。并入的是 `apple-notes-mcp` 里放这份方案的分支（`340668f`），它包含 Notes `main` 的全部提交（`4b279db`，0.3.0），所以方案文件连同历史一起进来了。合并后 `incoming/notes/` 与那个分支逐字节相同，`incoming/` 以外的文件除下面三项外没动 |
+| 并入 Notes 历史 | **已做**，在 `apple-mcp`（原 `apple-reminders-mcp`）的分支 `claude/merge-notes-reminders-mcp-bc72bx` 上，后来由 PR #4 合入 `main`。并入的是 `apple-notes-mcp` 里放这份方案的分支（`340668f`），它包含 Notes `main` 的全部提交（`4b279db`，0.3.0），所以方案文件连同历史一起进来了。合并后 `incoming/notes/` 与那个分支逐字节相同，`incoming/` 以外的文件除下面三项外没动 |
 | 方案与 CI 移到仓库根目录 | **已做**：`docs/MERGE-PLAN.md`（本文件）；`.github/workflows/check.yml` 改成矩阵，在 macOS runner 上分别对根目录（Reminders）和 `incoming/notes`（Notes）跑 `swift build`、`swift test` 和黄金输出比对。它只在 PR 和 `main` 的推送上跑 |
 | README 说明 | **已做**：两个 README 开头加了一段，说明仓库正在变成 `apple-mcp`、Notes 暂在 `incoming/notes/`、对用户没有变化 |
 | GitHub 上改名为 `apple-mcp` | **已做**（仓库主人在网页上改的）。已验证：旧的 git 地址、仓库页面和 release 下载地址（`…/apple-reminders-mcp/releases/download/v0.3.0/AppleRemindersMCP-0.3.0.pkg`）都 301 到 `apple-mcp`，下载得到完整的包。两个 cask 的 `url` 暂时靠这个重定向，阶段 3 改成新地址 |
@@ -345,7 +345,7 @@ public protocol Component: Sendable {
 | CI | **已做**：一个 job 构建一次，比对两个 App 的黄金输出，再并行跑全部测试（限时 10 分钟，输出边跑边显示） |
 | 并行测试卡死 | **已修**：阶段 0 发现在 3 核的 CI 机器上并行跑测试会卡死（旧 `apple-notes-mcp` 的 CI 也因此从没跑完过）。用诊断 job 逐步缩小：`NoteModelTests`、`WireTests` 并行都过，`AgentsTests` 卡住；去掉改 `HOME` 的测试仍卡，去掉 `stopsWhatRunsTooLong`、`runsWithoutATerminal` 两个启动进程的测试就全过。原因在 `Shell.runSync`：它阻塞调用方的线程等程序结束，而等程序结束（`waitpid`）的那段放在全局队列上；调用方都在协作线程池的少数几个线程上（`Shell.run`、测试），这些线程被占满时那段永远轮不到线程，调用方就一直等一个早已结束的程序。App 里设置窗口安装 agent 时也是这样调用的。改为给 `waitpid` 单开一个线程后，CI 上 `AgentsTests` 并行连跑 3 次、全部测试并行连跑 2 次都通过（95 个测试约 7 秒，逐个跑要 23 秒），于是 CI 改回并行，诊断 job 删掉 |
 | Notes 的构建脚本 | `incoming/notes/scripts/build-app.sh` 改成从根目录的 package 构建；资源、其他脚本和文档阶段 3 再搬 |
-| e2e | **待做，要在 Mac 上跑**：`python3 -I scripts/e2e.py .build/debug/AppleRemindersMCP`，`python3 -I incoming/notes/scripts/e2e.py .build/debug/AppleNotesMCP`（都在仓库根目录 `swift build` 之后） |
+| e2e | **已做，在阶段 3 之后**：这里写的命令（`.build/debug`、`incoming/notes/`）随阶段 3 失效。2026-10-27 在 Mac 上用 `dist/` 里的 App 包跑了两套 e2e，Reminders 新构建连跑 3 次、已装的 0.3.0 一次，都全过；Notes 145 项全过（加上 `--list-json` 后 147 项，见「阶段 4 的结果」） |
 
 本地（Linux 容器）只能用 `swiftc -parse` 做语法检查，编译和测试靠 CI。
 
@@ -358,10 +358,10 @@ public protocol Component: Sendable {
 | 两个组件 | **已做**：`NotesComponent`、`RemindersComponent` 是库 target，各自的 `Store`、`Tools`、路由表、技能正文、「通用」页的权限与设置都在里面；两个 `main.swift` 都只剩 `AppMain.run(…Component.self)` |
 | 与第 2.2 节的差异 | ① `AppMain.run` 接收组件的类型，而不是值，这样在组件建 store 之前 `Product.current` 已经设好；`ComponentContext` 只剩 `version` 和 `writeGuard`，支持目录和 `tools.json` 由 `AppSettings` 按 `Product.current` 给出。② `Permission` 没有抽进 `AppCore`：完全磁盘访问的探测和自动化只有 Notes 在用；Reminders 的「可选完全磁盘访问」看的是能不能读它自己的数据库。两者都留在各自的组件里，等第三个 App 需要时再抽。改 Notes 的探测方式会改变它的行为，而阶段 2 不改行为。③ 去掉了 `opensSettingsOnMissingPermission`：两个 App 的服务器今天都不会打开设置窗口。④ 组件的静态部分（`product`、`cli`、中文标题、技能正文）是 `nonisolated` 的，技能文本在哪个线程都能生成，所以 `agents` 命令仍和以前一样不在主线程上跑 |
 | 用户看得到的变化 | 只有一处：Notes 工具页里的 `manage_tag` 以前没有中文标题，中文界面显示的是英文，现在补上「重命名或删除标签」，新测试保证每个工具都有中文标题。其余（`help`、技能、MCP、`agents` 的输出）由黄金输出逐字比对 |
-| Reminders 改在 RunLoop 下跑 | **已改**（R2）：服务器、命令行和 `--self-check` 都经过 `runThenExit`；要在 Mac 上跑 e2e 确认 |
+| Reminders 改在 RunLoop 下跑 | **已改**（R2）：服务器、命令行和 `--self-check` 都经过 `runThenExit`；2026-10-27 在 Mac 上跑 e2e 确认，全过（见阶段 1 的 e2e 一行） |
 | 测试 | **已加**。`AppCoreTests`：模式分发、改写规则、`clears`、命令树的措辞、技能的 frontmatter、正文和必填 flag。`NotesComponentTests`、`RemindersComponentTests`：工具名不重复；每条命令都指向真实的工具，而且只用它的字段；每个工具都有中文标题；默认动词都有对应的命令；身份字串正确 |
-| 设置窗口截图对比 | **待做，要在 Mac 上**：两个 App、中英文、三个标签页 |
-| e2e | **待做，要在 Mac 上**（命令同阶段 1） |
+| 设置窗口截图对比 | **已做，改为看一遍**：2026-10-27 阶段 4 发版前，仓库主人在 Mac 上把两个 App 的中英文三个标签页都看了一遍，没有问题；没有截图逐张对比 |
+| e2e | **已做**（见阶段 1 的 e2e 一行） |
 | 阶段 2 合入 | **已合入**（PR #6，2026-10-27）。CI 修了三轮，都是测试：新测试里两处 `#expect` 写法编译不过，一处断言写错（技能文本一直以一个换行结尾）；原有的 `FileWatchTests.letsASaveInPlaceSettle` 在更多测试并行时，测试里 3 ms 的 `Task.sleep` 被拖过了文件监视的 50 ms，改成 `usleep` |
 
 ### 阶段 3 的进度（2026-10-27）
@@ -371,11 +371,11 @@ public protocol Component: Sendable {
 | `incoming/notes/` 清空 | **已做**：资源到 `Resources/Notes/`，Reminders 的资源到 `Resources/Reminders/`；`RE-FINDINGS.md` 到 `docs/`；`compose-icon.swift`、`pbshape.py`、`release.sh` 到 `scripts/`；`incoming/` 删除 |
 | 脚本带 App 参数 | **已做**：`build-app.sh`、`build-pkg.sh`、`build-icon.sh`、`update-cask.sh` 和 `release.sh` 都多了第一个参数 `notes` 或 `reminders`，两个 App 不同的地方（可执行文件、标题、bundle id、cask、资源目录、tag 前缀、文档、CHANGELOG、权限说明）只写在 `scripts/app.sh` 一处。两边的 `build-*.sh` 原本只差这些，合成一份；生成的 `distribution.xml` 与原来逐字相同（已对比 Reminders 的） |
 | `release.sh` | **已改**：`scripts/release.sh [--dry-run] notes\|reminders <版本>`；tag 是 `notes-v<版本>`、`reminders-v<版本>`；release 建在 `xiaofeng-han/apple-mcp`；改版本号的是 `Resources/<App>/Info.plist` 和 `docs/<app>.md`（+ `.zh-CN`）里的安装命令，并把下载命令里的旧 tag 和旧仓库、Releases 链接一起换成新的（在本机用 GNU sed 对四份文档演练过替换结果）；说明取自 `CHANGELOG-<app>.md`；说明模板里的权限、cask、下载命令按 App 填 |
-| cask | **`update-cask.sh` 已改，tap 还没动**：除了版本和校验和，它还把 `url` 改到 `apple-mcp` 的 `<前缀>-v#{version}`，`homepage` 改到 `docs/<app>.md`，`livecheck` 改成 `url "https://github.com/xiaofeng-han/apple-mcp"`、`strategy :github_releases` 和只认本 App 前缀的 `regex`（`scripts/cask.awk`，用 tap 里现有的两个 cask 演练过）。tap 现在不能先改：新地址要等阶段 4 发出第一个带前缀的 release 才存在，所以由那次发版的 `update-cask.sh` 一并改掉 |
+| cask | **`update-cask.sh` 已改；tap 在阶段 4 由它改好**（Notes 0.4.0、Reminders 0.4.0 发版时，tap `a801b7d`、`cd4a816`）：除了版本和校验和，它还把 `url` 改到 `apple-mcp` 的 `<前缀>-v#{version}`，`homepage` 改到 `docs/<app>.md`，`livecheck` 改成 `url "https://github.com/xiaofeng-han/apple-mcp"`、`strategy :github_releases` 和只认本 App 前缀的 `regex`（`scripts/cask.awk`，用 tap 里现有的两个 cask 演练过）。tap 现在不能先改：新地址要等阶段 4 发出第一个带前缀的 release 才存在，所以由那次发版的 `update-cask.sh` 一并改掉 |
 | 两份 CHANGELOG | **已做**：`CHANGELOG-notes.md`（原 Notes 的，补上了 0.3.0 一节，取自 GitHub release 说明）、`CHANGELOG-reminders.md`（新建，放了 0.3.0 一节） |
 | 文档拆分 | **已做**：两个 App 原来的 README 成了 `docs/notes.md`、`docs/reminders.md`（+ `.zh-CN`），开头写明属于本仓库，构建、发版、图标、测试的命令都带上 App 参数，互相引用改成仓库内链接；根目录 `README.md`/`README.zh-CN.md` 改写成仓库总览：两个 App、安装、搬家说明、目录、构建与测试 |
-| e2e | `scripts/e2e.py notes\|reminders [可执行文件]` 转给 `scripts/e2e/notes.py`、`scripts/e2e/reminders.py`（两边原来的 `e2e.py`，内容未改）。第 8 节说的把两份共用的 harness 合成一份，**没有做**：它们只能在 Mac 上跑，在这里改了没法验证，留到能在 Mac 上一起验证时 |
-| 验证 | **待做，要在 Mac 上**：`scripts/build-pkg.sh notes` 和 `reminders` 都能建；`scripts/release.sh --dry-run notes 0.4.0`、`… reminders 0.4.0` 都能走完（`CHANGELOG` 里还没有 0.4.0 一节，演练会提示，正式发版会停下）；`brew audit --cask --strict`、`brew livecheck` 在阶段 4 改了 cask 之后跑 |
+| e2e | `scripts/e2e.py notes\|reminders [可执行文件]` 转给 `scripts/e2e/notes.py`、`scripts/e2e/reminders.py`（两边原来的 `e2e.py`，内容未改）。第 8 节说的把两份共用的 harness 合成一份，当时**没有做**：它们只能在 Mac 上跑，在这里改了没法验证。**阶段 4 之后在 Mac 上做了**，见「阶段 4 的结果」之后的「收尾」 |
+| 验证 | **已做**（2026-10-27，在 Mac 上）：`scripts/release.sh --dry-run notes 0.4.0`、`… reminders 0.4.0` 都走完，两个包都建好（这时 `CHANGELOG` 已有 0.4.0 一节）；阶段 4 改了 cask 之后，`brew audit --cask --strict --online` 和 `brew livecheck` 都过（见「阶段 4 的结果」） |
 
 ### 阶段 4 的准备（2026-10-27）
 
@@ -413,16 +413,23 @@ public protocol Component: Sendable {
 | 收尾 | `homebrew-tap#1` 合并；`apple-notes-mcp#5` 留言后合并（内容已在 #12）；`apple-notes-mcp#6` 并入 `main` 后解决冲突（保留删除）再合并，仓库只剩 README，描述改为指向 `apple-mcp`，已归档；`apple-mcp#3`（被 `release.sh` 取代）关闭；`apple-mcp` 的描述改为两个 App 的说法 |
 | 本机清理 | 删掉 `~/Applications/AppleRemindersMCP-dev.app`（0.2.4，移到废纸篓）、`~/` 卷上两条已无对应 App 的安装记录、`dist/` 里的构建；OpenCode 的 `apple-reminders` 原本指向已不存在的 `apple-reminders-mcp/dist/…`，用 `apple-reminders-mcp agents set-up opencode` 改回 Homebrew 的命令 |
 
-留给以后：
+另外：一次 e2e 因 U+2028 中途崩掉、没走到清理，留下了「agent test」文件夹；下一次运行开头的清理把它删掉了。中途崩掉的检查不会自己清理，这是现有的设计。
 
-- 两份 e2e 共用的 harness 仍各写一份（第 8 节），没合并。
-- `Sources/NotesComponent/Store/Organizer.swift:310` 那条多余 `?? 1` 的编译警告还在。
-- 一次 e2e 因 U+2028 中途崩掉、没走到清理，留下了「agent test」文件夹；下一次运行开头的清理把它删掉了。中途崩掉的检查不会自己清理，这是现有的设计。
+### 收尾（2026-10-27）
+
+阶段 4 之后剩下的两件，在 Mac 上做完，不发版（随两个 App 各自的下一个版本出去）：
+
+| 步骤 | 结果 |
+|---|---|
+| 编译警告 | `Organizer.swift` 的 `multipleAccountsShown` 去掉多余的 `?? 1`（`try?` 已包住整个表达式，行为不变）；`swift package clean` 后完整构建 0 条警告 |
+| e2e 的 harness | 按第 8 节合成 `scripts/e2e/harness.py`：启动服务器（带写保护和临时 `tools.json`）、`rpc`/`notify`/`call`/`check`/`cli`、汇总、没权限时停下、技能检查，以及 `initialize`、选工具（`tools.json` 的变更通知）和无状态客户端三段共用检查，参数是 App 的工具表、只读工具和几个调用。`notes.py` 的 `call` 返回附件并记下写入，仍留在 Notes 里。合并前后各跑一遍两套 e2e，逐项比对检查名、顺序和结果都相同：Reminders 167 项、Notes 147 项全过。汇总改成两边一样的「N passed, M failed」 |
+| 顺带修的 | Reminders 的 e2e 不带路径时默认找 `~/Applications`，而 Homebrew 装在 `/Applications`，所以文档里「不带路径就检查已安装的 App」对 Reminders 不成立；现在两个 App 都先找 `/Applications`，再找 `~/Applications` |
+| 方案里的「待做」 | 阶段 0–3 进度表里写着「待做」「还没」的行，都改成了做完的时间和结果 |
 
 ## 10. 风险与待定
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。
-- **R2 Reminders 改在 RunLoop 下跑**：服务器和命令行都要在真机上过一遍 `e2e.py reminders`（阶段 2）。
+- **R2 Reminders 改在 RunLoop 下跑**：服务器和命令行都要在真机上过一遍 `e2e.py reminders`（阶段 2）。已在 2026-10-27 过了，全过。
 - **R3 一个仓库发两个产品**：GitHub 的「Latest」在两个 App 之间跳；`livecheck` 要按 tag 前缀；release 列表混在一起。缓解见第 7 节，发布前用本地 tap 验证。
 - **R4 改底座要两个 App 一起验证**：每个改到底座的提交都要跑两套 e2e；某个 App 的发版会带上另一个 App 还没发的底座改动，各自从一个提交构建即可。
 - **R5 以后若要合成一个 App**：那仍是单向门（新 bundle id、重授权限、cask 改名），初稿里的设计（左栏切换 App、苹果加机器人的图标、`apple-mcp` 命令、1.0.0）留作那时的参考，见第 11 节。那时还要处理两个 App 都有的 `manage_tag`：一个服务器里工具名不能重。

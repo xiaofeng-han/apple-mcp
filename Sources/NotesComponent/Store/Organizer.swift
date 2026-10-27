@@ -307,7 +307,7 @@ extension NotesStore {
         return (found.path, new)
     }
 
-    private var multipleAccountsShown: Bool { (try? fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO")).count ?? 1) ?? 1 > 1 }
+    private var multipleAccountsShown: Bool { (try? fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO")).count) ?? 1 > 1 }
 
     /// The AppleScript specifier of a folder's account.
     private func accountSpecifier(of folder: FolderInfo) throws(NotesError) -> String {

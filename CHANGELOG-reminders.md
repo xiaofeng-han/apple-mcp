@@ -4,6 +4,18 @@ Each `## <version>` section is that version's release note, exactly as `scripts/
 
 From 0.4.0 on, Apple Reminders MCP is released with tags `reminders-v<version>`. Earlier releases, up to 0.3.0, are tagged `v<version>` on this repository's [Releases](https://github.com/xiaofeng-han/apple-mcp/releases); the note of 0.3.0 is kept below.
 
+## 0.4.1
+
+**What's new**
+
+- **Homebrew no longer asks for an administrator password.** The cask now installs the app from a zip on the release instead of from the installer package, which Homebrew can only run with `sudo`. From now on `brew install`, `brew upgrade` and `brew uninstall` need no password. The app, its place in `/Applications`, its signature and its permissions stay the same. Upgrading from 0.4.0 or earlier asks for the password one last time, to remove the copy the package installed. The package is still on the release, for installing without Homebrew.
+
+The app works as 0.4.0 did: the MCP tools, the commands and the skill are unchanged, so agents set up for it stay set up. A Reminders permission granted to 0.4.0 still applies after upgrading.
+
+---
+
+**更新**：Homebrew 不再要管理员密码。cask 改为从 release 上的 zip 安装 App，不再用安装包（Homebrew 装安装包只能用 `sudo`），以后 `brew install`、`brew upgrade`、`brew uninstall` 都不用输密码。App、它在 `/Applications` 的位置、签名和权限都不变。从 0.4.0 或更早的版本升级时还会最后要一次密码，用来删掉安装包装的那一份。不用 Homebrew 的话，release 上仍有安装包。App 用起来和 0.4.0 一样：MCP 工具、命令和技能都没变，已配置的 agent 不用重新配置，升级后已有的权限仍然有效。需要 macOS 26 或更新、Apple 芯片。详见[文档（中文）](https://github.com/xiaofeng-han/apple-mcp/blob/reminders-v0.4.1/docs/reminders.zh-CN.md)。
+
 ## 0.4.0
 
 **What's new**

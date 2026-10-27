@@ -1,6 +1,8 @@
 # 共用底座：一个仓库出 Apple Notes MCP 与 Apple Reminders MCP 两个 App
 
-调查与方案，2026-10-21。基于 `apple-notes-mcp` main（`198dc7b`：0.1.0 之后合入 PR #1，补上了命令行、技能和工具标签页）与 `apple-reminders-mcp` main（`1f4a0f8`：0.2.4 之后的同样三项），以及 `homebrew-tap` 里的两个 cask（`8fb4c8e`）。两边 main 上的这三项都还没发版，定了先从两个旧仓库各发一次（Notes 0.2.0、Reminders 0.3.0），再开始搬家。两个仓库都是公开的。
+调查与方案，2026-10-21 写成；2026-10-27 按两边当时的 `main` 校对过：`apple-notes-mcp`（`4b279db`，0.3.0 已发）、`apple-reminders-mcp`（`8038474`，0.3.0 已发）、`homebrew-tap`（`48ddcf7`，两个 cask 都在 0.3.0）。两个仓库都是公开的。
+
+> 校对说明（2026-10-27）：原定「先从两个旧仓库各发一次再搬家」已经做完——Notes 0.2.0（10-21）、0.3.0（10-22），Reminders 0.3.0（10-21）。Notes 0.3.0 另外加了 `manage_tag` 工具、`--copy-note` 和 `--check-markdown` 两个私有模式、`scripts/release.sh`（一条命令发版）、`CHANGELOG.md` 和 GitHub Actions 的 `check.yml`；Reminders 自 0.2.4 以来只有版本号变了。这些已反映到下文（1.1、2.2、3、7、8、9、11 节）；方案本身不变。
 
 > 改写说明（2026-10-21）：初稿是把两个 App 合成一个 Apple MCP（`AppleMCP.app`、`com.xiaofeng.apple-mcp`）。讨论后改成「表面分开、底下共用底座」：一个仓库出两个 App，各自保留 bundle id、cask、命令名和版本号，只把重复的代码收成共用的 target。初稿和当天定下的决定在新方案里还适不适用，逐条见第 11 节；初稿全文在本文件的 git 历史里（`cf9f09a`）。
 
@@ -26,7 +28,7 @@
 |---|---|
 | 产品 | 两个 App 照旧。Apple Notes MCP：`AppleNotesMCP.app`、`com.xiaofeng.apple-notes-mcp`、命令与 cask `apple-notes-mcp`、服务器 `apple-notes`。Apple Reminders MCP：`AppleRemindersMCP.app`、`com.xiaofeng.apple-reminders-mcp`、`apple-reminders-mcp`、`apple-reminders`。命令名、服务器名、支持目录、defaults、权限、图标都不变 |
 | 仓库 | 一个仓库出两个 App，底座也在这个仓库里，不单独成仓库（理由见 2.6）。GitHub 上把 `apple-reminders-mcp` 改名为 `apple-mcp`，并入 `apple-notes-mcp` 的历史；`apple-notes-mcp` 在新仓库第一次发 Notes 之后归档。`apple-mcp` 只是仓库名，不是产品名 |
-| 版本与发版 | 各自的版本号和节奏，接着现在的往下走。命令行、技能和工具标签页现在就从两个旧仓库各发一次：Notes 0.2.0（tag `v0.2.0`，`apple-notes-mcp`）、Reminders 0.3.0（tag `v0.3.0`，`apple-reminders-mcp`），照两边现有的发版流程，再开始阶段 0（2026-10-21 定）。搬进新仓库后的版本 tag 带前缀（如 `notes-v0.3.0`、`reminders-v0.4.0`）。只改了一个 App 就只发那一个 |
+| 版本与发版 | 各自的版本号和节奏，接着现在的往下走。搬家前先从两个旧仓库各发一次的决定（2026-10-21 定）已经执行：Notes 0.2.0、0.3.0（`v0.2.0`、`v0.3.0`，`apple-notes-mcp`）、Reminders 0.3.0（`v0.3.0`，`apple-reminders-mcp`）。搬进新仓库后的版本 tag 带前缀（如 `notes-v0.4.0`、`reminders-v0.4.0`），用 Notes 现有的 `scripts/release.sh` 发（第 7 节）。只改了一个 App 就只发那一个 |
 | 用户看到的变化 | 没有：两个 App 的命令、`help`、技能文本、写进 agent 的配置、`serverInfo`、设置窗口都与重构前逐字相同，用黄金输出检查（第 8 节） |
 
 ## 1. 现状调查
@@ -37,16 +39,20 @@
 |---|---|---|---|
 | `Sources/Wire` | `JSON`、`Schema`、`Service`、`Exposure`（工具开关）、`FileWatch`、`Flags`（命令行参数解析） | 同 | `JSON`、`Schema`、`FileWatch`、`Flags` 字节相同；`Exposure` 只差注释里的示例工具名；`Service` 只差 Notes 多出的 `Content.audio`、`.file` 两个 case、日志变量名、stderr 前缀和一行注释 |
 | `Sources/Launcher` | `launcher_become_responsible`、`launcher_spawn_disclaimed`、`launcher_is_sandboxed` | 同 | `.c` 字节相同；`.h` 只差注释里的权限名 |
-| `Sources/Agents` | 13 个文件（含 `Skills.swift`） | 同 | `ConfigValue`、`Installer`、`JSONText`、`Presence`、`RunningApp`、`TOMLText` 字节相同；`Agent`、`ConfigFile`、`Installation`、`Registration`、`Shell`、`Skills` 只差产品字串（每个 4–14 行） |
+| `Sources/Agents` | 12 个文件（含 `Skills.swift`） | 同 | `ConfigValue`、`Installer`、`JSONText`、`Presence`、`RunningApp`、`TOMLText` 字节相同；`Agent`、`ConfigFile`、`Installation`、`Registration`、`Shell`、`Skills` 只差产品字串（每个 4–14 行） |
 | `App/` | `SettingsPanel`、`AgentsPanel`（含技能模式）、`AgentsCommand`、`ToolsPanel`；三个标签页 | 同 | `AgentsPanel`、`AgentsCommand` 只差产品字串（14 行）；`ToolsPanel` 只差中文工具名和一句文案；`SettingsPanel` 的「通用」页按各自的权限与设置不同（Notes：完全磁盘访问 + 自动化→备忘录；Reminders：提醒事项 + 可选的完全磁盘访问 + 重复提醒开关） |
 | `CLI/` | `Commands.swift`（名词/动词命令树）、`Skill.swift`（生成 SKILL.md） | 同 | 机制相同，路由表和技能正文不同。两边的 `Route` 各有对方没有的东西，见第 3 节 |
-| 产品本体 | `NotesShim`（ObjC 500 行）、`NoteModel`（~1,200）、`Store/`（~2,000）、`Tools/`（~900） | `ReminderKitShim`（ObjC 1,300）、`Store/`（~1,200）、`Tools/`（~700）、`SmartFilter` | 完全不同，互不依赖 |
+| 产品本体 | `NotesShim`（ObjC ~960 行）、`NoteModel`（~1,400，0.3.0 加了 `Checklist.swift`）、`Store/`（~3,200，加了 `Filters.swift`）、`Tools/`（~1,250） | `ReminderKitShim`（ObjC ~1,450）、`Store/`（~1,200）、`Tools/`（~900）、`SmartFilter`（~250） | 完全不同，互不依赖 |
 | 测试 | `AgentsTests`（+ `SkillTests`）、`WireTests`、`NoteModelTests` | `AgentsTests`（+ `SkillTests`）、`WireTests` | `AgentsTests`、`WireTests` 只差产品字串 |
-| 脚本/资源 | `build-app.sh`、`build-pkg.sh`、`update-cask.sh`、`e2e.py`（93 项：经 stdio 的工具、命令行 20 项、工具开关与通知 24 项）、图标脚本、Info.plist、entitlements、InfoPlist.strings、conclusion.html | 同（`e2e.py` 167 项） | 只差产品字串和权限文案；两个 `e2e.py` 的工具开关、通知和无状态协议部分几乎逐行相同 |
+| 脚本/资源 | `build-app.sh`、`build-pkg.sh`、`update-cask.sh`、`e2e.py`（145 项：经 stdio 的工具、主要的命令行命令、工具开关与通知）、图标脚本（`build-icon.sh`、`compose-icon.swift`、`pbshape.py`）、Info.plist、entitlements、InfoPlist.strings、conclusion.html。**只有 Notes 有**：`scripts/release.sh`（一条命令发版：改版本号、`swift test`、打包、提交、tag、GitHub release、更新 cask）、`CHANGELOG.md`（release 说明的来源，目前只有 `## 0.2.0` 一节）、`.github/workflows/check.yml`（PR 和 main 上在 `macos-26` runner 跑 `swift build`、`swift test`） | 同（`e2e.py` 167 项；图标脚本是 `flatten-icon.swift`）；没有 `release.sh`、`CHANGELOG.md` 和 CI | 只差产品字串和权限文案；两个 `e2e.py` 的工具开关、通知和无状态协议部分几乎逐行相同 |
 
-共享部分（`Wire`、`Launcher`、`Agents`）约 3,200 行。Notes 有 5 个提交（0.1.0 一个 squash 提交，加 PR #1 的三个提交和合并提交），Reminders 22 个；两边的历史互不相干，合并没有包袱（见附录）。
+共享部分（`Wire`、`Launcher`、`Agents`）约 3,200 行；加上同样几乎逐字相同的 `App/`（~1,140）和 `CLI/` 的机制部分，两边各有一份的代码约 5,000 行。Notes 有 15 个提交，Reminders 23 个；两边的历史互不相干，合并没有包袱（见附录）。
 
 两边的 `main.swift` 都有进程级全局变量（`version`、`words`、`writeGuard`、`store`、`tools`），被 `CLI/Commands.swift`、`CLI/Skill.swift`、`App/AgentsCommand.swift` 直接读取；进底座时它们要变成参数。Notes 因为 `NotesStore` 是 `@MainActor`，在顶层用 `MainActor.assumeIsolated` 构造 `store` 和 `tools`。
+
+Notes 0.3.0 的 `main.swift` 多了两个只有它有的模式：`--copy-note NOTE [FOLDER]`（`create_note` 的 `copy_of` 由服务器用 `Bundle.main.executablePath` 再启动自己来跑，因为 Notes 复制笔记的代码会改变本进程之后保存编辑的方式）和 `--check-markdown`（把每条笔记读出、写成 Markdown 再解析回来做对照，只读）。Reminders 没有私有模式，只多一个 `setup` 的别名 `authorize`。底座的 `AppMain` 要让组件声明这类模式（2.2 节）。再启动自己的那条路径不受本方案影响：每个 App 仍是自己的可执行文件。
+
+Notes 0.3.0 还加了第 11 个工具 `manage_tag`，与 Reminders 的 `manage_tag` 同名。两个 App 各自注册服务器，这没有影响；只有以后真要合成一个 App 时才要处理（第 11 节、R5）。
 
 ### 1.2 产品身份写死在哪里
 
@@ -54,7 +60,7 @@
 
 | 类别 | 位置 |
 |---|---|
-| bundle id、pkg id、cask 名、App 路径 | `Sources/Agents/Installation.swift:14-16`（三个常量）、`:45`、`:53`（`/Applications/X.app`、`~/Applications/X.app`）；`main.swift` 的 bundle id 门控（`launcher_become_responsible` 只在 App bundle 里调用）；`Resources/Info.plist`；`scripts/build-app.sh:14`、`build-pkg.sh:22`、`update-cask.sh:13-18`；`e2e.py` |
+| bundle id、pkg id、cask 名、App 路径 | `Sources/Agents/Installation.swift:14-16`（三个常量）、`:45`、`:53`（`/Applications/X.app`、`~/Applications/X.app`）；`main.swift` 的 bundle id 门控（`launcher_become_responsible` 只在 App bundle 里调用）；`Resources/Info.plist`；`scripts/build-app.sh:14`、`build-pkg.sh:22`、`update-cask.sh:13-18`、`release.sh:22-25`（Notes；`APP`、`TITLE`、`REPO`、`CASK`）；`e2e.py` |
 | 服务器名 `apple-notes` / `apple-reminders` | `Sources/Agents/Registration.swift:20`（`Registration.serverName`，其余 10 余处引用它）；`Agent.swift:104`；`AgentsPanel` 页脚文案 |
 | `serverInfo.name` | `main.swift`：`Service(name: "apple-reminders-mcp", …)`；`e2e.py` 检查它 |
 | 备份后缀 `.bak-<日期>-apple-*-mcp` | `Sources/Agents/ConfigFile.swift:63` |
@@ -136,6 +142,9 @@ public protocol Component: Sendable {
     var rewordings: [(String, String)] { get }             // 工具文案 → 命令行参数名的固定替换
     /// 缺权限时服务器打开设置窗口一次（Notes 今天有；Reminders 今天没有，默认 false 以保持原样）。
     var opensSettingsOnMissingPermission: Bool { get }
+    /// 只有这个 App 才有的模式，按第一个词认：Notes 的 --copy-note、--check-markdown，Reminders 的
+    /// setup 别名 authorize。AppMain 先认共用的模式，再问这里，最后才当作命令。默认 [:]。
+    var privateModes: [String: @Sendable (_ words: [String], _ context: ComponentContext) -> @MainActor () async -> Int32] { get }
     /// 技能正文（frontmatter 的 description + 规则）；命令参考由底座按 routes 生成。
     func skillText(run: String, reference: String) -> String
     /// 同一组 Tool 既给 MCP 也给命令行。主 actor：Notes 的 store 绑定主线程。
@@ -197,7 +206,9 @@ public protocol Component: Sendable {
 | `Tests/AppCoreTests/*`、`Tests/NotesComponentTests/*`、`Tests/RemindersComponentTests/*` | 新写 |
 | `Tests/Golden/{notes,reminders}/*` | 阶段 0 录下的黄金输出（第 8 节） |
 | `Resources/Notes/*`、`Resources/Reminders/*` | 两边各自的 `Resources/*` 原样搬过去 |
-| `scripts/{build-app,build-pkg,update-cask}.sh` | 合成一份，第一个参数是 `notes` 或 `reminders`（第 7 节） |
+| `scripts/{build-app,build-pkg,update-cask,release}.sh` | 合成一份，第一个参数是 `notes` 或 `reminders`（第 7 节）；`release.sh` 来自 Notes |
+| `CHANGELOG-notes.md`、`CHANGELOG-reminders.md` | Notes 现有的 `CHANGELOG.md`（先补上 0.3.0 一节）；Reminders 的新建，以前的 release 说明留在 GitHub Releases 上 |
+| `.github/workflows/check.yml` | Notes；一个 package，一次 `swift build`、`swift test` 就覆盖两个 App |
 | `scripts/{build-icon.sh,compose-icon.swift,flatten-icon.swift}` | 两边的图标脚本 |
 | `scripts/e2e.py`、`scripts/e2e/{harness,notes,reminders}.py` | 两个 `e2e.py` 拆分（第 8 节） |
 | `README.md`、`README.zh-CN.md` | 新写：仓库总览，两个 App 各一段（是什么、怎么装），链到各自的文档 |
@@ -214,7 +225,7 @@ public protocol Component: Sendable {
 
 ## 3. 命令行
 
-对用户没有变化：两个 App 各自保留命令和语法（`apple-notes-mcp notes search …`、`apple-reminders-mcp reminders find …`、`skill`、`agents …`、`--self-check`），没有新的总命令。按第一个词分发模式的逻辑两边今天已经一样（只有 Reminders 多一个 `setup` 的别名 `authorize`，由组件声明，保留），搬进 `AppMain`。
+对用户没有变化：两个 App 各自保留命令和语法（`apple-notes-mcp notes search …`、`apple-reminders-mcp reminders find …`、`skill`、`agents …`、`--self-check`），没有新的总命令。按第一个词分发模式的逻辑两边今天一样，搬进 `AppMain`；各 App 多出来的词（Reminders 的 `setup` 别名 `authorize`，Notes 0.3.0 的 `--copy-note`、`--check-markdown`）由组件的 `privateModes` 声明，拼法和行为不变。
 
 `AppCore/CLI` 的通用机制取两边现有代码的并集，两边的路由表原样搬进各自组件：
 
@@ -256,18 +267,19 @@ public protocol Component: Sendable {
 只有仓库搬家要处理：
 
 - 两个 cask 的 `url`、`homepage`、`livecheck` 改到新仓库与带前缀的 tag（第 7 节）；Reminders 的旧下载地址靠改名重定向，Notes 的旧 release 留在归档的 `apple-notes-mcp` 里照常可下载。
-- `update-cask.sh` 里的仓库名与 tag 改掉；两个 README 里的 `gh release download` 示例改成新仓库和新 tag。
+- `release.sh`、`update-cask.sh` 里的仓库名与 tag 改掉；两个 README 里的 `gh release download` 示例改成新仓库和新 tag。
 - `apple-notes-mcp` 仓库：README 换成指向 `apple-mcp` 的说明，在新仓库第一次发 Notes 之后归档。
 
 ## 7. 构建、发布与 Homebrew
 
 - **脚本**：`scripts/build-app.sh notes|reminders`、`build-pkg.sh`、`update-cask.sh` 同样带 App 参数，按它选 `Resources/<app>/`、bundle id、可执行文件、entitlements、pkg id、cask 文件。版本号仍在各自的 `Resources/<app>/Info.plist`（`CFBundleShortVersionString`）。
-- **发版**：`gh release create notes-v0.2.0 -R xiaofeng-han/apple-mcp …`，标题「Apple Notes MCP 0.2.0」；Reminders 同理用 `reminders-v…`。只改了一个 App 就只发它；改了底座的提交，两套 e2e 都要过，发版仍按需要逐个发。
+- **发版**：用 Notes 现有的 `scripts/release.sh`，加 App 参数：`scripts/release.sh notes 0.4.0`（先 `--dry-run`）。它今天写死的 `APP`、`TITLE`、`REPO`、`CASK` 四个常量按 App 选；tag 从 `v<版本>` 改成 `notes-v<版本>` / `reminders-v<版本>`（检查 tag 是否已存在、`gh release create --verify-tag`、`update-cask.sh` 里 `gh release view` 的 tag 一起改）；`REPO` 改成 `xiaofeng-han/apple-mcp`；它用 `sed` 改安装命令里版本号的文件从 README 改成 `docs/<app>.md`（+ `.zh-CN`），模式按新 tag 写；release 说明取自 `CHANGELOG-<app>.md` 的 `## <版本>` 一节（没有这一节脚本就停下，所以 Notes 的 `CHANGELOG` 要先补上 0.3.0），说明模板里的权限和安装命令那段按 App 选。标题仍是「Apple Notes MCP 0.4.0」这样。只改了一个 App 就只发它；改了底座的提交，两套 e2e 都要过，发版仍按需要逐个发。
+- **CI**：Notes 的 `.github/workflows/check.yml` 搬到新仓库，不用改：一个 package，`swift build` 和 `swift test` 一次覆盖两个 App 和所有共用测试。它不跑 e2e（要真实数据和权限），所以阶段 1、2 的编译与单测由 CI 把关，e2e 和黄金输出在本机跑。
 - **cask**（`homebrew-tap`，token 不变）：
 
   ```ruby
   cask "apple-notes-mcp" do
-    version "0.2.0"
+    version "0.4.0"
     sha256 "…"
     url "https://github.com/xiaofeng-han/apple-mcp/releases/download/notes-v#{version}/AppleNotesMCP-#{version}.pkg"
     homepage "https://github.com/xiaofeng-han/apple-mcp/blob/main/docs/notes.md"
@@ -287,22 +299,22 @@ public protocol Component: Sendable {
 
 - **`swift test`**：
   - `AgentsTests`、`WireTests`、`NoteModelTests`：现有测试，夹具改用测试用 `Product`。
-  - `AppCoreTests`：模式分发（只看第一个词）；`Route` 的 `stdin`、`fallback`、`clears`；合一后的改写规则；`Commands.tree/help` 用注入的路由表；`Skill.text` 的命令参考（含 `update` 的那段逻辑）；`Settings` 在临时 `HOME` 下的路径与环境变量覆盖。
+  - `AppCoreTests`：模式分发（只看第一个词，含组件的 `privateModes`）；`Route` 的 `stdin`、`fallback`、`clears`；合一后的改写规则；`Commands.tree/help` 用注入的路由表；`Skill.text` 的命令参考（含 `update` 的那段逻辑）；`Settings` 在临时 `HOME` 下的路径与环境变量覆盖。
   - `NotesComponentTests`、`RemindersComponentTests`（`@MainActor`，用临时 `ComponentContext` 调 `makeTools`）：每条 route 和每个中文标题都指向真实存在的工具；工具名唯一；`Service` 的 `tools/list` 恰好是这个 App 的工具。
-- **黄金输出**：阶段 0 在两个旧仓库刚发版的提交上（Notes 0.2.0、Reminders 0.3.0）录下每个 App 的 `help`、每条命令的 `--help`、`skill`（固定的可执行文件路径）、`agents list` 与 `agents set-up --all` 写出的配置（临时 `HOME`）、`--self-check`（去掉随机器变的行）、`initialize` 与 `tools/list` 的 JSON。之后每个阶段重跑，必须逐字相同；这是「用户看不到变化」的证据。
-- **e2e**：`scripts/e2e.py notes|reminders [可执行文件]` 分发到 `scripts/e2e/{harness,notes,reminders}.py`。harness 启动 `[APP, "--stdio"]`，设 `<PREFIX>_WRITE_GUARD` 与 `_TOOLS_FILE`，提供 `rpc/notify/call/check`、`cli(…)`，以及 `tools.json` 变更通知检查和无状态协议检查（两个 `e2e.py` 现在各有一份几乎逐行相同的，合并后只写一份，参数是 App 的工具表和只读工具名）。`notes.py` 是 Notes 现在的检查（93 项），`reminders.py` 是 Reminders 现在的检查（167 项）；去掉共用部分后两边的项数会少一些，总数按实跑结果写进文档。
+- **黄金输出**：阶段 0 在两个旧仓库最后发版的提交上（Notes `v0.3.0` = `4e2c38e`、Reminders `v0.3.0` = `8038474`）录下每个 App 的 `help`、每条命令的 `--help`、`skill`（固定的可执行文件路径）、`agents list` 与 `agents set-up --all` 写出的配置（临时 `HOME`）、`--self-check`（去掉随机器变的行）、`initialize` 与 `tools/list` 的 JSON。之后每个阶段重跑，必须逐字相同；这是「用户看不到变化」的证据。
+- **e2e**：`scripts/e2e.py notes|reminders [可执行文件]` 分发到 `scripts/e2e/{harness,notes,reminders}.py`。harness 启动 `[APP, "--stdio"]`，设 `<PREFIX>_WRITE_GUARD` 与 `_TOOLS_FILE`，提供 `rpc/notify/call/check`、`cli(…)`，以及 `tools.json` 变更通知检查和无状态协议检查（两个 `e2e.py` 现在各有一份几乎逐行相同的，合并后只写一份，参数是 App 的工具表和只读工具名）。`notes.py` 是 Notes 现在的检查（145 项），`reminders.py` 是 Reminders 现在的检查（167 项）；去掉共用部分后两边的项数会少一些，总数按实跑结果写进文档。
 
 ## 9. 分阶段实施
 
-开始之前，先从两个旧仓库各发一次：Notes 0.2.0、Reminders 0.3.0（见「已定决策」）。之后每一阶段都能独立验证，阶段 4 之前不从新仓库发版。
+搬家前的两次发版已经做完（Notes 0.3.0、Reminders 0.3.0，见「已定决策」）。每一阶段都能独立验证；每个阶段以 PR 合入，`check.yml` 在 CI 上跑 `swift build`、`swift test`，e2e 与黄金输出在本机跑。阶段 4 之前不从新仓库发版。
 
 | 阶段 | 内容 | 验证 |
 |---|---|---|
-| 0 仓库与基准 | GitHub 改名 `apple-reminders-mcp` → `apple-mcp`；并入 Notes 历史，文件先放在 `incoming/notes/`，仍能单独构建（见附录）；在 0.2.0 / 0.3.0 发版的提交上录下黄金输出 | 两边仍能各自 `swift build`、跑 e2e；旧地址重定向 |
+| 0 仓库与基准 | GitHub 改名 `apple-reminders-mcp` → `apple-mcp`；并入 Notes 历史，文件先放在 `incoming/notes/`，仍能单独构建（见附录）；在 Notes `v0.3.0`（`4e2c38e`）、Reminders `v0.3.0`（`8038474`）上录下黄金输出；`check.yml` 随 Notes 一起进来 | 两边仍能各自 `swift build`、跑 e2e；旧地址重定向；CI 跑起来 |
 | 1 共享 target | 一个 `Package.swift`：`Wire`（取 Notes 版）、`Launcher`、`Agents`（按第 4 节参数化）共用；两个可执行文件暂时各自保留自己的 `App/`、`CLI/`，传入自己的 `Product` | `swift test`；两套 e2e；黄金输出逐字相同 |
 | 2 AppCore 与组件 | 命令行机制取并集、设置窗口、`AgentsCommand`、`AppMain`（RunLoop）、`Permission` 进 `AppCore`；产品代码变成 `NotesComponent`、`RemindersComponent`；`main.swift` 只剩一行 | `AppCoreTests` 与两个组件测试；两套 e2e（Reminders 第一次在 RunLoop 下跑）；黄金输出逐字相同；两个设置窗口中英文截图与重构前对比 |
-| 3 构建与发布 | 脚本带 App 参数、`Resources/<app>/`、tag 前缀、cask 的 `url`/`homepage`/`livecheck`、README 拆分 | 两个 pkg 都能建；本地 tap 装两个 cask；`brew audit --cask --strict`、`brew livecheck`；现有 agent 配置仍显示「已配置」 |
-| 4 发版 | 从新仓库分别发 Notes、Reminders 0.2.0 / 0.3.0 之后的下一个版本，更新两个 cask；`apple-notes-mcp` 改 README 后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载 |
+| 3 构建与发布 | 脚本带 App 参数（`release.sh` 也是，tag 带前缀）、两份 CHANGELOG、`Resources/<app>/`、cask 的 `url`/`homepage`/`livecheck`、README 拆分 | 两个 pkg 都能建；`release.sh --dry-run` 两个 App 都过；本地 tap 装两个 cask；`brew audit --cask --strict`、`brew livecheck`；现有 agent 配置仍显示「已配置」 |
+| 4 发版 | 从新仓库用 `release.sh` 分别发 Notes、Reminders 0.3.0 之后的下一个版本（`notes-v0.4.0`、`reminders-v0.4.0`），它顺带更新两个 cask；`apple-notes-mcp` 改 README 后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载 |
 
 ## 10. 风险与待定
 
@@ -310,9 +322,9 @@ public protocol Component: Sendable {
 - **R2 Reminders 改在 RunLoop 下跑**：服务器和命令行都要在真机上过一遍 `e2e.py reminders`（阶段 2）。
 - **R3 一个仓库发两个产品**：GitHub 的「Latest」在两个 App 之间跳；`livecheck` 要按 tag 前缀；release 列表混在一起。缓解见第 7 节，发布前用本地 tap 验证。
 - **R4 改底座要两个 App 一起验证**：每个改到底座的提交都要跑两套 e2e；某个 App 的发版会带上另一个 App 还没发的底座改动，各自从一个提交构建即可。
-- **R5 以后若要合成一个 App**：那仍是单向门（新 bundle id、重授权限、cask 改名），初稿里的设计（左栏切换 App、苹果加机器人的图标、`apple-mcp` 命令、1.0.0）留作那时的参考，见第 11 节。
+- **R5 以后若要合成一个 App**：那仍是单向门（新 bundle id、重授权限、cask 改名），初稿里的设计（左栏切换 App、苹果加机器人的图标、`apple-mcp` 命令、1.0.0）留作那时的参考，见第 11 节。那时还要处理两个 App 都有的 `manage_tag`：一个服务器里工具名不能重。
 - **待定**：无。
-- **已定（原待定）**：命令行、技能和工具标签页现在就从两个旧仓库各发一次（Notes 0.2.0、Reminders 0.3.0），再开始搬家（2026-10-21 定）。原先「不单独发版」是为了避免合并时多一次升级和迁移，本方案没有合并也没有迁移，这个理由不在了；之后的底座重构用户看不出来。另一个选项是等阶段 4 从新仓库一起发，没选。
+- **已定并已执行（原待定）**：命令行、技能和工具标签页先从两个旧仓库各发一次，再开始搬家（2026-10-21 定）；已发 Notes 0.2.0（10-21）、0.3.0（10-22）和 Reminders 0.3.0（10-21）。原先「不单独发版」是为了避免合并时多一次升级和迁移，本方案没有合并也没有迁移，这个理由不在了；之后的底座重构用户看不出来。
 
 ## 11. 初稿与当天决定的适用情况
 
@@ -328,12 +340,12 @@ public protocol Component: Sendable {
 | 数据、defaults、环境变量迁移；权限重授；旧 App 清理；cask 二合一 | 初稿 | **不适用**：没有迁移（第 6 节） |
 | Notes 也提供命令行与技能 | 10-21 | **适用**：PR #1 已实现，路由与技能正文搬进 `NotesComponent` |
 | 命令行机制取两边的并集 | 10-21 重扫 | **适用**（第 3 节） |
-| 合并前不单独发版，命令行等随 Apple MCP 1.0.0 发 | 10-21 | **不适用**：没有合并版。改为现在就从两个旧仓库各发一次（Notes 0.2.0、Reminders 0.3.0），见「已定决策」 |
+| 合并前不单独发版，命令行等随 Apple MCP 1.0.0 发 | 10-21 | **不适用**：没有合并版。改为先从两个旧仓库各发一次，已发 Notes 0.2.0、0.3.0 和 Reminders 0.3.0，见「已定决策」 |
 | 命令行不省略与组件同名的名词（`apple-mcp notes notes search`） | 10-21 | **不适用**：没有 `apple-mcp` 命令；`apple-notes-mcp notes search` 照旧 |
 | 完全磁盘访问的探测读 `TCC.db` | 10-21 | **适用**：底座的 `Permission` 用它；Notes 打不开自己的数据库时照旧报自己的错误 |
 | 设置窗口：左栏切换 App，右边显示所选 App 的设置 | 10-21 | **不适用**：每个 App 仍是自己的窗口和三个标签页；若以后合成一个 App，按这个布局做 |
 | 新图标：苹果背景，右下角是现在的机器人头像 | 10-21 | **不适用**：两个 App 保留现在的图标；以后合成一个 App 时再用 |
-| 版本从 1.0.0 开始 | 10-21 | **不适用**：各自接着自己的版本号（Notes 0.1.0 之后、Reminders 0.2.4 之后） |
+| 版本从 1.0.0 开始 | 10-21 | **不适用**：各自接着自己的版本号（Notes 0.3.0 之后、Reminders 0.3.0 之后） |
 
 ## 附录：仓库操作
 
@@ -351,7 +363,7 @@ git commit -m "Merge the history of apple-notes-mcp"
 # 3. 录黄金输出（第 8 节），再按 2.5 的映射表 git mv 到位，按阶段 1、2 抽出底座。
 
 # 4. 验证旧地址重定向（改名后）。
-curl -sIL https://github.com/xiaofeng-han/apple-reminders-mcp/releases/download/v0.2.4/AppleRemindersMCP-0.2.4.pkg | grep -i '^location'
+curl -sIL https://github.com/xiaofeng-han/apple-reminders-mcp/releases/download/v0.3.0/AppleRemindersMCP-0.3.0.pkg | grep -i '^location'
 
 # 5. 新仓库第一次发 Notes 之后：apple-notes-mcp 的 README 换成指向 apple-mcp 的说明，然后归档（Settings → Archive）。
 ```

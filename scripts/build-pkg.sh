@@ -1,15 +1,16 @@
 #!/bin/sh
 # Builds the installer package dist/AppleNotesMCP-<version>.pkg or dist/AppleRemindersMCP-<version>.pkg
-# (and its .sha256) from a fresh build-app.sh build, for a GitHub release:
+# and the zipped app dist/AppleNotesMCP-<version>.zip or dist/AppleRemindersMCP-<version>.zip (each
+# with its .sha256) from one fresh build-app.sh build, for a GitHub release:
 #
 #   scripts/build-pkg.sh notes|reminders
 #
 # Installing "for me only" puts the app in ~/Applications without an administrator password;
 # installing for all users puts it in /Applications. From the terminal:
 #   installer -pkg AppleNotesMCP-<version>.pkg -target CurrentUserHomeDirectory
-# The Homebrew casks (github.com/xiaofeng-han/homebrew-tap) install this same package with
-# `sudo installer -target /`, that is for all users, so the distribution must keep allowing the
-# local system domain. scripts/update-cask.sh points a cask at a new release.
+# The Homebrew casks (github.com/xiaofeng-han/homebrew-tap) install the zip: Homebrew moves the app
+# into /Applications itself, so it needs no administrator password, where installing the package
+# would take `sudo installer -target /`. scripts/update-cask.sh points a cask at a new release.
 #
 # The package itself is unsigned (there is no Developer ID); the app inside keeps the signature
 # build-app.sh gave it, so permissions granted to an earlier build still apply.
@@ -26,8 +27,9 @@ VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$RESOUR
 PKG_ID=$BUNDLE_ID.pkg
 WORK=dist/pkg-$APP_ID
 OUT=dist/$APP-$VERSION.pkg
+ZIP=dist/$APP-$VERSION.zip
 
-rm -rf "$WORK" "$OUT" "$OUT.sha256"
+rm -rf "$WORK" "$OUT" "$OUT.sha256" "$ZIP" "$ZIP.sha256"
 mkdir -p "$WORK/root" "$WORK/resources"
 ditto "dist/$APP.app" "$WORK/root/$APP.app"
 cp "$RESOURCES/Installer/conclusion.html" "$WORK/resources/"
@@ -61,3 +63,12 @@ productbuild --distribution "$WORK/distribution.xml" --resources "$WORK/resource
 
 (cd dist && shasum -a 256 "$(basename "$OUT")" > "$(basename "$OUT").sha256")
 echo "built $OUT"
+
+# The same app for the Homebrew casks, without extended attributes (the signature does not cover
+# them, and without them the zip has no __MACOSX folder). Check that it still verifies once
+# unpacked with unzip, as Homebrew unpacks it.
+ditto -c -k --keepParent --norsrc --noextattr --noacl "dist/$APP.app" "$ZIP"
+unzip -qq -o "$ZIP" -d "$WORK/unzipped"
+codesign --verify --strict "$WORK/unzipped/$APP.app"
+(cd dist && shasum -a 256 "$(basename "$ZIP")" > "$(basename "$ZIP").sha256")
+echo "built $ZIP"

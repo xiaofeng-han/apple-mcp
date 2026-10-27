@@ -5,13 +5,14 @@
 #
 #   scripts/update-cask.sh notes|reminders [TAP]
 #
-# It sets version and sha256, and keeps the cask pointed at this repository: the package under the
-# app's own tags (notes-v<version>, reminders-v<version>), the app's documentation as its homepage,
-# and livecheck reading only that app's tags. The casks' names, commands and everything else stay.
+# It sets version and sha256, and keeps the cask pointed at this repository: the zipped app under
+# the app's own tags (notes-v<version>, reminders-v<version>), the app's documentation as its
+# homepage, and livecheck reading only that app's tags. The casks' names, commands and everything
+# else stay. The cask must install the app with `app`, not the package with `pkg` (which needs sudo).
 #
 # Homebrew users pick up the cask from the tap's main branch on their next `brew update`, so the
-# package must already be on GitHub: the script first checks that the release is published and
-# serves the very file in dist/.
+# zip must already be on GitHub: the script first checks that the release is published and serves
+# the very file in dist/.
 set -eu
 APP_ID=${1:-}
 TAP=$(cd "${2:-$(dirname "$0")/../../homebrew-tap}" && pwd)
@@ -21,13 +22,17 @@ cd "$(dirname "$0")/.."
 FILE=Casks/$CASK.rb
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$RESOURCES/Info.plist")
 TAG=$TAG_PREFIX$VERSION
-PKG=$APP-$VERSION.pkg
-SHA=$(cut -d ' ' -f 1 "dist/$PKG.sha256")
+ZIP=$APP-$VERSION.zip
+SHA=$(cut -d ' ' -f 1 "dist/$ZIP.sha256")
 
+if ! grep -q "^  app \"$APP.app\"$" "$TAP/$FILE" || grep -q '^  pkg ' "$TAP/$FILE"; then
+  echo "error: $TAP/$FILE does not install $APP.app with app \"$APP.app\"" >&2
+  exit 1
+fi
 PUBLISHED=$(gh release view "$TAG" -R "$REPO" --json isDraft,assets \
-  --jq "if .isDraft then \"a draft (publish it first)\" else (.assets[] | select(.name == \"$PKG\") | .digest) end")
+  --jq "if .isDraft then \"a draft (publish it first)\" else (.assets[] | select(.name == \"$ZIP\") | .digest) end")
 if [ "$PUBLISHED" != "sha256:$SHA" ]; then
-  echo "error: release $TAG has no $PKG with sha256 $SHA (GitHub has: ${PUBLISHED:-none})" >&2
+  echo "error: release $TAG has no $ZIP with sha256 $SHA (GitHub has: ${PUBLISHED:-none})" >&2
   exit 1
 fi
 

@@ -59,10 +59,11 @@ jobs:
         run: |
           /usr/bin/python3 -I "$GITHUB_WORKSPACE/scripts/golden.py" check ${{ matrix.app }} \
             "$(swift build --show-bin-path)/${{ matrix.product }}" "$GITHUB_WORKSPACE/Tests/Golden/${{ matrix.app }}"
-      # Under a pseudo-terminal, so the output appears as it is written: on this runner swift test
-      # has printed nothing and run into the job's time limit, so the test that hangs is unknown.
+      # Under a pseudo-terminal, so the output appears as it is written. On this runner the tests
+      # have hung when run in parallel: every test starts and almost none finishes. One at a time
+      # (--no-parallel) for now, which also names the test that hangs, if one does by itself.
       - name: Test
         timeout-minutes: 10
         run: |
-          script -q /dev/null sh -c 'swift test --verbose; echo $? > "$RUNNER_TEMP/test-status"'
+          script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"

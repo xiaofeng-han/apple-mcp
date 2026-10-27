@@ -396,6 +396,29 @@ public protocol Component: Sendable {
 5. 合并 `homebrew-tap` 的 README PR 和 `apple-notes-mcp` 的说明 PR，再把 `apple-notes-mcp` 归档（Settings → General → Archive this repository）。
 6. 可选：`apple-mcp` 仓库的描述现在还是「MCP server for Apple Reminders on macOS via ReminderKit…」，可以改成两个 App 的说法。
 
+### 阶段 4 的结果（2026-10-27）
+
+在 Mac 上（macOS 27.0.1）做完，阶段 4 完成，搬家结束。
+
+| 步骤 | 结果 |
+|---|---|
+| 发版前 | 两个设置窗口中英文三个标签页由仓库主人看过；`release.sh --dry-run` 两个 App 都走完；包里 App 的签名要求、entitlements、Info.plist（除版本）与已装的 0.3.0 逐项相同，所以权限保留 |
+| Notes 0.4.0 | `notes-v0.4.0`（发版提交 `505a691`，tap `a801b7d`）。`release.sh` 在推送时停下：本地副本的 `origin` 是 HTTPS，git 没有可用的凭据，而 SSH 可用。照脚本的提示手动做完（推送、draft、核对 GitHub 上包的 sha256、发布、`update-cask.sh`），之后 `origin` 改成 SSH |
+| Reminders 0.4.0 | `reminders-v0.4.0`（`a4df837`，tap `cd4a816`），`release.sh` 一次走完 |
+| Notes 0.4.1 | `notes-v0.4.1`（`338b3b6`，tap `93f3fe2`），带上 `--list-json`：外部贡献 `apple-notes-mcp#5`，移植进 `NotesComponent`（#12，第一个提交保留原作者），补了 `ListJSON` 的单元测试（行、区域、函数覆盖率 100%，15 处变异都能抓到）和 2 项 e2e（Notes e2e 共 147 项）。测试中发现并修掉：备忘录用 U+2028 做段内换行，`JSONEncoder` 不转义它，按它断行的读取方会把一行切成两行，现在 U+2028、U+2029、NEL 都转义；只有空格的查询改为列出全部笔记 |
+| `main` 的保护 | 规则里有 update，发版提交和 PR 合并都是仓库主人身份绕过规则（`--admin`） |
+| cask | `update-cask.sh` 第一次把两个 cask 的 `url`、`homepage`、`livecheck` 改到 `apple-mcp`。`brew audit --cask --strict --online` 两个都过；`brew livecheck` 各自只匹配到自己前缀的 tag（`--debug` 里 Matched Versions 各一个，旧的 `v0.3.0` 不匹配） |
+| 本机升级 | `brew upgrade --cask apple-notes-mcp apple-reminders-mcp`：Notes 0.3.0 → 0.4.1，Reminders 0.3.0 → 0.4.0。签名证书不变，`--self-check` 显示完全磁盘访问、自动化、提醒事项权限都还在；`agents list` 里原来已配置的 agent 仍是「set up」 |
+| 旧 release 链接 | `apple-notes-mcp` 与 `apple-reminders-mcp` 的 `v0.3.0` 包地址都还能下载（200） |
+| 收尾 | `homebrew-tap#1` 合并；`apple-notes-mcp#5` 留言后合并（内容已在 #12）；`apple-notes-mcp#6` 并入 `main` 后解决冲突（保留删除）再合并，仓库只剩 README，描述改为指向 `apple-mcp`，已归档；`apple-mcp#3`（被 `release.sh` 取代）关闭；`apple-mcp` 的描述改为两个 App 的说法 |
+| 本机清理 | 删掉 `~/Applications/AppleRemindersMCP-dev.app`（0.2.4，移到废纸篓）、`~/` 卷上两条已无对应 App 的安装记录、`dist/` 里的构建；OpenCode 的 `apple-reminders` 原本指向已不存在的 `apple-reminders-mcp/dist/…`，用 `apple-reminders-mcp agents set-up opencode` 改回 Homebrew 的命令 |
+
+留给以后：
+
+- 两份 e2e 共用的 harness 仍各写一份（第 8 节），没合并。
+- `Sources/NotesComponent/Store/Organizer.swift:310` 那条多余 `?? 1` 的编译警告还在。
+- 一次 e2e 因 U+2028 中途崩掉、没走到清理，留下了「agent test」文件夹；下一次运行开头的清理把它删掉了。中途崩掉的检查不会自己清理，这是现有的设计。
+
 ## 10. 风险与待定
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。

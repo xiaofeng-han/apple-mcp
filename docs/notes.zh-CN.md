@@ -364,7 +364,7 @@ apple-notes-mcp --check-markdown                                # 每条笔记�
 
 GitHub 和 npm 上有大约五十个 Apple 备忘录的 MCP 服务器。下表选了功能最多的六个，另加语义搜索独一份的 disco-trooper。每一列按该项目 2026-10-22 的 README 自述填写，没有逐个安装验证，所以表格里写的是各项目自己的说法。✅ 有 · ⚠️ 部分或有条件 · ❌ 无 · – 它的 README 没提。
 
-| | **本项目 0.3** | [sweetrb](https://github.com/sweetrb/apple-notes-mcp) | [ailenshen](https://github.com/ailenshen/apple-notes-mcp) v2 | [PsychQuant](https://github.com/PsychQuant/che-apple-notes-mcp) | [notebridge](https://github.com/mqingcs/notebridge-Apple-Notes-MCP) | [evg4b](https://github.com/evg4b/apple-notes-mcp) | [TheInkedEngineer](https://github.com/TheInkedEngineer/apple-notes-mcp) | [disco-trooper](https://github.com/disco-trooper/apple-notes-mcp) |
+| | **本项目 0.4** | [sweetrb](https://github.com/sweetrb/apple-notes-mcp) | [ailenshen](https://github.com/ailenshen/apple-notes-mcp) v2 | [PsychQuant](https://github.com/PsychQuant/che-apple-notes-mcp) | [notebridge](https://github.com/mqingcs/notebridge-Apple-Notes-MCP) | [evg4b](https://github.com/evg4b/apple-notes-mcp) | [TheInkedEngineer](https://github.com/TheInkedEngineer/apple-notes-mcp) | [disco-trooper](https://github.com/disco-trooper/apple-notes-mcp) |
 |---|---|---|---|---|---|---|---|---|
 | 读出格式 | Markdown 全结构，含标签、笔记链接、分割线、高亮颜色 | HTML / 纯文本 / Markdown | Markdown | 文本 + HTML | 纯文本 / 导出 HTML | 纯文本（可要 HTML） | 纯文本 / Markdown / HTML | Markdown / HTML |
 | 勾选框真实状态（读） | ✅ | ✅ 需完全磁盘访问 | ✅ | – | ❌ | ❌ | ❌ | ❌ |
@@ -378,7 +378,7 @@ GitHub 和 npm 上有大约五十个 Apple 备忘录的 MCP 服务器。下表�
 | 多账户 · 标签 · 置顶 | 多账户路径区分，移动限同账户；标签读写、全库改名删；置顶；反向链接；最近删除 | 多账户参数；标签增删、置顶（Shortcuts） | – | 多账户参数；置顶 / 锁定筛选；共享面板 | – | 多账户参数 | 多账户参数 | – |
 | 版本冲突 / 备份 | ✅ 所有改动带版本；备份 20 份；预演 + 回读 | ✅ contentHash；备份 – | ✅ 整篇重写要版本 + 备份 | ⚠️ 进程内 undo / redo | ✅ expected_version + 备份 + restore | ❌ | ❌ | ❌ |
 | 工具开关 / 只读 | ✅ GUI + tools.json，实时 list_changed，约束命令行 | ⚠️ 本体无，派生版有 | ❌ | ❌ | ✅ 文件夹白名单；写入显式开启 | ✅ --scopes，默认只读 | ⚠️ 删文件夹要确认 | ✅ READONLY_MODE |
-| 命令行 / 技能 / 代理配置 | ✅ 每工具一命令；技能；7 家代理检测、配置、安装 | ⚠️ setup 子命令；插件带 skill；Broker.app | ❌ | ✅ --cli；插件斜杠命令 + skill | ❌ | ❌ | ❌ | ⚠️ 安装向导写 Claude Code 配置、选嵌入模型 |
+| 命令行 / 技能 / 代理配置 | ✅ 每工具一命令；给编辑器的 JSON 行（`--list-json`）；技能；7 家代理检测、配置、安装 | ⚠️ setup 子命令；插件带 skill；Broker.app | ❌ | ✅ --cli；插件斜杠命令 + skill | ❌ | ❌ | ❌ | ⚠️ 安装向导写 Claude Code 配置、选嵌入模型 |
 | 分发 | brew cask / pkg | npx / 插件市场 | npx | .mcpb / 二进制 / 插件市场 | 克隆 + pip | brew / 二进制（含 Intel） | brew | npm，要 Bun |
 
 别人有、本项目没有的：语义搜索，删除笔记里已有的附件，跨账户移动笔记，HTTP 传输，Intel Mac 和 macOS 26 以前的系统。

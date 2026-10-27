@@ -15,7 +15,7 @@
 
 本仓库原名 `apple-reminders-mcp`（旧链接会自动跳转到这里）。Apple Notes MCP 连同历史从 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) 搬了进来，两个 App 现在共用一套底座：MCP 服务器、命令行、设置窗口和 agent 配置只写一份。对用户没有变化：cask、命令、权限、设置和已配置的 agent 都和以前一样。
 
-两个 App 都从这里发版，每次发一个，tag 是 `notes-v<版本>` 或 `reminders-v<版本>`。Apple Notes MCP 0.1.0 到 0.3.0 是在 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases) 发的，Apple Reminders MCP 0.3.0 及以前在这里以 `v<版本>` 发。各自的更新记录在 [CHANGELOG-notes.md](CHANGELOG-notes.md) 和 [CHANGELOG-reminders.md](CHANGELOG-reminders.md)。
+两个 App 都从这里发版，每次发一个，tag 是 `notes-v<版本>` 或 `reminders-v<版本>`。Apple Notes MCP 0.1.0 到 0.3.0 是在 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases)（已归档）发的，Apple Reminders MCP 0.3.0 及以前在这里以 `v<版本>` 发。各自的更新记录在 [CHANGELOG-notes.md](CHANGELOG-notes.md) 和 [CHANGELOG-reminders.md](CHANGELOG-reminders.md)。
 
 ## 目录
 
@@ -32,7 +32,7 @@ swift build                                  # 两个 App：.build/debug/AppleNo
 swift test                                   # 共用底座和两个 App 的单元测试
 ./scripts/build-app.sh notes                 # 签好名的 dist/AppleNotesMCP.app（或 reminders）
 /usr/bin/python3 -I scripts/e2e.py notes     # 端到端检查，针对你真实的备忘录（或 reminders）
-scripts/release.sh --dry-run notes 0.4.0     # 演练发版：做到打包，然后撤销
+scripts/release.sh --dry-run notes <版本>    # 演练发版：做到打包，然后撤销
 ```
 
 每个 pull request 和每次推送到 `main`，都会在 GitHub 托管的 Mac 上构建两个 App，对照 `Tests/Golden` 检查用户和 agent 看到的东西（help、命令、技能、MCP 工具列表、agent 配置）没有变（`scripts/golden.py`），再跑单元测试。端到端检查要真实数据和 App 的权限，所以在发版前在 Mac 上跑。签名、打包、发版和测试覆盖范围的细节见各 App 的文档。

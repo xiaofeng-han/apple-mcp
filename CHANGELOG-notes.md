@@ -2,7 +2,19 @@
 
 Each `## <version>` section is that version's release note, exactly as `scripts/release.sh notes <version>` publishes it: the English part, a line `---`, then the Chinese part. The script puts the requirements and the install commands for that version between the two, so they are not written here. Write the section before running the script; it stops if there is none.
 
-From 0.4.0 on, Apple Notes MCP is released from this repository, tagged `notes-v<version>`. Releases 0.1.0 to 0.3.0 are on the [Releases of apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases), tagged `v<version>`; their notes (from 0.2.0) are kept below.
+From 0.4.0 on, Apple Notes MCP is released from this repository, tagged `notes-v<version>`. Releases 0.1.0 to 0.3.0 are on the [Releases of apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases) (archived), tagged `v<version>`; their notes (from 0.2.0) are kept below.
+
+## 0.4.1
+
+**What's new**
+
+- **A note list for editors and scripts.** `apple-notes-mcp --list-json [QUERY]` prints one JSON object per line, with each note's full `id`, `title`, `folder` and `modified`. Without a query it lists every note that is not locked, newest first. With one, it lists the search results, best match first and at most 100, each with a `snippet`. The text lists cut titles and shorten ids, but these values are whole, and a row stays on one line even when its title or snippet has a line break. Contributed by @DisturbedOcean for a Neovim picker (apple-notes-mcp#5).
+
+The MCP tools, the other commands and the skill are the same as in 0.4.0, so agents set up for it stay set up. Permissions granted to 0.4.0 still apply after upgrading.
+
+---
+
+**更新**：新增 `apple-notes-mcp --list-json [查询]`，给编辑器和脚本用。每行一个 JSON 对象，含笔记完整的 `id`、`title`、`folder` 和 `modified`。不带查询时列出所有没上锁的笔记，最新的在前；带查询时是搜索结果，最匹配的在前（最多 100 条），每条多一个 `snippet`。标题或摘要里有换行时，一条仍只占一行。由 @DisturbedOcean 为 Neovim 的选择器贡献（apple-notes-mcp#5）。MCP 工具、其他命令和技能与 0.4.0 相同，已配置的 agent 不用重新配置，已授予的权限仍然有效。需要 macOS 26 或更新、Apple 芯片。详见[文档（中文）](https://github.com/xiaofeng-han/apple-mcp/blob/notes-v0.4.1/docs/notes.zh-CN.md)。
 
 ## 0.4.0
 

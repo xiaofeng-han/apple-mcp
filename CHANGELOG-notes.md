@@ -4,6 +4,20 @@ Each `## <version>` section is that version's release note, exactly as `scripts/
 
 From 0.4.0 on, Apple Notes MCP is released from this repository, tagged `notes-v<version>`. Releases 0.1.0 to 0.3.0 are on the [Releases of apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases), tagged `v<version>`; their notes (from 0.2.0) are kept below.
 
+## 0.4.0
+
+**What's new**
+
+- **A new home.** Apple Notes MCP is now developed and released in [apple-mcp](https://github.com/xiaofeng-han/apple-mcp), together with Apple Reminders MCP, on one shared base: the server, the command line, the settings window and setting up agents are written once for both. The app itself stays as it was: the same command, cask, server name, tools, permissions and settings, and agents set up for 0.3.0 stay set up. `brew upgrade` moves to the releases there by itself.
+- **The Tools tab** shows `manage_tag` with its Chinese title, which it lacked.
+- **Setting up and installing agents** no longer risks waiting forever on a program that has already finished, which could happen when several ran at once.
+
+The MCP tools and commands are unchanged from 0.3.0. Permissions granted to 0.3.0 still apply after upgrading. Assistants started before the upgrade keep running the old server, so restart them once.
+
+---
+
+**更新**：Apple Notes MCP 搬到了 [apple-mcp](https://github.com/xiaofeng-han/apple-mcp)，和 Apple Reminders MCP 一起开发和发布，共用一套底座（服务器、命令行、设置窗口和 agent 配置只写一份）。App 本身不变：命令、cask、服务器名、工具、权限和设置都和以前一样，为 0.3.0 配置好的 agent 不用重新配置，`brew upgrade` 会自动改从新仓库下载。「工具」标签页补上了 `manage_tag` 的中文标题。配置和安装 agent 时，不会再因为同时跑了几个程序而一直等一个早已结束的程序。MCP 工具和命令与 0.3.0 相同，已授予的权限仍然有效；升级前启动的助手要重启一次。需要 macOS 26 或更新、Apple 芯片。详见[文档（中文）](https://github.com/xiaofeng-han/apple-mcp/blob/notes-v0.4.0/docs/notes.zh-CN.md)。
+
 ## 0.3.0
 
 **What's new**

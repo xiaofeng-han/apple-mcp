@@ -157,7 +157,7 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
             - `items list`: List the items.
             """))
         #expect(text.contains("\n### boxes\n"))
-        #expect(text.hasSuffix("\n\n"))
+        #expect(text.hasSuffix("- `boxes show`: Show everything.\n"))
     }
 
     @Test func quotesACommandWithSpaces() {

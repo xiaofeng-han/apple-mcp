@@ -42,62 +42,10 @@ jobs:
           bin=$(swift build --show-bin-path)
           /usr/bin/python3 -I scripts/golden.py check notes "$bin/AppleNotesMCP" Tests/Golden/notes
           /usr/bin/python3 -I scripts/golden.py check reminders "$bin/AppleRemindersMCP" Tests/Golden/reminders
-      # Under a pseudo-terminal, so the output appears as it is written. One at a time: on this
-      # runner the tests hang when run in parallel (see the parallel-tests job below).
+      # Under a pseudo-terminal, so the output appears as it is written, and with a time limit, so a
+      # test that hangs fails the check in minutes and the log shows where it stopped.
       - name: Test
         timeout-minutes: 10
         run: |
-          script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
+          script -q /dev/null sh -c 'swift test; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"
-
-  # Diagnosis only, never fails the check: runs the tests in parallel, as `swift test` does by
-  # default, with a time limit each. In parallel, AgentsTests hung on this runner whenever
-  # stopsWhatRunsTooLong and runsWithoutATerminal ran (Shell.runSync waited for its program on a
-  # global queue that the blocked test threads starved); Shell.runSync now waits on a thread of its
-  # own. This checks that AgentsTests, and then all the tests, pass in parallel, several times.
-  parallel-tests:
-    runs-on: macos-26
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Select Xcode
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
-      - name: Build the tests
-        run: swift build --build-tests
-      - name: Tests in parallel, 90 seconds each
-        continue-on-error: true
-        run: |
-          while read -r label arguments; do
-            echo "::group::$label"
-            /usr/bin/python3 -I - "$label" $arguments <<'EOF'
-          import os, pty, select, signal, subprocess, sys, time
-          label, arguments = sys.argv[1], sys.argv[2:]
-          leader, follower = pty.openpty()
-          process = subprocess.Popen(["swift", "test", "--skip-build", *arguments], stdout=follower, stderr=follower,
-                                     stdin=subprocess.DEVNULL, start_new_session=True)
-          os.close(follower)
-          deadline, finished = time.time() + 90, 0
-          while time.time() < deadline and process.poll() is None:
-              if select.select([leader], [], [], 1)[0]:
-                  try:
-                      chunk = os.read(leader, 65536).decode(errors="replace")
-                  except OSError:
-                      break
-                  sys.stdout.write(chunk)
-                  finished += chunk.count("✔ Test ") + chunk.count("✘ Test ")
-          if process.poll() is None:
-              os.killpg(process.pid, signal.SIGKILL)
-              print(f"\nRESULT {label}: hung, {finished} tests finished in 90 seconds")
-          else:
-              print(f"\nRESULT {label}: exit status {process.returncode}, {finished} tests finished")
-          EOF
-            echo "::endgroup::"
-          done <<'LIST'
-          AgentsTests-1 --filter AgentsTests
-          AgentsTests-2 --filter AgentsTests
-          AgentsTests-3 --filter AgentsTests
-          all-tests-1
-          all-tests-2
-          LIST

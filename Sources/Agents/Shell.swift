@@ -151,7 +151,11 @@ public enum Shell {
         let finished = DispatchSemaphore(value: 0)
         let status = Status()
         let child = pid
-        DispatchQueue.global().async {
+        // The wait for the program gets a thread of its own. The caller blocks its thread until
+        // then, and callers run on the few threads of the cooperative pool (Shell.run, tests): a
+        // block queued on a global queue may then never get a thread, and the caller waits forever
+        // for a program that has long ended (as AgentsTests did on a 3-core CI runner).
+        Thread.detachNewThread {
             var code: Int32 = 0
             while waitpid(child, &code, 0) < 0, errno == EINTR {}
             status.code = code

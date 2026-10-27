@@ -50,11 +50,11 @@ jobs:
           script -q /dev/null sh -c 'swift test --no-parallel --verbose; echo $? > "$RUNNER_TEMP/test-status"'
           exit "$(cat "$RUNNER_TEMP/test-status")"
 
-  # Diagnosis only, never fails the check: runs parts of the tests in parallel, as `swift test` does
-  # by default, with a time limit each. The last run found NoteModelTests and WireTests pass in
-  # parallel and AgentsTests hang (no test finishing in 90 seconds, pure parsing tests included), so
-  # this narrows AgentsTests down: suite by suite, and without the test that changes HOME while
-  # other tests run.
+  # Diagnosis only, never fails the check: runs the tests in parallel, as `swift test` does by
+  # default, with a time limit each. In parallel, AgentsTests hung on this runner whenever
+  # stopsWhatRunsTooLong and runsWithoutATerminal ran (Shell.runSync waited for its program on a
+  # global queue that the blocked test threads starved); Shell.runSync now waits on a thread of its
+  # own. This checks that AgentsTests, and then all the tests, pass in parallel, several times.
   parallel-tests:
     runs-on: macos-26
     timeout-minutes: 20
@@ -66,7 +66,7 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
       - name: Build the tests
         run: swift build --build-tests
-      - name: Parts of AgentsTests in parallel, 60 seconds each
+      - name: Tests in parallel, 90 seconds each
         continue-on-error: true
         run: |
           while read -r label arguments; do
@@ -78,7 +78,7 @@ jobs:
           process = subprocess.Popen(["swift", "test", "--skip-build", *arguments], stdout=follower, stderr=follower,
                                      stdin=subprocess.DEVNULL, start_new_session=True)
           os.close(follower)
-          deadline, finished = time.time() + 60, 0
+          deadline, finished = time.time() + 90, 0
           while time.time() < deadline and process.poll() is None:
               if select.select([leader], [], [], 1)[0]:
                   try:
@@ -89,18 +89,15 @@ jobs:
                   finished += chunk.count("✔ Test ") + chunk.count("✘ Test ")
           if process.poll() is None:
               os.killpg(process.pid, signal.SIGKILL)
-              print(f"\nRESULT {label}: hung, {finished} tests finished in 60 seconds")
+              print(f"\nRESULT {label}: hung, {finished} tests finished in 90 seconds")
           else:
               print(f"\nRESULT {label}: exit status {process.returncode}, {finished} tests finished")
           EOF
             echo "::endgroup::"
           done <<'LIST'
-          JSONTextTests --filter JSONTextTests
-          TOMLTextTests --filter TOMLTextTests
-          SkillTests --filter SkillTests
-          RegistrationTests --filter RegistrationTests
-          InstallerChoiceTests --filter InstallerChoiceTests
-          InstallerChoiceTests-without-HOME-test --filter InstallerChoiceTests --skip shortensOnlyTheAccountsOwnHome
-          AgentsTests-without-HOME-test --filter AgentsTests --skip shortensOnlyTheAccountsOwnHome
-          AgentsTests-without-process-tests --filter AgentsTests --skip stopsWhatRunsTooLong|runsWithoutATerminal
+          AgentsTests-1 --filter AgentsTests
+          AgentsTests-2 --filter AgentsTests
+          AgentsTests-3 --filter AgentsTests
+          all-tests-1
+          all-tests-2
           LIST

@@ -10,15 +10,18 @@ import Wire
 final class ToolsState: ObservableObject {
     /// By name, so the order never changes.
     let tools: [Tool]
-    let exposure = Settings.exposure
+    /// The tools' titles in Chinese; the English ones are what agents see.
+    let chineseTitles: [String: String]
+    let exposure = AppSettings.exposure
     @Published private(set) var choices: [String: Bool] = [:]
     /// Why the file can't be read; no tool is offered then.
     @Published private(set) var unreadable: ToolExposure.Unreadable?
     @Published private(set) var saveError: String?
     private var watch: FileWatch?
 
-    init(tools: [Tool]) {
+    init(tools: [Tool], chineseTitles: [String: String]) {
         self.tools = tools.sorted { $0.name < $1.name }
+        self.chineseTitles = chineseTitles
         reload()
         watch = FileWatch(exposure.file) { [weak self] in
             Task { @MainActor in self?.reload() }
@@ -72,7 +75,7 @@ struct ToolsView: View {
         Form {
             Section {
                 ForEach(tools.tools, id: \.name) { tool in
-                    ToolRow(tool: tool, state: state, isOn: tools.binding(tool))
+                    ToolRow(tool: tool, chineseTitle: tools.chineseTitles[tool.name], state: state, isOn: tools.binding(tool))
                 }
                 .disabled(tools.unreadable != nil)
             } header: {
@@ -121,7 +124,8 @@ struct ToolsView: View {
                 Text(state.text("Saving failed: \(saveError)", "保存失败：\(saveError)")).foregroundStyle(.red).textSelection(.enabled)
             }
             if tools.unreadable == nil && tools.offeredCount == 0 {
-                Text(state.text("With no tools, AI assistants can't use Reminders at all.", "一个工具都不开，AI 助手就完全用不了提醒事项。"))
+                let product = Product.current
+                Text(state.text("With no tools, AI assistants can't use \(product.subject) at all.", "一个工具都不开，AI 助手就完全用不了\(product.chineseSubject)。"))
                     .foregroundStyle(.secondary)
             }
         }
@@ -143,6 +147,7 @@ struct ToolsView: View {
 
 struct ToolRow: View {
     let tool: Tool
+    let chineseTitle: String?
     @ObservedObject var state: PanelState
     let isOn: Binding<Bool>
 
@@ -152,7 +157,7 @@ struct ToolRow: View {
                 HStack(spacing: 8) {
                     Text(tool.name).font(.body.monospaced())
                     Spacer(minLength: 8)
-                    Text(state.language == .chinese ? Self.chineseTitles[tool.name] ?? tool.title : tool.title)
+                    Text(state.language == .chinese ? chineseTitle ?? tool.title : tool.title)
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
@@ -173,24 +178,4 @@ struct ToolRow: View {
             .padding(.horizontal, 5).padding(.vertical, 1)
             .background(.quaternary, in: Capsule())
     }
-
-    /// The tools' titles in Chinese; the English ones are what agents see.
-    static let chineseTitles = [
-        "create_reminder": "新建提醒",
-        "delete_reminder": "删除提醒",
-        "find_reminders": "查找提醒",
-        "get_reminder": "读取一条提醒",
-        "list_deleted": "列出最近删除的提醒",
-        "list_lists": "列出提醒清单",
-        "list_tags": "列出标签",
-        "manage_group": "新建、重命名或删除清单分组",
-        "manage_list": "新建、修改或删除清单",
-        "manage_section": "新建、重命名、移动或删除分区",
-        "manage_smart_list": "新建、修改或删除智能清单",
-        "manage_tag": "重命名或删除标签",
-        "manage_template": "存为、使用或删除清单模板",
-        "read_image": "查看提醒上的图片",
-        "restore_reminder": "恢复已删除的提醒",
-        "update_reminder": "修改提醒",
-    ]
 }

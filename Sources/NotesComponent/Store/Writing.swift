@@ -1,3 +1,4 @@
+import AppCore
 import CoreData
 import Foundation
 import NoteModel
@@ -259,7 +260,7 @@ extension NotesStore {
     /// Keeps the last 20 copies of a note's stored body, so any write can be undone by hand.
     private func backUp(_ note: NSManagedObject, id: String) throws(NotesError) {
         guard let data = (note.get("noteData") as? NSManagedObject)?.get("data") as? Data else { return }
-        let folder = Settings.supportDirectory.appendingPathComponent("backups/\(id)", isDirectory: true)
+        let folder = AppSettings.supportDirectory.appendingPathComponent("backups/\(id)", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")

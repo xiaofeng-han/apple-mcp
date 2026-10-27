@@ -1,3 +1,4 @@
+import AppCore
 import Foundation
 
 /// What this server deleted, so list_deleted can show it and restore_reminder can put it back in
@@ -17,7 +18,7 @@ final class DeletionLog: @unchecked Sendable {
     private let url: URL
     private let lock = NSLock()
 
-    init(url: URL = Settings.supportDirectory.appendingPathComponent("deleted.json")) {
+    init(url: URL = AppSettings.supportDirectory.appendingPathComponent("deleted.json")) {
         self.url = url
     }
 

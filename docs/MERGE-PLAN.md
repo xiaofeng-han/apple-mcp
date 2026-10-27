@@ -349,7 +349,21 @@ public protocol Component: Sendable {
 
 本地（Linux 容器）只能用 `swiftc -parse` 做语法检查，编译和测试靠 CI。
 
+### 阶段 2 的进度（2026-10-27）
 
+| 步骤 | 状态 |
+|---|---|
+| `AppCore` | **已做**：`AppMain`（按第一个词分发模式、relaunch、RunLoop 版 `runThenExit`、`--self-check` 与 `--version` 的共用部分）、`Component` 协议、`AppSettings`（支持目录、`tools.json`、语言；不叫 `Settings`，因为 SwiftUI 也有一个）、命令行（`Route`、`CLI`、`Commands`、`Skill`）、设置窗口（窗口与菜单、AI 助手页、工具页、语言）、`AgentsCommand` |
+| 命令行取并集 | **已做**：`Route` 有了 `stdin`、`fallback`、`clears` 和 `output`（保存到哪里的那个 flag）。各 App 的措辞放在 `CLI` 里：`setup` 那一行、`--no-NAME` 是否也清空字段、「answer」还是「JSON answer」、「Every … command」里的名词、保存方式（Notes 把图片、音频、文件都存进一个文件夹，Reminders 只把图片存成一个文件）。还有一处方案没写到：技能里是否列出必填的 flag（Notes 不列，Reminders 列并标 `(required)`），由 `skillListsRequired` 决定。改写规则合一（第 3 节），对两边的路由表，结果和原来一样 |
+| 两个组件 | **已做**：`NotesComponent`、`RemindersComponent` 是库 target，各自的 `Store`、`Tools`、路由表、技能正文、「通用」页的权限与设置都在里面；两个 `main.swift` 都只剩 `AppMain.run(…Component.self)` |
+| 与第 2.2 节的差异 | ① `AppMain.run` 接收组件的类型，而不是值，这样在组件建 store 之前 `Product.current` 已经设好；`ComponentContext` 只剩 `version` 和 `writeGuard`，支持目录和 `tools.json` 由 `AppSettings` 按 `Product.current` 给出。② `Permission` 没有抽进 `AppCore`：完全磁盘访问的探测和自动化只有 Notes 在用；Reminders 的「可选完全磁盘访问」看的是能不能读它自己的数据库。两者都留在各自的组件里，等第三个 App 需要时再抽。改 Notes 的探测方式会改变它的行为，而阶段 2 不改行为。③ 去掉了 `opensSettingsOnMissingPermission`：两个 App 的服务器今天都不会打开设置窗口。④ 组件的静态部分（`product`、`cli`、中文标题、技能正文）是 `nonisolated` 的，技能文本在哪个线程都能生成，所以 `agents` 命令仍和以前一样不在主线程上跑 |
+| 用户看得到的变化 | 只有一处：Notes 工具页里的 `manage_tag` 以前没有中文标题，中文界面显示的是英文，现在补上「重命名或删除标签」，新测试保证每个工具都有中文标题。其余（`help`、技能、MCP、`agents` 的输出）由黄金输出逐字比对 |
+| Reminders 改在 RunLoop 下跑 | **已改**（R2）：服务器、命令行和 `--self-check` 都经过 `runThenExit`；要在 Mac 上跑 e2e 确认 |
+| 测试 | **已加**。`AppCoreTests`：模式分发、改写规则、`clears`、命令树的措辞、技能的 frontmatter、正文和必填 flag。`NotesComponentTests`、`RemindersComponentTests`：工具名不重复；每条命令都指向真实的工具，而且只用它的字段；每个工具都有中文标题；默认动词都有对应的命令；身份字串正确 |
+| 设置窗口截图对比 | **待做，要在 Mac 上**：两个 App、中英文、三个标签页 |
+| e2e | **待做，要在 Mac 上**（命令同阶段 1） |
+
+## 10. 风险与待定
 
 - **R1 用户可见文字漂移**：把代码搬进底座时，`help`、技能、写进 agent 的配置只要差一个字，已配置的 agent 和技能就会显示「更新」。缓解：黄金输出逐字比对，每个阶段都跑。
 - **R2 Reminders 改在 RunLoop 下跑**：服务器和命令行都要在真机上过一遍 `e2e.py reminders`（阶段 2）。

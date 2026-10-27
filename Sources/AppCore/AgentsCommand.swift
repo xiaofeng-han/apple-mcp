@@ -7,11 +7,18 @@ import Foundation
 ///     apple-notes-mcp agents set-up ID… | --all registers the server with them
 ///     apple-notes-mcp agents install ID…        installs them, then registers the server
 ///
+/// (apple-reminders-mcp alike.)
+///
 /// `--skill` sets up the skill instead of the server: in each agent's own skills folder, or, with
 /// `--folder DIR` (which implies --skill), in that project. `--restart` lets set-up quit and
 /// reopen an app that must be closed while its settings change (Claude); `--dry-run` makes install
 /// only say what it would do.
-enum AgentsCommand {
+struct AgentsCommand {
+    let version: String
+    /// The skill for a copy of the app.
+    let skill: @Sendable (Installation) -> String
+    var program = Product.current.command
+
     /// What set-up writes: the server's entry in the agent's settings, or the skill, globally or in
     /// a project folder.
     enum Mode {
@@ -19,7 +26,7 @@ enum AgentsCommand {
         case skill(folder: URL?)
     }
 
-    static func run(_ arguments: [String]) async -> Int32 {
+    func run(_ arguments: [String]) async -> Int32 {
         var arguments = arguments
         var folder: URL?
         if let index = arguments.firstIndex(where: { $0 == "--folder" || $0.hasPrefix("--folder=") }) {
@@ -60,18 +67,18 @@ enum AgentsCommand {
         }
     }
 
-    static func usage() -> Int32 {
+    func usage() -> Int32 {
         print("""
-            usage: apple-notes-mcp agents [list] [--skill] [--folder DIR]
-                   apple-notes-mcp agents set-up (ID... | --all) [--restart] [--skill] [--folder DIR]
-                   apple-notes-mcp agents install ID... [--dry-run] [--restart] [--skill] [--folder DIR]
+            usage: \(program) agents [list] [--skill] [--folder DIR]
+                   \(program) agents set-up (ID... | --all) [--restart] [--skill] [--folder DIR]
+                   \(program) agents install ID... [--dry-run] [--restart] [--skill] [--folder DIR]
             --skill sets up the skill instead of the server; --folder puts it in that project.
             IDs: \(Agent.all.map(\.id).joined(separator: ", "))
             """)
         return 2
     }
 
-    static func pick(_ ids: [String]) -> [Agent]? {
+    func pick(_ ids: [String]) -> [Agent]? {
         var agents: [Agent] = []
         for id in ids {
             guard let agent = Agent.all.first(where: { $0.id == id }) else {
@@ -83,7 +90,7 @@ enum AgentsCommand {
         return agents
     }
 
-    static func describe(_ installation: Installation) -> String {
+    func describe(_ installation: Installation) -> String {
         switch installation.method {
         case .homebrew: "installed with Homebrew"
         case .package(let allUsers): allUsers ? "installed from the package for all users" : "installed from the package for this user"
@@ -91,8 +98,8 @@ enum AgentsCommand {
         }
     }
 
-    static func list(_ installation: Installation, _ mode: Mode) {
-        print("Apple Notes MCP \(version), \(describe(installation)).")
+    func list(_ installation: Installation, _ mode: Mode) {
+        print("\(Product.current.name) \(version), \(describe(installation)).")
         switch mode {
         case .server:
             print("Agents start: \(installation.command) \(installation.arguments.joined(separator: " "))\n")
@@ -100,7 +107,7 @@ enum AgentsCommand {
             print("The skill runs: \(installation.command)")
             print("Skills go in: \(folder.map { "\(Shell.abbreviate($0.path)) (in .claude/skills or .agents/skills)" } ?? "each agent's own skills folder")\n")
         }
-        let skill = Skill.text(for: installation)
+        let skill = self.skill(installation)
         for agent in Agent.all {
             let id = agent.id.padding(toLength: 17, withPad: " ", startingAt: 0)
             switch agent.locate() {
@@ -117,7 +124,7 @@ enum AgentsCommand {
         }
     }
 
-    static func status(_ agent: Agent, _ installation: Installation) -> String {
+    func status(_ agent: Agent, _ installation: Installation) -> String {
         guard let target = agent.target else { return "cannot use local servers" }
         switch target.registration(for: installation) {
         case .current: return "set up"
@@ -130,7 +137,7 @@ enum AgentsCommand {
         }
     }
 
-    static func skillStatus(_ agent: Agent, _ installation: Installation, _ skill: String, folder: URL?) -> String {
+    func skillStatus(_ agent: Agent, _ installation: Installation, _ skill: String, folder: URL?) -> String {
         guard let target = agent.skills else { return "cannot run commands on this Mac" }
         let file = Shell.abbreviate(target.file(project: folder).path)
         switch target.registration(of: skill, project: folder) {
@@ -145,7 +152,7 @@ enum AgentsCommand {
         }
     }
 
-    static func setUp(_ agents: [Agent], _ installation: Installation, _ mode: Mode, all: Bool, mayQuit: Bool) async -> Int32 {
+    func setUp(_ agents: [Agent], _ installation: Installation, _ mode: Mode, all: Bool, mayQuit: Bool) async -> Int32 {
         guard case .server = mode else { return setUpSkill(agents, installation, mode, all: all) }
         var failed = false
         var done = Set<ConfigTarget>()
@@ -192,9 +199,9 @@ enum AgentsCommand {
     }
 
     /// Writes the skill where each agent reads it, each file once.
-    static func setUpSkill(_ agents: [Agent], _ installation: Installation, _ mode: Mode, all: Bool) -> Int32 {
+    func setUpSkill(_ agents: [Agent], _ installation: Installation, _ mode: Mode, all: Bool) -> Int32 {
         guard case .skill(let folder) = mode else { return 2 }
-        let skill = Skill.text(for: installation)
+        let skill = self.skill(installation)
         var failed = false
         var done = Set<String>()
         for agent in agents {
@@ -238,7 +245,7 @@ enum AgentsCommand {
         return failed ? 1 : 0
     }
 
-    static func hint(_ agent: Agent, restarted: Bool) -> String {
+    func hint(_ agent: Agent, restarted: Bool) -> String {
         switch agent.reload {
         case .newSession: "New sessions will have it."
         case .restart where agent.isOpen: "Restart \(agent.name) to load it."
@@ -246,7 +253,7 @@ enum AgentsCommand {
         }
     }
 
-    static func install(_ agents: [Agent], _ installation: Installation, _ mode: Mode, dryRun: Bool, mayQuit: Bool) async -> Int32 {
+    func install(_ agents: [Agent], _ installation: Installation, _ mode: Mode, dryRun: Bool, mayQuit: Bool) async -> Int32 {
         var failed = false
         for agent in agents {
             if case .installed(let path, _) = agent.locate() {

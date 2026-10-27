@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-> **本仓库正在变成 `apple-mcp`**：在同一个共用底座上出 Apple Reminders MCP 和 [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) 两个 App（[方案](docs/MERGE-PLAN.md)）。对用户没有变化：每个 App 的名字、命令、cask 和权限都不变。搬家期间，Notes 的代码在 `incoming/notes/` 下，Apple Notes MCP 仍从它自己的仓库发版。
+> **本仓库已改名为 `apple-mcp`**（原名 `apple-reminders-mcp`，旧链接会自动跳转到这里），之后在同一个共用底座上出 Apple Reminders MCP 和 [Apple Notes MCP](https://github.com/xiaofeng-han/apple-notes-mcp) 两个 App（[方案](docs/MERGE-PLAN.md)）。对用户没有变化：每个 App 的名字、命令、cask 和权限都不变。搬家期间，Notes 的代码在 `incoming/notes/` 下，Apple Notes MCP 仍从它自己的仓库发版。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 

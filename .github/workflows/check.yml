@@ -1,5 +1,6 @@
 # Builds and runs the unit tests for every pull request and every push to main, on a GitHub-hosted
-# Mac. It uses no secrets: releases are signed and published from a Mac.
+# Mac, and checks that what users and agents see has not changed (scripts/golden.py against
+# Tests/Golden). It uses no secrets: releases are signed and published from a Mac.
 # scripts/e2e.py is not run here, since it needs real Notes or Reminders data and the apps' permissions.
 #
 # While the repositories are being merged (docs/MERGE-PLAN.md), Apple Notes MCP is its own package
@@ -30,8 +31,10 @@ jobs:
         include:
           - app: reminders
             path: .
+            product: AppleRemindersMCP
           - app: notes
             path: incoming/notes
+            product: AppleNotesMCP
     defaults:
       run:
         working-directory: ${{ matrix.path }}
@@ -51,3 +54,8 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+      # Without Tests/Golden/<app> yet, this prints the recording to the log instead, to be committed.
+      - name: Golden outputs
+        run: |
+          /usr/bin/python3 -I "$GITHUB_WORKSPACE/scripts/golden.py" check ${{ matrix.app }} \
+            "$(swift build --show-bin-path)/${{ matrix.product }}" "$GITHUB_WORKSPACE/Tests/Golden/${{ matrix.app }}"

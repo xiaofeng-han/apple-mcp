@@ -204,7 +204,7 @@ public protocol Component: Sendable {
 | `Tests/AgentsTests/*`、`Tests/WireTests/*` | 两边只差产品字串，取 Reminders，夹具用一个测试用 `Product` |
 | `Tests/NoteModelTests/*` | Notes |
 | `Tests/AppCoreTests/*`、`Tests/NotesComponentTests/*`、`Tests/RemindersComponentTests/*` | 新写 |
-| `Tests/Golden/{notes,reminders}/*` | 阶段 0 录下的黄金输出（第 8 节） |
+| `Tests/Golden/{notes,reminders}/*`、`scripts/golden.py` | 阶段 0 录下的黄金输出与录制脚本（第 8 节） |
 | `Resources/Notes/*`、`Resources/Reminders/*` | 两边各自的 `Resources/*` 原样搬过去 |
 | `scripts/{build-app,build-pkg,update-cask,release}.sh` | 合成一份，第一个参数是 `notes` 或 `reminders`（第 7 节）；`release.sh` 来自 Notes |
 | `CHANGELOG-notes.md`、`CHANGELOG-reminders.md` | Notes 现有的 `CHANGELOG.md`（先补上 0.3.0 一节）；Reminders 的新建，以前的 release 说明留在 GitHub Releases 上 |
@@ -316,16 +316,16 @@ public protocol Component: Sendable {
 | 3 构建与发布 | 脚本带 App 参数（`release.sh` 也是，tag 带前缀）、两份 CHANGELOG、`Resources/<app>/`、cask 的 `url`/`homepage`/`livecheck`、README 拆分 | 两个 pkg 都能建；`release.sh --dry-run` 两个 App 都过；本地 tap 装两个 cask；`brew audit --cask --strict`、`brew livecheck`；现有 agent 配置仍显示「已配置」 |
 | 4 发版 | 从新仓库用 `release.sh` 分别发 Notes、Reminders 0.3.0 之后的下一个版本（`notes-v0.4.0`、`reminders-v0.4.0`），它顺带更新两个 cask；`apple-notes-mcp` 清空到只剩一个指向新仓库的 `README.md`，然后归档 | 两个 cask 都能 `brew upgrade`；旧 release 链接仍能下载；旧仓库首页只剩那一页说明 |
 
-### 阶段 0 的进度（2026-10-27）
+### 阶段 0 的进度（2026-10-27，改名后更新）
 
 | 步骤 | 状态 |
 |---|---|
-| 并入 Notes 历史 | **已做**，在 `apple-reminders-mcp` 的分支 `claude/merge-notes-reminders-mcp-bc72bx` 上，还没合入 `main`。并入的是 `apple-notes-mcp` 里放这份方案的分支（`340668f`），它包含 Notes `main` 的全部提交（`4b279db`，0.3.0），所以方案文件连同历史一起进来了。合并后 `incoming/notes/` 与那个分支逐字节相同，`incoming/` 以外的文件除下面三项外没动 |
-| 方案与 CI 移到仓库根目录 | **已做**：`docs/MERGE-PLAN.md`（本文件）；`.github/workflows/check.yml` 改成矩阵，在 macOS runner 上分别对根目录（Reminders）和 `incoming/notes`（Notes）跑 `swift build`、`swift test`。它只在 PR 和 `main` 的推送上跑 |
+| 并入 Notes 历史 | **已做**，在 `apple-mcp`（原 `apple-reminders-mcp`）的分支 `claude/merge-notes-reminders-mcp-bc72bx` 上，还没合入 `main`。并入的是 `apple-notes-mcp` 里放这份方案的分支（`340668f`），它包含 Notes `main` 的全部提交（`4b279db`，0.3.0），所以方案文件连同历史一起进来了。合并后 `incoming/notes/` 与那个分支逐字节相同，`incoming/` 以外的文件除下面三项外没动 |
+| 方案与 CI 移到仓库根目录 | **已做**：`docs/MERGE-PLAN.md`（本文件）；`.github/workflows/check.yml` 改成矩阵，在 macOS runner 上分别对根目录（Reminders）和 `incoming/notes`（Notes）跑 `swift build`、`swift test` 和黄金输出比对。它只在 PR 和 `main` 的推送上跑 |
 | README 说明 | **已做**：两个 README 开头加了一段，说明仓库正在变成 `apple-mcp`、Notes 暂在 `incoming/notes/`、对用户没有变化 |
-| GitHub 上改名为 `apple-mcp` | **待做，要仓库主人在网页上做**（Settings → General → Repository name）；改名前后分支和提交都不受影响。改完用附录第 4 步验证旧下载地址重定向 |
-| 录黄金输出 | **待做，要在 Mac 上做**：需要 macOS、构建好的两个 App 和它们的权限 |
-| 两边各自构建、跑 e2e | CI 覆盖 `swift build`、`swift test`（开 PR 后跑）；e2e 要在 Mac 上跑 |
+| GitHub 上改名为 `apple-mcp` | **已做**（仓库主人在网页上改的）。已验证：旧的 git 地址、仓库页面和 release 下载地址（`…/apple-reminders-mcp/releases/download/v0.3.0/AppleRemindersMCP-0.3.0.pkg`）都 301 到 `apple-mcp`，下载得到完整的包。两个 cask 的 `url` 暂时靠这个重定向，阶段 3 改成新地址 |
+| 录黄金输出 | **已做，由 CI 录**：`scripts/golden.py` 录下第 8 节列的输出里与机器无关的部分（`help`、每条命令的 `--help`、`call` 与每个工具的 `call TOOL --help`、`skill`、两种协议下的 `initialize`/`server/discover`/`tools/list`、`agents list` 与 `agents set-up` 对假的 Codex CLI、Grok Build、Antigravity CLI 命令写出的配置和技能）。它用临时 HOME、固定时区和语言、不存在的 `tools.json`，不需要权限，裸构建就能跑。`--self-check` 和真实 agent 因机器而异，没录。分支上的代码与 Notes `v0.3.0`、Reminders `v0.3.0` 逐字相同（已核对），所以在分支上录的就是这两个版本的输出。CI 第一次跑时把录到的内容打进日志，提交到 `Tests/Golden/<app>/`；之后每个 PR 都逐字比对 |
+| 两边各自构建、跑 e2e | CI 在 macOS runner 上对两个包分别跑 `swift build`、`swift test` 和黄金输出比对。e2e 要真实数据和权限，**仍要在 Mac 上手动跑一次**：`python3 -I scripts/e2e.py .build/debug/AppleRemindersMCP`，以及在 `incoming/notes/` 里 `python3 -I scripts/e2e.py .build/debug/AppleNotesMCP` |
 
 搬家期间要知道的两件事：
 

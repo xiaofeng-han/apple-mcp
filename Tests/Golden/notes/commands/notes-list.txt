@@ -1,0 +1,19 @@
+usage: apple-notes-mcp notes list [flags]
+
+List notes, newest first, one line each (id | version | title | date | size | description). --folder includes its folders, and groups the notes by folder unless --sort is given. Dates are YYYY-MM-DD; the -after ones are inclusive, the -before ones exclusive. --undescribed lists the notes that need a description, with their opening text, for notes describe.
+
+  --folder string                   Path such as "Projects/Ideas", or id; includes its folders; a smart folder; or Recently Deleted
+  --tag string…                     Only notes with all these tags (# optional) (repeat for more)
+  --only string…                    Only notes in all of these groups (unchecked: with unticked checklist items; calls: call recordings) (repeat for more)
+  --attachment string…              Only notes with an attachment of one of these kinds; any, or none (repeat for more)
+  --modified-after string           YYYY-MM-DD, inclusive
+  --modified-before string          YYYY-MM-DD, exclusive
+  --created-after string            YYYY-MM-DD, inclusive
+  --created-before string           YYYY-MM-DD, exclusive
+  --sort modified|created|title|opened
+                                    Newest first by modified (default), created or opened (last opened in Notes), or by title
+  --[no-]undescribed                Only notes without a current description
+  --limit int                       Notes listed, 1 to 500 (default 30, 50 with undescribed)
+  --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                        Show this help
+

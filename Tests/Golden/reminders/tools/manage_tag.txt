@@ -1,0 +1,3 @@
+Rename or delete a tag: Renames a tag on every reminder that has it (merging into an existing tag of that name), or deletes it from all of them. list_tags shows the tags.
+
+Input schema: {"additionalProperties":false,"properties":{"action":{"description":"What to do","enum":["rename","delete"],"type":"string"},"new_name":{"description":"For rename","type":"string"},"tag":{"description":"Tag, without #","type":"string"}},"required":["action","tag"],"type":"object"}

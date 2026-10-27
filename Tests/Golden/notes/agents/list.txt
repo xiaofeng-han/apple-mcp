@@ -1,0 +1,6 @@
+Apple Notes MCP dev, not an app bundle (a development build).
+Agents start: <EXECUTABLE> --stdio
+
+codex            Codex CLI 0.50.0 (<HOME>/.local/bin/codex): not set up
+grok             Grok Build 1.0.0 (<HOME>/.local/bin/grok): not set up
+agy              Antigravity CLI 1.0.0 (<HOME>/.local/bin/agy): not set up

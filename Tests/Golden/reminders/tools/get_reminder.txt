@@ -1,0 +1,3 @@
+Read a reminder: Reads one reminder in full: alarms, early alerts, images, subtasks, and its current version.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Reminder id","type":"string"}},"required":["id"],"type":"object"}

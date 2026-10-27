@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp reminders restore ID [flags]
+
+Bring a reminder back from Recently Deleted, with the subtasks deleted along with it. Without --list it returns to the list it was deleted from, or the default list.
+
+  ID             Id from list_deleted
+  --list string  List name or id to restore into
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

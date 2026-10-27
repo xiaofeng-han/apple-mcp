@@ -1,0 +1,8 @@
+usage: apple-reminders-mcp tags delete TAG
+
+Remove a tag from every reminder.
+
+  TAG            Tag, without #
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

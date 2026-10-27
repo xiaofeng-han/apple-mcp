@@ -1,0 +1,7 @@
+usage: apple-reminders-mcp lists list
+
+The lists (with counts, sections and the people on shared ones), groups, smart lists and templates.
+
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

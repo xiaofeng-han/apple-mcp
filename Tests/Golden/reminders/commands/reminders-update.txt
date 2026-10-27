@@ -1,0 +1,42 @@
+usage: apple-reminders-mcp reminders update ID --version string [flags]
+
+Change only the fields given; --no-FIELD clears one. Pass the --version that find or get gave; a reminder changed elsewhere since then is refused, so read it again. --completed checks it off: a repeating reminder leaves a completed copy and moves to its next date (unless that is turned off in the app's settings). --list moves it to another list.
+
+  ID                               Reminder id
+  --version string                 Version you read (required)
+  --add-image string…              Image files on this Mac to attach (repeat for more)
+  --after string                   Put it after this: Reminder id
+  --assigned-to string             On a shared list: a person's name (or me); --no-assigned-to unassigns
+  --before string                  Put it before this: Reminder id
+  --[no-]completed                 Check off or reopen
+  --due string                     2026-10-21 (all day) or 2026-10-21T09:00 (local time); a time adds an alert then; --no-due clears it
+  --early-alerts json              Early reminders, replacing any there are; [] or --no-early-alerts removes them
+                                       before: How long before the due date
+                                       unit: minutes|hours|days|weeks|months. Default minutes
+  --[no-]flagged                   Flag
+  --list string                    Move to this list (name or id)
+  --location json|string           Alert at a place, {title, latitude, longitude, radius (meters, default 100), address, when: arriving|leaving}, or getting-in-car, getting-out-of-car; replaces any place alert; --no-location removes it
+  --notes string                   Plain text
+  --parent-id string               Makes it a subtask of this top-level reminder in the same list; --no-parent-id makes it top level
+  --priority none|low|medium|high  Priority
+  --remove-image string…           Image ids to remove (repeat for more)
+  --repeat json                    Repeats from the due date; --no-repeat clears it
+                                       count: Number of times, instead of until
+                                       days_of_month: 1 … 31, or -1 for the last day
+                                       days_of_week: mon … sun; for monthly or yearly, 1mon is the first Monday and -1fri the last Friday
+                                       frequency: daily|weekly|monthly|yearly|hourly. How often
+                                       interval: Every n periods; default 1
+                                       months: 1 … 12, for yearly
+                                       until: Last date, 2026-12-31
+  --section string                 Section name or id in the reminder's list; --no-section takes it out of its section
+  --start string                   Start date, same format as due; --no-start clears it
+  --tag string…                    Native tags without #; replaces all tags (repeat for more)
+  --title string                   New title
+  --[no-]urgent                    Alarm-style alert that rings like an alarm on the user's devices; needs a due time
+  --url string                     A link shown on the reminder; --no-url clears it
+  --when-messaging json            A JSON object; --no-when-messaging clears it
+                                       emails: Email addresses
+                                       phones: Phone numbers
+  --json json|-                    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                       Show this help
+

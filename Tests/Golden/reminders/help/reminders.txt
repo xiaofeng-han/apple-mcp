@@ -1,0 +1,26 @@
+apple-reminders-mcp reminders
+├── find [QUERY]                Find reminders across lists, open ones first by due date; QUERY matches the title or notes
+│       --assigned-to string --due-after string --due-before string --[no-]flagged --[no-]has-location
+│       --[no-]include-completed --limit int --list string --[no-]repeating --section string
+│       --smart-list string --tag string --[no-]urgent
+├── get ID                      Read one reminder in full: alarms, early alerts, images, subtasks, and its current version
+├── create TITLE                Create a reminder; without --list it goes to the default list (or the parent's list)
+│       --add-image string… --after string --assigned-to string --before string --due string
+│       --early-alerts json --[no-]flagged --list string --location json|string --notes string
+│       --parent-id string --priority none|low|medium|high --repeat json --section string --start string
+│       --tag string… --[no-]urgent --url string --when-messaging json
+├── update ID --version string  Change only the fields given; --no-FIELD clears one
+│       --add-image string… --after string --assigned-to string --before string --[no-]completed --due string
+│       --early-alerts json --[no-]flagged --list string --location json|string --notes string
+│       --parent-id string --priority none|low|medium|high --remove-image string… --repeat json
+│       --section string --start string --tag string… --title string --[no-]urgent --url string
+│       --when-messaging json
+├── delete ID --version string  Move a reminder and its subtasks to Recently Deleted
+├── deleted                     List reminders in Recently Deleted that restore can bring back, newest first
+├── restore ID                  Bring a reminder back from Recently Deleted, with the subtasks deleted along with it
+│       --list string
+└── image REMINDER_ID IMAGE_ID  Save an image on a reminder (ids from get) and print where; needs Full Disk Access
+        --output string
+
+Every reminders command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

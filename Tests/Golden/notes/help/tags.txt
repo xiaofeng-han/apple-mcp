@@ -1,0 +1,6 @@
+apple-notes-mcp tags
+├── rename TAG NAME             Rename a tag in every note that has it
+└── delete TAG --expected-notes int  Take a tag out of every note that has it (ask the user first); the notes stay
+
+Every tags command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.

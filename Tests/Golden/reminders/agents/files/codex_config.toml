@@ -1,0 +1,3 @@
+[mcp_servers.apple-reminders]
+command = "<EXECUTABLE>"
+args = ["--stdio"]

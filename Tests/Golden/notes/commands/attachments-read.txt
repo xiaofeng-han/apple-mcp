@@ -1,0 +1,10 @@
+usage: apple-notes-mcp attachments read ID [flags]
+
+Open an attachment from a ![…](attachment:ID) placeholder: print its text, save its images, audio and files.
+
+  ID                   Attachment id
+  --[no-]text-only     Only the text, no images or files
+  --output-dir string  Where to save its images, audio and files; default the temporary folder
+  --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help           Show this help
+

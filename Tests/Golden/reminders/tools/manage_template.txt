@@ -1,0 +1,3 @@
+Save, use or delete a list template: create saves a list as a template (Reminders copies its reminders in the background); use makes a new list from a template; delete removes a template. list_lists shows the templates.
+
+Input schema: {"additionalProperties":false,"properties":{"action":{"description":"What to do","enum":["create","use","delete"],"type":"string"},"include_completed":{"description":"For create: keep completed reminders too; default false","type":"boolean"},"list":{"description":"For create: the list to save; for use: the new list's name (default the template's)","type":"string"},"template":{"description":"New template name for create; template name or id otherwise","type":"string"}},"required":["action","template"],"type":"object"}

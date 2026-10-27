@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp templates use TEMPLATE [flags]
+
+Make a new list from a template.
+
+  TEMPLATE       Template name or id
+  --list string  The new list's name; default the template's
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

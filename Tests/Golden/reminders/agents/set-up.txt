@@ -1,0 +1,3 @@
+Codex CLI: set up in <HOME>/.codex/config.toml. New sessions will have it.
+Grok Build: set up in <HOME>/.grok/config.toml. New sessions will have it.
+Antigravity CLI: set up in <HOME>/.gemini/config/mcp_config.json. New sessions will have it.

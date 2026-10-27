@@ -1,0 +1,9 @@
+usage: apple-notes-mcp tags delete TAG --expected-notes int
+
+Take a tag out of every note that has it (ask the user first); the notes stay. --expected-notes is the number of notes with the tag, which folders list shows.
+
+  TAG                   The tag, # optional
+  --expected-notes int  The number of notes with the tag (required)
+  --json json|-         Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help            Show this help
+

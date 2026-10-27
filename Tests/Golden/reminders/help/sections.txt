@@ -1,0 +1,8 @@
+apple-reminders-mcp sections
+├── create LIST NAME            Create a section in a list (put reminders in it with --section)
+├── rename LIST SECTION NEW_NAME  Rename a section
+├── move LIST SECTION (--after string | --before string)  Move a section next to another one
+└── delete LIST SECTION         Delete a section; its reminders stay in the list
+
+Every sections command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

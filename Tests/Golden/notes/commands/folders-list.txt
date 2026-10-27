@@ -1,0 +1,8 @@
+usage: apple-notes-mcp folders list [flags]
+
+The folders, with how many notes each holds.
+
+  --depth int    Folder levels shown when listing folders, 1 to 10 (default 1)
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

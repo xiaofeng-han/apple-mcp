@@ -1,0 +1,10 @@
+usage: apple-notes-mcp folders move FOLDER INTO [flags]
+
+Move a folder into another, or to the top level with "". A shared folder needs --allow-shared, after asking the user.
+
+  FOLDER               Path or id
+  INTO                 The folder to put it in; "" for the top level
+  --[no-]allow-shared  The user agreed to renaming or moving a shared folder
+  --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help           Show this help
+

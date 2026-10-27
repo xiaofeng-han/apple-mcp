@@ -1,0 +1,12 @@
+usage: apple-notes-mcp notes delete [ID] [flags]
+
+Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them). --version is the one notes read, list or search gave; a note changed elsewhere since then is refused.
+
+  ID                Note id
+  --notes json      Instead of id and version: up to 100 notes
+                        id: Note id
+                        version: Its version
+  --version string  The version read_note, overview or search gave
+  --json json|-     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help        Show this help
+

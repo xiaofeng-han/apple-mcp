@@ -1,0 +1,10 @@
+usage: apple-notes-mcp folders create PATH [flags]
+
+Create a folder; a path such as Projects/Ideas makes it inside another. With --tag (repeat for more), a smart folder of the notes with any of the tags, or with --match all, all of them.
+
+  PATH             The new folder's path, such as "Projects/Ideas"
+  --tag string…    For create: make a smart folder showing the notes with these tags (repeat for more)
+  --match any|all  For a smart folder: notes with any of the tags (default) or all of them
+  --json json|-    Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help       Show this help
+

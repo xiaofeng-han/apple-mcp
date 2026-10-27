@@ -1,0 +1,3 @@
+Delete notes: Moves a note, or several (notes), to Recently Deleted, where move_note can bring them back. A note changed since its version was read is refused.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Note id","type":"string"},"notes":{"description":"Instead of id and version: up to 100 notes","items":{"additionalProperties":false,"properties":{"id":{"description":"Note id","type":"string"},"version":{"description":"Its version","type":"string"}},"required":["id","version"],"type":"object"},"type":"array"},"version":{"description":"The version read_note, overview or search gave","type":"string"}},"type":"object"}

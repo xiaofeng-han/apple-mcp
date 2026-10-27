@@ -1,0 +1,79 @@
+apple-reminders-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Ask for access to Reminders (alias: authorize)
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── reminders
+│   ├── find [QUERY]            Find reminders across lists, open ones first by due date; QUERY matches the title or notes
+│   │       --assigned-to string --due-after string --due-before string --[no-]flagged --[no-]has-location
+│   │       --[no-]include-completed --limit int --list string --[no-]repeating --section string
+│   │       --smart-list string --tag string --[no-]urgent
+│   ├── get ID                  Read one reminder in full: alarms, early alerts, images, subtasks, and its current version
+│   ├── create TITLE            Create a reminder; without --list it goes to the default list (or the parent's list)
+│   │       --add-image string… --after string --assigned-to string --before string --due string
+│   │       --early-alerts json --[no-]flagged --list string --location json|string --notes string
+│   │       --parent-id string --priority none|low|medium|high --repeat json --section string --start string
+│   │       --tag string… --[no-]urgent --url string --when-messaging json
+│   ├── update ID --version string  Change only the fields given; --no-FIELD clears one
+│   │       --add-image string… --after string --assigned-to string --before string --[no-]completed
+│   │       --due string --early-alerts json --[no-]flagged --list string --location json|string
+│   │       --notes string --parent-id string --priority none|low|medium|high --remove-image string…
+│   │       --repeat json --section string --start string --tag string… --title string --[no-]urgent
+│   │       --url string --when-messaging json
+│   ├── delete ID --version string  Move a reminder and its subtasks to Recently Deleted
+│   ├── deleted                 List reminders in Recently Deleted that restore can bring back, newest first
+│   ├── restore ID              Bring a reminder back from Recently Deleted, with the subtasks deleted along with it
+│   │       --list string
+│   └── image REMINDER_ID IMAGE_ID  Save an image on a reminder (ids from get) and print where; needs Full Disk Access
+│           --output string
+├── lists
+│   ├── list                    The lists (with counts, sections and the people on shared ones), groups, smart lists and templates (the default)
+│   ├── create NAME             Create a list
+│   │       --color string --icon string --group string --[no-]pinned --type standard|groceries --sort string
+│   │       --after string --before string
+│   ├── update LIST             Change a list's name, color, icon, group, pin, type, sort order or place in the sidebar
+│   │       --new-name string --color string --icon string --group string --[no-]pinned
+│   │       --type standard|groceries --sort string --after string --before string
+│   ├── clear-completed LIST    Move a list's completed reminders to Recently Deleted
+│   └── delete LIST             Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first)
+│           --[no-]confirm-delete-reminders
+├── groups
+│   ├── create NAME             Create a group, which holds lists in the sidebar (put lists in it with lists update --group)
+│   ├── rename GROUP NEW_NAME   Rename a group
+│   └── delete GROUP            Delete an empty group
+├── sections
+│   ├── create LIST NAME        Create a section in a list (put reminders in it with --section)
+│   ├── rename LIST SECTION NEW_NAME  Rename a section
+│   ├── move LIST SECTION (--after string | --before string)  Move a section next to another one
+│   └── delete LIST SECTION     Delete a section; its reminders stay in the list
+├── smart-lists
+│   ├── create NAME --filters json  Create a smart list, which shows the reminders matching its filters
+│   │       --match all|any --color string --icon string
+│   ├── update SMART_LIST       Change a smart list's name, color, icon, match or filters (--filters replaces them all)
+│   │       --new-name string --filters json --match all|any --color string --icon string
+│   └── delete SMART_LIST       Delete a smart list; no reminders are deleted
+├── tags
+│   ├── list                    Every tag in use, with how many open and how many reminders in all have it (the default)
+│   ├── rename TAG NEW_NAME     Rename a tag on every reminder that has it, merging into a tag of that name if there is one
+│   └── delete TAG              Remove a tag from every reminder
+├── templates
+│   ├── create NAME --list string  Save a list as a template (Reminders copies its reminders in the background)
+│   │       --[no-]include-completed
+│   ├── use TEMPLATE            Make a new list from a template
+│   │       --list string
+│   └── delete TEMPLATE         Delete a template
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+
+Every reminders, lists, … command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.
+Output is the tool's JSON answer. Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.

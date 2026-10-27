@@ -1,0 +1,10 @@
+usage: apple-notes-mcp notes describe --descriptions json
+
+Save one-line descriptions of notes, which notes list shows; many notes at once.
+
+  --descriptions json  A JSON list of 1 to 200 {"id", "description"}, each under 80 characters (required)
+                           description: One line, under 80 characters
+                           id: Note id
+  --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help           Show this help
+

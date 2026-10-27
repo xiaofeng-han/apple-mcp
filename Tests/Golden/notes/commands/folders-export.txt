@@ -1,0 +1,9 @@
+usage: apple-notes-mcp folders export FOLDER TO
+
+Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip.
+
+  FOLDER         Path or id
+  TO             A new folder or .zip path
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

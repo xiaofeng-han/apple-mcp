@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp tags rename TAG NEW_NAME
+
+Rename a tag on every reminder that has it, merging into a tag of that name if there is one.
+
+  TAG            Tag, without #
+  NEW_NAME       New name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

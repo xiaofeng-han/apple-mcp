@@ -1,0 +1,9 @@
+usage: apple-reminders-mcp sections delete LIST SECTION
+
+Delete a section; its reminders stay in the list.
+
+  LIST           List name or id
+  SECTION        Section name or id
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

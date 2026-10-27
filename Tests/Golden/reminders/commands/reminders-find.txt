@@ -1,0 +1,21 @@
+usage: apple-reminders-mcp reminders find [QUERY] [flags]
+
+Find reminders across lists, open ones first by due date; QUERY matches the title or notes. Filters combine. --due-before is exclusive: --due-before with tomorrow's date gives everything due today or overdue. Each reminder appears once, with smart_lists naming the smart lists that show it. The answer also gives now and time_zone.
+
+  QUERY                     Text in the title or notes
+  --assigned-to string      Only reminders assigned to this person (name, or me)
+  --due-after string        2026-10-21 or 2026-10-21T09:00, inclusive
+  --due-before string       2026-10-21 or 2026-10-21T09:00, exclusive
+  --[no-]flagged            Only flagged
+  --[no-]has-location       Only reminders with a place or car alert
+  --[no-]include-completed  Default false
+  --limit int               Default 100, at most 500
+  --list string             List name or id; default all lists
+  --[no-]repeating          Only repeating
+  --section string          Only this section
+  --smart-list string       Only what this smart list shows (name or id), as Reminders computes it
+  --tag string              Only this tag (without #)
+  --[no-]urgent             Only urgent
+  --json json|-             Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                Show this help
+

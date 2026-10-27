@@ -1,0 +1,9 @@
+usage: apple-notes-mcp tags rename TAG NAME
+
+Rename a tag in every note that has it.
+
+  TAG            The tag, # optional
+  NAME           The new name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

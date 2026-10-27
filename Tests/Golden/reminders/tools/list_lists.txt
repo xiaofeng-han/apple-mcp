@@ -1,0 +1,3 @@
+List reminder lists: Lists the Reminders lists (counts, group, color, icon, sections, sort order, type, and the people on shared lists), the groups, the smart lists with their filters, and the templates.
+
+Input schema: {"additionalProperties":false,"properties":{},"type":"object"}

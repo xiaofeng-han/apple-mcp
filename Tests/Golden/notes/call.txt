@@ -1,0 +1,11 @@
+overview          Overview of notes
+search            Search notes
+read_note         Read a note
+describe_note     Describe notes
+read_attachment   Read an attachment
+create_note       Create a note
+edit_note         Edit a note
+delete_note       Delete notes
+move_note         Move notes
+manage_tag        Manage a tag
+manage_folder     Manage a folder

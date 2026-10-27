@@ -1,0 +1,10 @@
+usage: apple-reminders-mcp sections rename LIST SECTION NEW_NAME
+
+Rename a section.
+
+  LIST           List name or id
+  SECTION        Section name or id
+  NEW_NAME       New name
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

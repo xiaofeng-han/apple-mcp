@@ -14,8 +14,11 @@ cd "$(dirname "$0")/.."
 BUNDLE_ID=com.xiaofeng.apple-notes-mcp
 APP=dist/AppleNotesMCP.app
 
-swift build -c release --product AppleNotesMCP
-BIN=$(swift build -c release --show-bin-path)/AppleNotesMCP
+# The code is built from the repository's one package, two folders up (docs/MERGE-PLAN.md, phase 1);
+# Notes' resources and scripts stay here until phase 3.
+PACKAGE=$(cd ../.. && pwd)
+swift build --package-path "$PACKAGE" -c release --product AppleNotesMCP
+BIN=$(swift build --package-path "$PACKAGE" -c release --show-bin-path)/AppleNotesMCP
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"

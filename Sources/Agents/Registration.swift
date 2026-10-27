@@ -1,6 +1,6 @@
 import Foundation
 
-/// Whether an agent's config has this server, as the name `apple-reminders`.
+/// Whether an agent's config has this server, by its name (`apple-notes`, say).
 public enum Registration: Sendable, Equatable {
     /// Not there.
     case missing
@@ -17,7 +17,7 @@ public enum Registration: Sendable, Equatable {
     /// There, but written in a form this app does not change (a TOML inline table, say).
     case notEditable(String)
 
-    public static let serverName = "apple-reminders"
+    public static var serverName: String { Product.current.serverName }
 
     /// Judges an entry's command and arguments against what this copy needs.
     static func judge(command: String?, arguments: [String]?, enabled: Bool = true, for installation: Installation) -> Registration {

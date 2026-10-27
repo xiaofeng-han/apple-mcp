@@ -251,6 +251,9 @@ enum Commands {
                 } catch {
                     return fail("cannot save the image to \(url.path): \(error.localizedDescription)", status: 1)
                 }
+            case .audio, .file:
+                // The shared Wire also carries Notes' audio and files; no reminder tool answers with them.
+                continue
             }
         }
         let text = lines.joined(separator: "\n")

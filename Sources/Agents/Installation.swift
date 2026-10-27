@@ -1,6 +1,6 @@
 import Foundation
 
-/// How this copy of Apple Reminders MCP was installed, and so which command agents should start.
+/// How this copy of the app (`Product.current`) was installed, and so which command agents should start.
 public struct Installation: Sendable, Equatable {
     public enum Method: Sendable, Equatable {
         /// `brew install --cask`, with Homebrew's prefix (/opt/homebrew).
@@ -11,14 +11,14 @@ public struct Installation: Sendable, Equatable {
         case other
     }
 
-    public static let bundleID = "com.xiaofeng.apple-reminders-mcp"
-    public static let packageID = "com.xiaofeng.apple-reminders-mcp.pkg"
-    public static let caskName = "apple-reminders-mcp"
+    public static var bundleID: String { Product.current.bundleID }
+    public static var packageID: String { Product.current.bundleID + ".pkg" }
+    public static var caskName: String { Product.current.command }
 
     public let method: Method
     /// The app bundle, or nil for a bare executable (swift run).
     public let bundle: URL?
-    /// What agents should start, with `--stdio`: Homebrew's `apple-reminders-mcp` script, whose
+    /// What agents should start, with `--stdio`: Homebrew's script (`apple-notes-mcp`, say), whose
     /// path survives upgrades, or else the app's executable.
     public let command: String
 
@@ -42,7 +42,7 @@ public struct Installation: Sendable, Equatable {
         let executable = (bundle.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath().path
         guard bundle.bundleIdentifier == bundleID else { return Installation(method: .other, bundle: nil, command: executable) }
         let app = bundle.bundleURL.resolvingSymlinksInPath()
-        let systemApp = "/Applications/AppleRemindersMCP.app"
+        let systemApp = "/Applications/\(Product.current.appName).app"
         if app.path == systemApp {
             for prefix in ["/opt/homebrew", "/usr/local"] where manager.fileExists(atPath: "\(prefix)/Caskroom/\(caskName)") {
                 let wrapper = "\(prefix)/bin/\(caskName)"
@@ -50,7 +50,7 @@ public struct Installation: Sendable, Equatable {
                                     command: manager.isExecutableFile(atPath: wrapper) ? wrapper : executable)
             }
             if hasReceipt(volume: "/") { return Installation(method: .package(allUsers: true), bundle: app, command: executable) }
-        } else if app.path == home.appendingPathComponent("Applications/AppleRemindersMCP.app").path, hasReceipt(volume: home.path) {
+        } else if app.path == home.appendingPathComponent("Applications/\(Product.current.appName).app").path, hasReceipt(volume: home.path) {
             return Installation(method: .package(allUsers: false), bundle: app, command: executable)
         }
         return Installation(method: .other, bundle: app, command: executable)

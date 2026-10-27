@@ -37,6 +37,8 @@ struct Sandbox {
 }
 
 @Suite struct RegistrationTests {
+    init() { Product.current = .testing }
+
     @Test func claudeDesktopKeepsOtherKeys() throws {
         let box = try Sandbox()
         try box.write("{\n  \"preferences\": {\n    \"x\": true\n  }\n}\n", to: .claudeDesktop)
@@ -261,6 +263,8 @@ struct Sandbox {
 }
 
 @Suite struct InstallerChoiceTests {
+    init() { Product.current = .testing }
+
     func agent(_ id: String) -> Agent { Agent.all.first { $0.id == id }! }
 
     @Test func followsHowThisAppWasInstalled() {

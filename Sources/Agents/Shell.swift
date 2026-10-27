@@ -48,7 +48,7 @@ public enum Shell {
     /// variables that move their config folders are taken from here too.
     static let loginEnvironment: [String: String] = {
         let shell = ProcessInfo.processInfo.environment["SHELL"].flatMap { $0.isEmpty ? nil : $0 } ?? "/bin/zsh"
-        let marker = "__apple_reminders_mcp_environment__"
+        let marker = "__\(Product.current.command.replacingOccurrences(of: "-", with: "_"))_environment__"
         // -i reads ~/.zshrc as well, where nvm and similar tools set PATH; give up after a few seconds.
         guard let result = try? runSync(shell, ["-i", "-l", "-c", "printf '\(marker)'; /usr/bin/env -0"],
                                         environment: ["HOME": home.path, "TERM": "dumb", "USER": NSUserName()], timeout: 5),
@@ -92,7 +92,7 @@ public enum Shell {
     public static var environment: [String: String] {
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = path
-        environment.removeValue(forKey: "APPLE_REMINDERS_MCP_RELAUNCHED")
+        environment.removeValue(forKey: Product.current.environmentPrefix + "_RELAUNCHED")
         for name in relocations where environment[name] == nil { environment[name] = loginEnvironment[name] }
         return environment
     }
@@ -121,7 +121,7 @@ public enum Shell {
     }
 
     /// Runs a program and waits for it. The program gets none of this app's privacy permissions
-    /// (Reminders, Full Disk Access) and no terminal; at `timeout`, it and whatever it started are
+    /// (Full Disk Access, Automation, Reminders) and no terminal; at `timeout`, it and whatever it started are
     /// stopped.
     static func runSync(_ executable: String, _ arguments: [String], environment: [String: String], timeout: TimeInterval,
                         onOutput: (@Sendable (String) -> Void)? = nil) throws -> Result {

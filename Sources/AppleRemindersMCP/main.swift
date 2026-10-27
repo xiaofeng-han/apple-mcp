@@ -4,6 +4,10 @@ import Foundation
 import Launcher
 import Wire
 
+Product.current = Product(name: "Apple Reminders MCP", bundleID: "com.xiaofeng.apple-reminders-mcp", appName: "AppleRemindersMCP",
+                          command: "apple-reminders-mcp", serverName: "apple-reminders", environmentPrefix: "APPLE_REMINDERS_MCP",
+                          subject: "Reminders", chineseSubject: "提醒事项")
+
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
 let words = Array(CommandLine.arguments.dropFirst())
 
@@ -143,7 +147,7 @@ case .serve:
     let service = Service(name: "apple-reminders-mcp", version: version, instructions: instructions,
                           tools: tools, exposure: Settings.exposure)
     runThenExit {
-        await StdioServer.run(service)
+        await StdioServer.run(service, wireLog: "APPLE_REMINDERS_MCP_WIRE_LOG")
         return 0
     }
 }

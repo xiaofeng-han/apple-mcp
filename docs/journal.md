@@ -9,7 +9,7 @@ An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gem
 Journal has no AppleScript and only a few Shortcuts actions (make an entry, search, open one), so this app works through Journal's own data model: its private framework JournalShared, which Journal, its share sheet and its widgets all use. Reads and writes go to Journal's data on this Mac in place, the way Journal's share sheet writes an entry, and Journal itself then uploads the changes to iCloud. What an agent writes is ordinary Journal data, on every device:
 - entries: title, text with Journal's own formatting (bold, italic, underline, strikethrough, lists, block quotes), date, bookmark, the journal they are in, Recently Deleted, duplicates;
 - journals: name, color and icon; deleting one with its entries moved, kept or deleted;
-- attachments read with their details: photos, videos, recordings with their transcripts, places and visits, State of Mind, workouts, activity, music and podcasts, books, contacts, links, reflections, drawings' handwriting;
+- attachments: photos, videos and audio recordings added from files, and attachments taken off; every kind read with its details: photos, videos, recordings with their transcripts, places and visits, State of Mind, workouts, activity, music and podcasts, books, contacts, links, reflections, drawings' handwriting;
 - Journal's insights: days journaled and streaks.
 
 The only permission it needs is Full Disk Access, since Journal's data sits in a container macOS protects.
@@ -27,9 +27,10 @@ Requires Journal 3.0, which comes with macOS 27.2, on Apple silicon. The app cal
 | Duplicate an entry | ✅ `duplicate_entry` |
 | Search, filter by journal, bookmark, date and kind of attachment | ✅ `find_entries` |
 | Photos, videos, recordings and their transcripts, places, State of Mind, workouts, music, books, contacts, links, reflections, drawings | ✅ read: `read_entry` details, `read_attachment` opens them |
+| Add photos, videos and audio recordings to an entry; take attachments off | ✅ `create_entry` and `edit_entry` `attach`; `edit_entry` `detach` |
 | Insights: days journaled, streaks | ✅ `overview` |
 | Export | ✅ `export_entries` as Markdown with the attachments (Journal's own export makes an archive only Journal opens) |
-| Adding photos, videos, recordings or drawings to an entry | ❌ see [Not possible](#not-possible) |
+| Adding drawings, Live Photos, places, State of Mind or other kinds of attachment; placing one in the text | ❌ see [Not possible](#not-possible) |
 | Journaling Suggestions, writing prompts made on the device | ❌ |
 | Lock Journal, the writing schedule and its notifications, print | ❌ |
 
@@ -41,8 +42,8 @@ Requires Journal 3.0, which comes with macOS 27.2, on Apple silicon. The app cal
 | `find_entries` | Entries, newest first (or oldest, or last edited): by words (in the title, text, writing prompt, and in attachments' places, people, songs, transcripts and handwriting), journal, bookmark, date (`after` inclusive, `before` exclusive) and kind of attachment; or those in Recently Deleted. Each with its id, version, a snippet and its attachments by kind; pages with `offset` |
 | `read_entry` | Entries in full (up to 20): the text as Markdown, the date, created and edited times, journal, bookmark, writing prompt, and each attachment's details |
 | `read_attachment` | One attachment: photos as JPEG, a frame of a video, recordings as audio, with their details |
-| `create_entry` | An entry with a title and text, dated now or on `date`, in a journal, bookmarked |
-| `edit_entry` | Changes an entry in one call: title, text (`body` rewrites it, `replace` swaps exact Markdown, `append` adds to the end), date, bookmark, journal (`""` takes it out of its journal). Only what changes is written |
+| `create_entry` | An entry with a title and text, dated now or on `date`, in a journal, bookmarked, with photos, videos and recordings attached (`attach`) |
+| `edit_entry` | Changes an entry in one call: title, text (`body` rewrites it, `replace` swaps exact Markdown, `append` adds to the end), date, bookmark, journal (`""` takes it out of its journal), attachments (`attach` adds files, `detach` takes attachments off by id). Only what changes is written |
 | `delete_entry` | Moves an entry to Recently Deleted, where Journal keeps it 30 days; `permanently` deletes one already there for good |
 | `restore_entry` | Brings an entry back from Recently Deleted |
 | `duplicate_entry` | Copies an entry with its text, date, journal and attachments, as Journal's Duplicate does |
@@ -85,6 +86,16 @@ Changing an entry writes only the span that differs, into Journal's own mergeabl
 | `contact` | who, when, how long |
 | `link`, `reflection`, `drawing`, `event` | the address; the reflection's prompt; the handwriting Journal read in a drawing; the event's place and time |
 
+`attach` takes the absolute paths of up to 20 files, each at most 250 MB, and adds them after the attachments the entry shows above its text, as Journal's photo picker does:
+
+| File | Kept as |
+|---|---|
+| an image macOS reads (JPEG, HEIC, PNG, TIFF, RAW, …) | a photo, saved as HEIC of at most 6 megapixels like Journal's own, with the date and place from its Exif |
+| a video macOS plays (MOV, MP4, M4V) | a video, the file as it is with a still for Journal to show, its date and place |
+| audio macOS plays (M4A, MP3, WAV, AIFF, CAF, …) | a recording, the file as it is with its length and the waveform Journal draws (worked out by Journal's own code) |
+
+The answer lists each new attachment's id. `detach` takes attachments off by those ids (from `read_entry`); Journal then deletes them from iCloud and from the Mac. One placed in the entry's text is refused: only Journal can take it out of the text.
+
 ## Command line
 
 Every tool is a command: `apple-journal-mcp help` prints the tree, and any command takes `--help`.
@@ -98,6 +109,7 @@ apple-journal-mcp entries create - --title "A good day" --journal Travel <<'EOF'
 We walked to the **lighthouse**.
 EOF
 apple-journal-mcp entries edit ID --version VERSION --append "- Swam before breakfast" --bookmarked
+apple-journal-mcp entries edit ID --version VERSION --attach ~/Pictures/lake.heic --attach ~/Movies/swim.mov
 apple-journal-mcp entries delete ID --version VERSION                # to Recently Deleted
 apple-journal-mcp journals create "Gratitude" --color pink --icon "🙏"
 apple-journal-mcp attachments read ID --output-dir ~/Desktop        # saves its photos and recordings
@@ -148,6 +160,7 @@ As with the other apps, it gives up the responsibility macOS charges to whatever
 - **Data.** Journal keeps everything in a Core Data store in its app group, `~/Library/Group Containers/group.com.apple.moments/Library/moments.sqlite`, with photos and recordings in `Attachments/` next to it. The app opens that store with Journal's own model and classes, as Journal opens it (history tracking on, so Journal hears of each save at once), and never migrates it.
 - **Text.** Journal 3.0 keeps an entry's text and title, and a journal's name, color and icon, as mergeable values of Apple's private Coherence framework (CRDTs), and older entries as RTF. The app reads and changes them through Journal's own code.
 - **Sync.** Journal's sync engine uploads every object marked as not yet uploaded. Writes mark what they change that way, as Journal's own editor does, and Journal uploads it, usually within seconds.
+- **Attachments.** An attachment is an asset (its kind and metadata, encoded by Journal's own types) with files in `Attachments/ENTRY/ASSET/`, placed in the entry's layout through Journal's own placement code, which also keeps the older ordering fields that entries from before Journal 3.0 use. Journal uploads the files with the entry; taking one off marks it for Journal to delete from iCloud, after which Journal removes it and its files here.
 - **Interfaces.** JournalShared is a Swift framework without a public interface, so `Interfaces/Journal` holds Swift interfaces written by hand for the part this app calls, and the stubs the linker reads in their place (`scripts/journal-stubs.py` writes them from the symbols on the Mac it runs on). The frameworks are linked weakly. When the app starts it checks that each of the functions it calls is on this Mac; if one is missing (another macOS version), every tool says so and nothing is read or changed. `--check-markdown` reads every entry, writes it as Markdown and parses it back, to see that nothing is lost; run it after a macOS update.
 - **What needs no Journal** is in its own target, `JournalModel`: the tools as agents see them (names, descriptions, inputs), the commands, the text's Markdown form, the insights and the attachments' details. `JournalComponent` gives each tool what it does. The unit tests (`JournalModelTests`) build against `JournalModel` only, so they need neither the interfaces nor Journal.
 - The reverse-engineering notes are in [RE-FINDINGS-journal.md](RE-FINDINGS-journal.md) (in Chinese).
@@ -159,11 +172,12 @@ As with the other apps, it gives up the responsibility macOS charges to whatever
 /usr/bin/python3 -I scripts/e2e.py journal .build/debug/AppleJournalMCP # a bare build, with your terminal's Full Disk Access
 ```
 
-The checks run every tool over stdio and the main commands, 70 checks in all, with the write guard (`APPLE_JOURNAL_MCP_WRITE_GUARD=agent test`) limiting writes to entries titled `agent test…` and journals named `agent test…`. They make a throwaway journal and entries, check that Journal uploads each change, and at the end delete all of it for good, so the overview counts are back where they were; your other devices see the test entries come and go. Journal keeps a streak record (an attachment of kind `streakEvent`, with no entry) for every entry deleted for good, so that deleting never breaks a streak: after a run, Journal's own Insights count that day as a day you journaled. `swift test` checks the Markdown mapping, the edit span, the insights, the attachment details, and that the commands match the tools.
+The checks run every tool over stdio and the main commands, 79 checks in all, with the write guard (`APPLE_JOURNAL_MCP_WRITE_GUARD=agent test`) limiting writes to entries titled `agent test…` and journals named `agent test…`. They make a throwaway journal and entries, attach a photo and a recording they make (and a video, when `ffmpeg` is installed), check that Journal uploads each change, and at the end delete all of it for good, so the overview counts are back where they were; your other devices see the test entries come and go. Journal keeps a streak record (an attachment of kind `streakEvent`, with no entry) for every entry deleted for good, so that deleting never breaks a streak: after a run, Journal's own Insights count that day as a day you journaled. `swift test` checks the Markdown mapping, the edit span, the insights, the attachment details, and that the commands match the tools.
 
 ## Not possible
 
-- **Adding photos, videos, recordings or drawings to an entry.** Journal makes these in its editor (the camera, the recorder, Pencil, its photo picker), with thumbnails and an entry layout of its own; writing them from outside could not be checked against what Journal shows. Existing ones are read in full.
+- **Adding drawings, Live Photos, places, State of Mind, workouts and the other kinds of attachment.** Journal makes these from PencilKit, the Photos library and system services (Journaling Suggestions, HealthKit) in its own editor; only photos, videos and recordings come from plain files. Existing ones of every kind are read in full.
+- **Placing an attachment in the text, or a transcript for an attached recording.** Attachments are added to the entry's layout above its text. Journal transcribes the recordings made in its own recorder, not ones added from files.
 - **Journaling Suggestions.** They come from a system service (momentsd) that answers only apps with an entitlement this app cannot have.
 - **Writing prompts and follow-up prompts made on the device.** Journal makes them with Apple Intelligence under entitlements only it has. Prompts already in entries are read.
 - **State of Mind into Health.** Logging one needs HealthKit with Journal's own permission. Those in entries are read.

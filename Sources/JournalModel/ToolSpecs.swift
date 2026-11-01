@@ -106,10 +106,16 @@ package enum JournalTools {
             "text_only": Schema.flag("Only the details, no images or audio"),
         ], required: ["id"]), effect: .reads)
 
+    package static let attachHelp = """
+        Absolute paths of photos, videos or audio recordings to add, shown above the text after those \
+        it has (photos are saved as HEIC of about 6 megapixels, as Journal does)
+        """
+
     package static let createEntry = ToolSpec("create_entry", title: "Create a journal entry",
         summary: """
             Creates an entry with a title and text (\(markdownHelp)), dated now or on date, in a journal, \
-            bookmarked if asked. Journal uploads it to iCloud; the answer says whether it has yet.
+            bookmarked if asked, with photos, videos or recordings attached. Journal uploads it to iCloud; the \
+            answer says whether it has yet.
             """,
         input: Schema.object([
             "title": Schema.text("The title; default none"),
@@ -117,14 +123,16 @@ package enum JournalTools {
             "date": Schema.text("2026-10-21T09:30, or 2026-10-21; default now"),
             "journal": Schema.text("The journal to put it in (name or id); default none, so only All Entries shows it"),
             "bookmarked": Schema.flag("Bookmark it"),
+            "attach": Schema.texts(attachHelp),
         ]), effect: .writes)
 
     package static let editEntry = ToolSpec("edit_entry", title: "Edit a journal entry",
         summary: """
             Changes an entry in one call: its title, its text (body rewrites it all; replace swaps exact \
             Markdown from read_entry, pairs applied in order; append adds Markdown at the end), its date, \
-            bookmark or journal. Only what changes is written; the rest keeps its formatting. An entry changed \
-            since its version was read is refused.
+            bookmark or journal, and its attachments (attach adds photos, videos or recordings; detach takes \
+            attachments off by id). Only what changes is written; the rest keeps its formatting. An entry \
+            changed since its version was read is refused.
             """,
         input: Schema.object([
             "id": Schema.text("Entry id"),
@@ -139,6 +147,8 @@ package enum JournalTools {
             "date": Schema.text("2026-10-21T09:30, or 2026-10-21"),
             "bookmarked": Schema.flag("Bookmark (true) or not (false)"),
             "journal": Schema.text("Move it to this journal (name or id); \"\" takes it out of its journal"),
+            "attach": Schema.texts(attachHelp),
+            "detach": Schema.texts("Ids of attachments to take off (from read_entry); Journal deletes them from iCloud too"),
         ], required: ["id", "version"]), effect: .writes)
 
     package static let deleteEntry = ToolSpec("delete_entry", title: "Delete a journal entry",

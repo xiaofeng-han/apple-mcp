@@ -7,11 +7,11 @@ apple-journal-mcp entries
 │       --limit int --offset int --sort newest|oldest|edited
 ├── read [ID]                   Print entries in full, the text as Markdown, each with the version entries edit takes
 │       --id string…
-├── create [MARKDOWN]           Create an entry from Markdown, with --title, --date, --journal, --bookmarked
-│       --[no-]bookmarked --date string --journal string --title string
-├── edit ID --version string    Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal
-│       --append string --body string --[no-]bookmarked --date string --journal string --replace json
-│       --title string
+├── create [MARKDOWN]           Create an entry from Markdown, with --title, --date, --journal, --bookmarked, --attach FILE
+│       --attach string… --[no-]bookmarked --date string --journal string --title string
+├── edit ID --version string    Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal, --attach, --detach
+│       --append string --attach string… --body string --[no-]bookmarked --date string --detach string…
+│       --journal string --replace json --title string
 ├── delete ID --version string  Move an entry to Recently Deleted; --permanently deletes one there for good (ask the user first)
 │       --[no-]permanently
 ├── restore ID                  Bring an entry back from Recently Deleted (entries list --deleted lists them)

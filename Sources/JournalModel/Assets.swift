@@ -2,8 +2,9 @@ import Foundation
 import Wire
 
 /// What Journal keeps about one of an entry's attachments ("assets"): its kind, the details its
-/// metadata holds, and its files. Journal stores the metadata as a version byte (1) followed by
-/// JSON whose keys are its Swift properties; dates are seconds since 2001, data is base64.
+/// metadata holds, and its files. The metadata is JSON whose keys are its Swift properties; dates
+/// are seconds since 2001, data is base64. In the store's file it follows a byte 1, Core Data's
+/// mark for data kept in the row.
 package struct AssetInfo: Sendable {
     package let id: String
     /// Journal's asset type: photo, video, livePhoto, audio, visit, multiPinMap, genericMap,

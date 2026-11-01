@@ -11,7 +11,7 @@ tools.json, so the user's own choice neither hides tools from the checks nor cha
 
 The app needs Full Disk Access (run it with `setup` once).
 """
-import json, os, sys, tempfile
+import json, os, shutil, struct, subprocess, sys, tempfile, zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # -I leaves this folder off the path
 import harness
@@ -87,6 +87,38 @@ st, t = call("edit_entry", id=A["id"], version=R2["version"], title="Not guarded
 st, t = call("edit_entry", id=A["id"], version=R2["version"], date="2026-10-29", journal=""); E = obj(t)
 check("edit: date and out of its journal", st == "OK" and E["date"] == "2026-10-29T12:00" and "journal" not in E, t)
 
+# Attachments made here: a photo, a recording, and a video when ffmpeg can make one.
+media = tempfile.mkdtemp()
+photo_path, audio_path, video_path = (os.path.join(media, name) for name in ("photo.png", "recording.m4a", "video.mov"))
+def png(width, height):
+    """A gradient, as an RGB PNG."""
+    raw =b"".join(b"\0" + b"".join(bytes((x * 255 // width, y * 255 // height, 160)) for x in range(width)) for y in range(height))
+    chunk = lambda kind, data: struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+with open(photo_path, "wb") as f: f.write(png(320, 240))
+subprocess.run(["/usr/bin/say", "-o", audio_path, "--file-format=m4af", "--data-format=aac", "agent test recording"], check=True)
+ffmpeg = shutil.which("ffmpeg")
+if ffmpeg:
+    subprocess.run([ffmpeg, "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", video_path], check=True)
+files = [photo_path, audio_path] + ([video_path] if ffmpeg else [])
+kinds = ["photo", "audio"] + (["video"] if ffmpeg else [])
+st, t = call("edit_entry", id=A["id"], version=E["version"], attach=files); X = obj(t)
+check("attach a photo, a recording" + (" and a video" if ffmpeg else ""), st == "OK" and [a["kind"] for a in X.get("attached", [])] == kinds and X.get("uploaded") is True, t)
+st, t = call("read_entry", id=A["id"]); R3 = obj(t); shown = {a["id"]: a for a in R3.get("attachments", [])}
+check("read_entry lists them", st == "OK" and all(a["id"] in shown for a in X.get("attached", [])), t[:500])
+recording = next((a for a in X.get("attached", []) if a["kind"] == "audio"), {"id": "x"})
+check("the recording has its length", shown.get(recording["id"], {}).get("duration_seconds") in (1, 2, 3), shown.get(recording["id"]))
+r = harness.rpc("tools/call", {"name": "read_attachment", "arguments": {"id": X["attached"][0]["id"]}})
+check("the attached photo reads back as an image", any(c["type"] == "image" for c in r["result"]["content"]), str(r)[:300])
+st, t = call("edit_entry", id=A["id"], version=R3["version"], attach=["photo.png"]); check("attach needs an absolute path", st == "ERR" and "absolute path" in t, t)
+text_path = os.path.join(media, "notes.txt")
+with open(text_path, "w") as f: f.write("not media")
+st, t = call("edit_entry", id=A["id"], version=R3["version"], attach=[text_path]); check("attach refuses other files", st == "ERR" and "not a photo" in t, t)
+st, t = call("edit_entry", id=A["id"], version=R3["version"], detach=[recording["id"]]); D = obj(t)
+check("detach the recording", st == "OK" and "audio" not in D.get("attachments", {}) and D.get("uploaded") is True, t)
+st, t = call("edit_entry", id=A["id"], version=D["version"], detach=[recording["id"]]); check("a detached attachment is gone", st == "ERR" and "Not found" in t, t)
+E = D
+
 st, t = call("duplicate_entry", id=A["id"]); C = obj(t); check("duplicate", st == "OK" and C["id"] != A["id"] and C["title"] == "agent test e2e 日记", t)
 st, t = call("delete_entry", id=C["id"], version=C["version"]); check("delete to Recently Deleted", st == "OK" and "Recently Deleted" in t, t)
 check("listed in Recently Deleted", C["id"] in [e["id"] for e in entries(deleted=True)])
@@ -120,6 +152,8 @@ check("cli: entries search QUERY --journal", code == 0 and obj(out)["total"] == 
 code, out, err = cli("entries", "create", "-", "--title", "agent test e2e cli", "--journal", "agent test e2e 2", stdin="Line one\n* item\n")
 K = obj(out) if code == 0 else {}; check("cli: entries create - (stdin)", code == 0 and K.get("journal") == "agent test e2e 2", (code, out, err))
 code, out, err = cli("entries", "read", K.get("id", "x")); check("cli: entries read", code == 0 and obj(out)["body"] == "Line one\n* item", (code, out, err))
+code, out, err = cli("entries", "edit", K.get("id", "x"), "--version", K.get("version", "x"), "--attach", photo_path)
+check("cli: entries edit --attach", code == 0 and [a["kind"] for a in obj(out).get("attached", [])] == ["photo"], (code, out, err))
 code, out, err = cli("entries", "edit", K.get("id", "x"), "--version", "stale", "--bookmarked")
 check("cli: a stale version exits 1, naming commands", code == 1 and "changed since" in err and "entries read" in err and out == "", (code, out, err))
 code, out, err = cli("entries", "list", "--bogus"); check("cli: an unknown flag exits 2", code == 2 and "--bogus" in err and out == "", (code, out, err))

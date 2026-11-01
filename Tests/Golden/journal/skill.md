@@ -24,7 +24,7 @@ EOF
 - Journal entries are private. Read only what the user's request needs, and share what they say only as the user asks.
 - Find entries with `entries list` (newest first; `--journal`, `--bookmarked`, `--after`/`--before` YYYY-MM-DD, `--attachment photo|video|audio|place|state_of_mind|workout|activity|music|podcast|book|contact|link|reflection|drawing|event|any|none`) or `entries search WORDS`, then `entries read ID`. Each comes with its `version`. `journals list` shows the journals and Journal's insights (days journaled, streaks).
 - Every change to an entry needs `--version` from `entries read`, `list` or `search`: `entries edit`, `entries delete`. An entry changed elsewhere since then is refused; read it again. Each change prints the new version.
-- Make all changes to one entry in a single `entries edit ID --version V` call: `--title`, `--body` (the whole text), `--replace '[{"old":"…","new":"…"}]'` (exact Markdown from `entries read`), `--append` (Markdown at the end), `--date 2026-10-21T09:30`, `--bookmarked` / `--no-bookmarked`, `--journal NAME` (`""` takes it out of its journal).
+- Make all changes to one entry in a single `entries edit ID --version V` call: `--title`, `--body` (the whole text), `--replace '[{"old":"…","new":"…"}]'` (exact Markdown from `entries read`), `--append` (Markdown at the end), `--date 2026-10-21T09:30`, `--bookmarked` / `--no-bookmarked`, `--journal NAME` (`""` takes it out of its journal), `--attach FILE` (a photo, video or audio recording, by absolute path; repeat for more; `entries create` takes it too), `--detach ATTACHMENT_ID` (from `entries read`).
 - Entry text is Markdown, one paragraph per line: `**bold**`, `*italic*`, `<u>underline</u>`, `~~strike~~`, `*` and `-` lists, `1.` numbered, two spaces per indent level, `>` quote. Journal has no headings, tables or checklists: headings become bold text, checklist items bullets, and tables are refused.
 - Keep `![…](attachment:…)` placeholders where they are: they are photos, prompts and Genmoji placed in the text. `attachments read ID` prints an attachment's details and saves its photos, video frames and recordings, printing where.
 - `-` as the Markdown of `entries create`, or as `--body` or `--append`, reads it from stdin: use a quoted heredoc for text of several lines.
@@ -63,17 +63,20 @@ EOF
 - `entries read [ID]`: Print entries in full, the text as Markdown, each with the version entries edit takes. By id, or several (--ids repeats, up to 20).
   - `--id string…` Several entries, up to 20
 
-- `entries create [MARKDOWN]`: Create an entry from Markdown, with --title, --date, --journal, --bookmarked.
+- `entries create [MARKDOWN]`: Create an entry from Markdown, with --title, --date, --journal, --bookmarked, --attach FILE.
+  - `--attach string…` A photo, video or audio recording to add
   - `--[no-]bookmarked` Bookmark it
   - `--date string` 2026-10-21T09:30, or 2026-10-21; default now
   - `--journal string` The journal to put it in (name or id); default none, so only All Entries shows it
   - `--title string` The title; default none
 
-- `entries edit ID --version string`: Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal. --version is the one entries read, list or search gave; an entry changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from entries read, applied in order. --journal "" takes it out of its journal. Only what changes is written; the rest keeps its formatting.
+- `entries edit ID --version string`: Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal, --attach, --detach. --version is the one entries read, list or search gave; an entry changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from entries read, applied in order. --journal "" takes it out of its journal. Only what changes is written; the rest keeps its formatting.
   - `--append string` Markdown to add at the end; - reads it from stdin
+  - `--attach string…` A photo, video or audio recording to add
   - `--body string` The whole text as Markdown; - reads it from stdin
   - `--[no-]bookmarked` Bookmark (true) or not (false)
   - `--date string` 2026-10-21T09:30, or 2026-10-21
+  - `--detach string…` An attachment's id, from entries read, to take off
   - `--journal string` Move it to this journal (name or id); "" takes it out of its journal
   - `--replace json` A JSON list of {old, new, all}, applied in order {all: Replace every occurrence; new: Markdown; old: Exact Markdown; must be unique unless all}
   - `--title string` The new title; "" for none

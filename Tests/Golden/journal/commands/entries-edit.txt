@@ -1,13 +1,15 @@
 usage: apple-journal-mcp entries edit ID --version string [flags]
 
-Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal. --version is the one entries read, list or search gave; an entry changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from entries read, applied in order. --journal "" takes it out of its journal. Only what changes is written; the rest keeps its formatting.
+Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal, --attach, --detach. --version is the one entries read, list or search gave; an entry changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from entries read, applied in order. --journal "" takes it out of its journal. Only what changes is written; the rest keeps its formatting.
 
   ID                 Entry id
   --version string   From entries read, list or search (required)
   --append string    Markdown to add at the end; - reads it from stdin
+  --attach string…   A photo, video or audio recording to add (repeat for more)
   --body string      The whole text as Markdown; - reads it from stdin
   --[no-]bookmarked  Bookmark (true) or not (false)
   --date string      2026-10-21T09:30, or 2026-10-21
+  --detach string…   An attachment's id, from entries read, to take off (repeat for more)
   --journal string   Move it to this journal (name or id); "" takes it out of its journal
   --replace json     A JSON list of {old, new, all}, applied in order
                          all: Replace every occurrence

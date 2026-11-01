@@ -31,11 +31,12 @@ package enum JournalCommands {
               detail: "By id, or several (--ids repeats, up to 20).",
               positional: [("id", "ID")]),
         Route(noun: "entries", verb: "create", tool: "create_entry",
-              about: "Create an entry from Markdown, with --title, --date, --journal, --bookmarked",
+              about: "Create an entry from Markdown, with --title, --date, --journal, --bookmarked, --attach FILE",
               positional: [("body", "MARKDOWN")],
-              abouts: ["body": "The text as Markdown; - reads it from stdin"], stdin: ["body"]),
+              abouts: ["body": "The text as Markdown; - reads it from stdin", "attach": "A photo, video or audio recording to add"],
+              stdin: ["body"]),
         Route(noun: "entries", verb: "edit", tool: "edit_entry",
-              about: "Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal",
+              about: "Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal, --attach, --detach",
               detail: """
                   --version is the one entries read, list or search gave; an entry changed elsewhere since then is \
                   refused, so read it again. --replace takes exact Markdown from entries read, applied in order. \
@@ -43,7 +44,9 @@ package enum JournalCommands {
                   """,
               positional: [("id", "ID")],
               abouts: ["version": "From entries read, list or search", "replace": "A JSON list of {old, new, all}, applied in order",
-                       "body": "The whole text as Markdown; - reads it from stdin", "append": "Markdown to add at the end; - reads it from stdin"],
+                       "body": "The whole text as Markdown; - reads it from stdin", "append": "Markdown to add at the end; - reads it from stdin",
+                       "attach": "A photo, video or audio recording to add",
+                       "detach": "An attachment's id, from entries read, to take off"],
               stdin: ["body", "append"]),
         Route(noun: "entries", verb: "delete", tool: "delete_entry",
               about: "Move an entry to Recently Deleted; --permanently deletes one there for good (ask the user first)",

@@ -12,8 +12,13 @@ struct EntryChange {
     var bookmarked: Bool?
     /// The custom journal it belongs to: a journal's name or id, or "" for none.
     var journal: String?
+    /// Photos, videos and recordings to add, read already; attachments (ids) to take off.
+    var attach: [NewAttachment] = []
+    var detach: [String] = []
 
-    var isEmpty: Bool { title == nil && body == nil && date == nil && bookmarked == nil && journal == nil }
+    var isEmpty: Bool {
+        title == nil && body == nil && date == nil && bookmarked == nil && journal == nil && attach.isEmpty && detach.isEmpty
+    }
 }
 
 /// What a write did, for the answer: the entry or journal, and whether Journal uploaded it to
@@ -27,35 +32,39 @@ struct Written {
 extension JournalStore {
     // MARK: Entries
 
-    func create(_ change: EntryChange) throws(JournalError) -> JournalEntryMO {
+    func create(_ change: EntryChange) throws(JournalError) -> (JournalEntryMO, [Attached]) {
         let title = change.title ?? ""
         try allow(title: title)
         let context = try context()
         let entry = JournalEntryMO.create(type: .blankEntry, context: context, uuid: UUID())
+        var attached: [Attached] = []
         do {
-            try apply(change, to: entry)
+            attached = try apply(change, to: entry)
             if change.date == nil { entry.setValue("creation", forKey: "dateSource") }
+            try save(entry)
         } catch {
             context.rollback()
+            removeFolders(attached.map(\.folder))
             throw error
         }
-        try save(entry)
-        return entry
+        return (entry, attached)
     }
 
-    func edit(_ reference: String, version: String, _ change: EntryChange) throws(JournalError) -> JournalEntryMO {
+    func edit(_ reference: String, version: String, _ change: EntryChange) throws(JournalError) -> (JournalEntryMO, [Attached]) {
         let entry = try entryObject(reference)
         try check(entry, version: version)
         try allow(title: title(entry))
         if let title = change.title { try allow(title: title) }
+        var attached: [Attached] = []
         do {
-            try apply(change, to: entry)
+            attached = try apply(change, to: entry)
+            try save(entry)
         } catch {
             try context().rollback()
+            removeFolders(attached.map(\.folder))
             throw error
         }
-        try save(entry)
-        return entry
+        return (entry, attached)
     }
 
     /// Moves an entry to Recently Deleted, or deletes one that is there for good.
@@ -109,7 +118,8 @@ extension JournalStore {
         }
     }
 
-    private func apply(_ change: EntryChange, to entry: JournalEntryMO) throws(JournalError) {
+    /// Makes the change; files are written last, so a change that fails earlier writes none.
+    private func apply(_ change: EntryChange, to entry: JournalEntryMO) throws(JournalError) -> [Attached] {
         if let title = change.title { try setTitle(title, of: entry) }
         if let body = change.body { try setBody(body, of: entry) }
         if let date = change.date {
@@ -119,6 +129,8 @@ extension JournalStore {
         }
         if let bookmarked = change.bookmarked { entry.setValue(bookmarked, forKey: "flagged") }
         if let journal = change.journal { try move(entry, to: journal) }
+        try detach(change.detach, from: entry)
+        return try attach(change.attach, to: entry)
     }
 
     private func setTitle(_ title: String, of entry: JournalEntryMO) throws(JournalError) {

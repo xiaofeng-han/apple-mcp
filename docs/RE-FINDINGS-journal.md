@@ -20,7 +20,8 @@
 - **[观测]** 3.0 的手记：`ZMERGEABLEATTRIBUTES` 是 `MergeableEntryAttributes`（标题、正文、附件排布、所属手记本 id 集合），
   手记本的 `MergeableJournalAttributes`（名称、颜色、图标）也是。序列化格式以 `crdt` 魔数开头，后面是 Coherence 的 protobuf。
   它们经命名值转换器（`MergeableEntryAttributesTransformer` 等）存取，转换器在读 `NSManagedObjectModel.shared` 时才注册。
-- **[观测]** 附件元数据 `ZASSETMETADATA` = 版本字节 `0x01` + JSON，键就是 Swift 属性名（日期是自 2001 年起的秒数，Data 是 base64）。
+- **[观测]** 附件元数据 `ZASSETMETADATA` 是 JSON，键就是 Swift 属性名（日期是自 2001 年起的秒数，Data 是 base64）；库文件里它前面的
+  `0x01` 是 Core Data「数据存在行内」的标记，经 Core Data 读写时没有这个字节。
   类型（`ZASSETTYPE`）：photo、livePhoto、video、audio、visit、genericMap、multiPinMap、stateOfMind、workoutIcon、workoutRoute、
   motionActivity、music、podcast、book、thirdPartyMedia、contact、link、reflection、drawing、confetti、streakEvent、placeholder。
   录音的转写在 `transcriptSegments[].text`；心理状态的 `labels`/`domains`/`valenceClassification` 是 HealthKit 的
@@ -99,11 +100,38 @@
   上面的类型化属性做映射，并且只改有差别的那一段（保留其余部分的颜色、对齐和合并历史）。**[未知]** 在「手记」界面里亲眼确认显示效果
   （本次没有取得操作「手记」窗口的许可）；读回的类型化属性与 Scope 定义一致。
 
-## 6. 做不到或没做的
+## 6. 添加附件（用 Hopper 逆向 Journal.app 得出）
 
-- **往手记里加照片、视频、录音、涂鸦**：要建 `JournalEntryAssetMO` + 文件附件 + 元数据，并更新可合并的附件排布
-  （`MergeableEntryAssetsPlacement`，其中的 CR 类型还没逆向）；缩略图、`needsProcessing` 的处理也在「手记」里。没法在界面上核对效果，
-  所以没做。**[未知]** 只写文件和元数据、不改排布时「手记」会不会自己补上。
+- **[观测]** 「手记」保存附件（`saveAttachments`）：文件写到 `<手记 id>/<附件 id>/<fileNameID>.<扩展名>`（照片先缩到约 600 万像素，
+  再用 `UIImageHEICRepresentation` 存成 `<UUID>_resized.heic`；库里已有的照片是 2829×2122，正是 4032×3024 缩到 600 万像素）。
+  文件记录 `JournalEntryAssetFileAttachmentMO`：新 `id`、`filePath`（相对 `Attachments/`）、`index`、`name`、`needsProcessing = 1`，
+  按 (index, name) 复用已有记录。`name` 按附件内容取 `image` / `video` / `audio` / `other`。
+- **[观测]** 视频要在同一个 index 上再有一张 `image` 静帧：缩略图代码按 index 找类型为图片的文件，找不到就记
+  "Couldn't generate a thumbnail for video asset"；补上静帧后记 "Thumbnail created for video asset from file"。实况照片同理（image + video）。
+- **[观测]** `JournalEntryAssetMO` 由「手记」设 `id`、创建/更新日期、`assetType`、`source`、`isHidden`、`minimumSupportedAppVersion`
+  （photo/video/audio 为 0），元数据用 JournalShared 自己的类型编码（`Encodable.asData`）：photo/video/livePhoto 解码为
+  `PhotoLibraryAssetMetadata`（`date`、`size`、三种裁切框、`displayAtFullAspectRatio`、可选的地点），audio 为 `AudioAssetMetadata`
+  （`duration`、`intensities`、`recordingDate`、`transcriptSegments`）。`parentID` 保存时不会自动填，从 iCloud 下来的记录有，所以自己填
+  （附件 → 手记 id，文件 → 附件 id）。
+- **[观测]** 排布：`EntryViewModel` 先 `assetPlacement(forAssetID:)` 取旧位置，`addOrMoveAsset(withID:to:from:)`，再
+  `MergeableEntryAttributes.merge(assetPlacement:)`、`JournalEntryMO.modifyLegacyAssetOrderingFields(from:)`、`isUploadedToCloud = 0`。
+  `JournalEntryMO.mergeableAssetPlacement` 的 setter 做的就是合并；3.0 之前的手记 setter 不起作用、`mergeableAttributes` 仍为空，
+  旧的 `assetOrdering`（`[id, 位置, …]` 的 JSON）由 `modifyLegacyAssetOrderingFields` 写。网格最多 `AssetPlacement.Constants.maxGridCount`（53）个。
+- **[观测]** `needsProcessing` 的文件不上传（文件的上传条件含 `needsProcessing == 0 OR nil`）。「手记」的
+  `AssetPostprocessingOperation` 处理照片、视频、录音时记 "unsupported asset type" 并清掉标记；所以本 App 直接写 0。
+- **[观测]** 录音的波形：「手记」用 `AudioIntensityProcessor(computesAverageIntensity: false).readAudioIntensityLevels(from: AVURLAsset)`
+  的第一个数组（约每秒 25 个）。它只给自己录音器里正在录的录音（`isBeingEdited` 或 `isHidden`）补算，所以本 App 自己调用这段代码算好再写。
+  这个 async 方法是 `nonisolated(nonsending)`：调用方在 x0/x1 传自己的 actor（nil 时为 0、0），然后才是参数；符号名里看不出来，
+  接口里不这样声明就会把 AVAsset 传成 nil 而崩溃。**[观测]** 转写只对「手记」录音器的录音做（"No existing audio files to transcribe"）。
+- **[观测]** 移除：编辑器里先标 `isUndoablyDeleted`；本 App 像删手记那样标 `isRemovedFromCloud = 1` 并从排布里去掉。「手记」删除 iCloud 记录后
+  删掉本机的附件行（级联删除文件记录）和文件夹。「手记」永久删除手记时只标手记本身，附件靠级联。
+- **[观测]** 实测：照片、视频（带静帧）、录音（带波形）写入后几秒内全部上传（文件记录有 `recordSystemFields`），「手记」为视频生成了缩略图。
+  **[未知]** 在「手记」界面里亲眼确认显示效果（没有操作「手记」窗口的许可）。
+
+## 7. 做不到或没做的
+
+- **添加涂鸦、实况照片、地点、心理状态等其他种类的附件**：来自 PencilKit、照片图库或系统服务，不是普通文件。
+- **把附件放进正文（canvas 排布 + 正文里的 `MergeableAssetTextAttachment`）**：没做；正文里的附件也不让移除。
 - **手记建议**：来自 momentsd（`com.apple.momentsd`、`MOSuggestion…`），需要 `com.apple.developer.journal.allow` /
   `com.apple.moments.allowSuggestions` 等权限。
 - **设备上生成的写作提示 / 后续提示**：「手记」用 FoundationModels / GenerativeModels，带私有 entitlement。已有的提示可读。

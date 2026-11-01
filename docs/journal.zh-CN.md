@@ -9,7 +9,7 @@
 「手记」没有 AppleScript，快捷指令也只有几个（新建手记、搜索、打开手记），所以本 App 走「手记」自己的数据模型：私有框架 JournalShared，「手记」本身、它的共享扩展和小组件都用它。读写原地针对这台 Mac 上「手记」的数据，和「手记」共享扩展写手记的方式一样，之后由「手记」自己把改动上传到 iCloud。agent 写下的就是普通的「手记」数据，每台设备上都一样：
 - 手记：标题、带「手记」原生格式的正文（粗体、斜体、下划线、删除线、列表、引用）、日期、书签、所属手记本、最近删除、复制；
 - 手记本：名称、颜色和图标；删除时手记可移走、保留或一起删除；
-- 附件（只读）连同详情：照片、视频、录音及其转写、地点和到访、心理状态（State of Mind）、体能训练、活动、音乐和播客、图书、联系人、链接、回顾、涂鸦里识别出的手写；
+- 附件：从文件添加照片、视频和录音，也可以移除附件；各种附件都能读出详情：照片、视频、录音及其转写、地点和到访、心理状态（State of Mind）、体能训练、活动、音乐和播客、图书、联系人、链接、回顾、涂鸦里识别出的手写；
 - 「手记」的分析：写手记的天数和连续纪录。
 
 唯一需要的权限是完全磁盘访问，因为「手记」的数据放在 macOS 保护的容器里。
@@ -27,9 +27,10 @@
 | 复制手记 | ✅ `duplicate_entry` |
 | 搜索，按手记本、书签、日期、附件种类筛选 | ✅ `find_entries` |
 | 照片、视频、录音及转写、地点、心情、体能训练、音乐、图书、联系人、链接、回顾、涂鸦 | ✅ 读：`read_entry` 给出详情，`read_attachment` 打开 |
+| 往手记里添加照片、视频和录音；移除附件 | ✅ `create_entry` 和 `edit_entry` 的 `attach`；`edit_entry` 的 `detach` |
 | 分析：写手记天数、连续纪录 | ✅ `overview` |
 | 导出 | ✅ `export_entries` 导出为带附件的 Markdown（「手记」自己的导出是只有「手记」能打开的归档） |
-| 往手记里添加照片、视频、录音或涂鸦 | ❌ 见[做不到的](#做不到的) |
+| 添加涂鸦、实况照片、地点、心理状态等其他种类的附件；把附件放进正文 | ❌ 见[做不到的](#做不到的) |
 | 手记建议（Journaling Suggestions）、设备上生成的写作提示 | ❌ |
 | 锁定手记、写手记计划及其通知、打印 | ❌ |
 
@@ -41,8 +42,8 @@
 | `find_entries` | 查手记，默认最新在前（也可最旧在前或最近修改在前）：按词（标题、正文、写作提示，以及附件里的地点、人、歌曲、转写和手写）、手记本、书签、日期（`after` 含当天，`before` 不含）和附件种类；或查「最近删除」。每条带 id、version、摘要和按种类计数的附件；用 `offset` 翻页 |
 | `read_entry` | 读完整手记（最多 20 条）：正文 Markdown、日期、创建和修改时间、手记本、书签、写作提示，以及每个附件的详情 |
 | `read_attachment` | 打开一个附件：照片转成 JPEG，视频取一帧，录音作为音频，连同详情 |
-| `create_entry` | 新建手记：标题和正文，日期为现在或 `date`，可放进手记本、加书签 |
-| `edit_entry` | 一次调用改一条：标题、正文（`body` 整篇重写，`replace` 替换 read_entry 里的原样 Markdown，`append` 加在末尾）、日期、书签、手记本（`""` 移出手记本）。只写改动的部分 |
+| `create_entry` | 新建手记：标题和正文，日期为现在或 `date`，可放进手记本、加书签，可附上照片、视频和录音（`attach`） |
+| `edit_entry` | 一次调用改一条：标题、正文（`body` 整篇重写，`replace` 替换 read_entry 里的原样 Markdown，`append` 加在末尾）、日期、书签、手记本（`""` 移出手记本）、附件（`attach` 添加文件，`detach` 按 id 移除附件）。只写改动的部分 |
 | `delete_entry` | 把手记移到「最近删除」，「手记」保留 30 天；`permanently` 把已在那里的手记永久删除 |
 | `restore_entry` | 从「最近删除」恢复 |
 | `duplicate_entry` | 复制手记，连同正文、日期、手记本和附件，和「手记」的「复制」一样 |
@@ -85,6 +86,16 @@
 | `contact` | 谁、何时、多久 |
 | `link`、`reflection`、`drawing`、`event` | 网址；回顾的提示；「手记」在涂鸦里识别出的手写；活动的地点和时间 |
 
+`attach` 接受最多 20 个文件的绝对路径，每个不超过 250 MB，像「手记」的照片选择器那样排在手记正文上方已有附件的后面：
+
+| 文件 | 存成 |
+|---|---|
+| macOS 能读的图片（JPEG、HEIC、PNG、TIFF、RAW 等） | 照片，和「手记」自己的一样存为不超过 600 万像素的 HEIC，日期和地点取自 Exif |
+| macOS 能播放的视频（MOV、MP4、M4V） | 视频，文件原样保存，另存一张静帧供「手记」显示，连同日期和地点 |
+| macOS 能播放的音频（M4A、MP3、WAV、AIFF、CAF 等） | 录音，文件原样保存，连同时长和「手记」显示的波形（用「手记」自己的代码算出） |
+
+回答里列出每个新附件的 id。`detach` 按这些 id（来自 `read_entry`）移除附件，之后「手记」会把它们从 iCloud 和这台 Mac 上删掉。放在正文里的附件会被拒绝：只有「手记」能把它从正文里拿出来。
+
 ## 命令行
 
 每个工具都是一条命令：`apple-journal-mcp help` 打印命令树，任何命令都可加 `--help`。
@@ -98,6 +109,7 @@ apple-journal-mcp entries create - --title "美好的一天" --journal 旅行 <<
 我们走到了**灯塔**。
 EOF
 apple-journal-mcp entries edit ID --version VERSION --append "- 早饭前游了泳" --bookmarked
+apple-journal-mcp entries edit ID --version VERSION --attach ~/Pictures/lake.heic --attach ~/Movies/swim.mov
 apple-journal-mcp entries delete ID --version VERSION                # 移到「最近删除」
 apple-journal-mcp journals create "感恩" --color pink --icon "🙏"
 apple-journal-mcp attachments read ID --output-dir ~/Desktop        # 保存照片和录音
@@ -148,6 +160,7 @@ ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 - **数据。**「手记」把一切放在它的 App 组容器里的 Core Data 库 `~/Library/Group Containers/group.com.apple.moments/Library/moments.sqlite`，照片和录音在旁边的 `Attachments/`。本 App 用「手记」自己的模型和类、按「手记」打开它的方式（开启历史记录，这样「手记」能立刻知道每次保存）打开这个库，从不迁移它。
 - **文本。**「手记」3.0 把手记的正文和标题、手记本的名称颜色图标存为苹果私有框架 Coherence 的可合并值（CRDT），较早的手记存为 RTF。本 App 通过「手记」自己的代码读取和修改它们。
 - **同步。**「手记」的同步引擎会上传所有标记为未上传的对象。写入时像「手记」自己的编辑器那样做这个标记，然后由「手记」上传，通常几秒内完成。
+- **附件。**一个附件是一个 asset（种类和用「手记」自己的类型编码的元数据）加上 `Attachments/ENTRY/ASSET/` 里的文件，用「手记」自己的排版代码放进手记的布局，这段代码也会维护「手记」3.0 之前的手记所用的旧排序字段。「手记」把文件随手记一起上传；移除附件就是把它标记为待从 iCloud 删除，之后「手记」再删掉这台 Mac 上的记录和文件。
 - **接口。**JournalShared 是没有公开接口的 Swift 框架，所以 `Interfaces/Journal` 里放着为本 App 用到的部分手写的 Swift 接口，以及链接器用来代替框架的桩文件（`scripts/journal-stubs.py` 根据所在 Mac 上的符号生成）。框架是弱链接的。App 启动时检查它调用的每个函数是否都在；缺了哪个（换了 macOS 版本），每个工具都会说明，不读也不改任何东西。`--check-markdown` 读出每个手记、写成 Markdown 再解析回来，看有没有丢东西；系统更新后可以跑一下。
 - **不需要「手记」的部分**单独放在 `JournalModel` 里：agent 看到的工具（名称、说明、参数）、命令、正文的 Markdown 形式、分析和附件详情。`JournalComponent` 给每个工具接上具体做法。单元测试（`JournalModelTests`）只依赖 `JournalModel`，所以既不需要手写的接口，也不需要「手记」。
 - 逆向笔记见 [RE-FINDINGS-journal.md](RE-FINDINGS-journal.md)。
@@ -159,11 +172,12 @@ ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 /usr/bin/python3 -I scripts/e2e.py journal .build/debug/AppleJournalMCP # 未打包的构建，用终端的完全磁盘访问
 ```
 
-检查经 stdio 跑遍每个工具和主要命令，共 70 项。写保护（`APPLE_JOURNAL_MCP_WRITE_GUARD=agent test`）把写入限制在标题以 `agent test` 开头的手记和名称以它开头的手记本。它会建一个临时手记本和若干手记，检查每次改动都被「手记」上传，最后把它们全部永久删除，所以概览里的数量恢复原样；你的其他设备会看到这些测试手记出现又消失。「手记」会为每篇永久删除的手记留一条连续纪录（种类为 `streakEvent`、不属于任何手记的附件），这样删除不会打断连续纪录：跑完之后，「手记」自己的分析会把当天算作写过手记的一天。`swift test` 检查 Markdown 对应、修改范围的计算、分析、附件详情，以及命令和工具是否一致。
+检查经 stdio 跑遍每个工具和主要命令，共 79 项。写保护（`APPLE_JOURNAL_MCP_WRITE_GUARD=agent test`）把写入限制在标题以 `agent test` 开头的手记和名称以它开头的手记本。它会建一个临时手记本和若干手记，附上它生成的照片和录音（装了 `ffmpeg` 时还有视频），检查每次改动都被「手记」上传，最后把它们全部永久删除，所以概览里的数量恢复原样；你的其他设备会看到这些测试手记出现又消失。「手记」会为每篇永久删除的手记留一条连续纪录（种类为 `streakEvent`、不属于任何手记的附件），这样删除不会打断连续纪录：跑完之后，「手记」自己的分析会把当天算作写过手记的一天。`swift test` 检查 Markdown 对应、修改范围的计算、分析、附件详情，以及命令和工具是否一致。
 
 ## 做不到的
 
-- **往手记里添加照片、视频、录音或涂鸦。**「手记」在它的编辑器里制作这些（相机、录音、Apple Pencil、照片选择器），带缩略图和自己的手记排版；从外部写入无法对照「手记」实际显示的效果来验证。已有的附件可以完整读取。
+- **添加涂鸦、实况照片、地点、心理状态、体能训练等其他种类的附件。**「手记」在自己的编辑器里用 PencilKit、照片图库和系统服务（手记建议、HealthKit）制作它们；只有照片、视频和录音来自普通文件。已有的各种附件都能完整读取。
+- **把附件放进正文，或为添加的录音生成转写。**附件添加在正文上方的布局里。「手记」只转写在它自己的录音器里录的录音，不转写从文件添加的。
 - **手记建议（Journaling Suggestions）。**它们来自系统服务（momentsd），只回应拥有本 App 拿不到的权限的 App。
 - **设备上生成的写作提示和后续提示。**「手记」用 Apple 智能生成它们，需要只有它才有的权限。手记里已有的提示可以读取。
 - **把心理状态写入「健康」。**记录心理状态需要 HealthKit 和「手记」自己的授权。手记里已有的可以读取。

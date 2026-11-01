@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import JournalModel
 import JournalShared
@@ -14,13 +15,16 @@ func writeTools(_ store: JournalStore) -> [Tool] {
             change.date = try input.entryDate("date")
             change.journal = try input.text("journal")
             change.bookmarked = try input.flag("bookmarked")
-            if (change.title ?? "").isEmpty, (change.body.map { Markdown.render($0) } ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                throw BadInput("give a title or a body")
+            let attach = try input.texts("attach") ?? []
+            if (change.title ?? "").isEmpty, (change.body.map { Markdown.render($0) } ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               attach.isEmpty {
+                throw BadInput("give a title, a body or files to attach")
             }
             return try await withJournal(store) {
-                let entry = try store.create(change)
-                let uploaded = await store.waitForUpload([entry])
-                return try written("Created.", store, entry, uploaded: uploaded)
+                change.attach = try await Attaching.prepare(attach)
+                let (entry, attached) = try store.create(change)
+                let uploaded = await store.waitForUpload([entry] + uploads(attached))
+                return try written("Created.", store, entry, attached: attached, uploaded: uploaded)
             }
         },
 
@@ -40,10 +44,13 @@ func writeTools(_ store: JournalStore) -> [Tool] {
             change.date = try input.entryDate("date")
             change.bookmarked = try input.flag("bookmarked")
             change.journal = try input.rawText("journal")
-            if change.isEmpty, body == nil, pairs.isEmpty, append == nil {
-                throw BadInput("give title, body, replace, append, date, bookmarked or journal")
+            let attach = try input.texts("attach") ?? []
+            change.detach = try input.texts("detach") ?? []
+            if change.isEmpty, body == nil, pairs.isEmpty, append == nil, attach.isEmpty {
+                throw BadInput("give title, body, replace, append, date, bookmarked, journal, attach or detach")
             }
             return try await withJournal(store) {
+                change.attach = try await Attaching.prepare(attach)
                 if let body {
                     change.body = Markdown.parse(body)
                 } else if !pairs.isEmpty || append != nil {
@@ -57,9 +64,9 @@ func writeTools(_ store: JournalStore) -> [Tool] {
                     if let append { markdown = markdown.trimmingCharacters(in: .newlines).isEmpty ? append : markdown + "\n" + append }
                     change.body = Markdown.parse(markdown)
                 }
-                let entry = try store.edit(reference, version: version, change)
-                let uploaded = await store.waitForUpload([entry])
-                return try written("Updated.", store, entry, uploaded: uploaded)
+                let (entry, attached) = try store.edit(reference, version: version, change)
+                let uploaded = await store.waitForUpload([entry] + uploads(attached))
+                return try written("Updated.", store, entry, attached: attached, uploaded: uploaded)
             }
         },
 
@@ -162,9 +169,22 @@ func writeTools(_ store: JournalStore) -> [Tool] {
     ]
 }
 
-/// The answer to a write about an entry: the entry as find_entries shows it, and its upload.
+/// The answer to a write about an entry: the entry as find_entries shows it, the attachments it
+/// added, and its upload.
 @MainActor
-private func written(_ lead: String, _ store: JournalStore, _ entry: JournalEntryMO, uploaded: Bool?) throws(JournalError) -> ToolAnswer {
+private func written(_ lead: String, _ store: JournalStore, _ entry: JournalEntryMO, attached: [Attached] = [], uploaded: Bool?) throws(JournalError) -> ToolAnswer {
     let names = Dictionary(uniqueKeysWithValues: try store.journalObjects().map { (JournalStore.id($0), store.name($0)) })
-    return Output.written(lead, Output.summary(store.info(entry), journals: names).object ?? [:], uploaded: uploaded)
+    var fields = Output.summary(store.info(entry), journals: names).object ?? [:]
+    if !attached.isEmpty {
+        fields["attached"] = .array(attached.map { item in
+            ["id": .string(JournalStore.id(item.asset)), "kind": .string(AssetDetails.kind(item.asset.value(forKey: "assetType") as? String ?? ""))]
+        })
+    }
+    return Output.written(lead, fields, uploaded: uploaded)
+}
+
+/// What uploads with the attachments: each asset and its file.
+@MainActor
+private func uploads(_ attached: [Attached]) -> [NSManagedObject] {
+    attached.flatMap { [$0.asset] + Array($0.asset.value(forKey: "fileAttachments") as? Set<NSManagedObject> ?? []) }
 }

@@ -8,6 +8,7 @@
 // is never assumed, but a wrong name, label or kind (struct, enum, class) calls nothing or the wrong
 // thing. Methods of the managed object classes are in extensions because the framework declares
 // them there (called directly, not through a dispatch thunk).
+import AVFoundation
 import Coherence
 import CoreData
 import CoreGraphics
@@ -145,6 +146,58 @@ extension JournalShared.JournalMO {
 }
 
 @objc(JournalEntryAssetMO) public class JournalEntryAssetMO : CoreData.NSManagedObject {}
+@objc(JournalEntryAssetFileAttachmentMO) public class JournalEntryAssetFileAttachmentMO : CoreData.NSManagedObject {}
+extension JournalShared.JournalEntryAssetFileAttachmentMO {
+  public static var objectsToSavePredicate: Foundation.NSPredicate { get }
+}
+
+/// Where an entry shows an attachment: in the grid above the text (at an index), as the one wide
+/// "slim" attachment, hidden, or in the text itself.
+public enum AssetPlacement {
+  case grid(Swift.Int)
+  case slim
+  case hidden
+  case canvas
+  public enum Constants {
+    public static var maxGridCount: Swift.Int { get }
+  }
+}
+
+public struct MergeableEntryAssetsPlacement {
+  public init(defaultState: ()) throws
+  public init(fromLegacyOrderingFieldsOf entry: JournalShared.JournalEntryMO)
+  public func assetPlacement(forAssetID assetID: Foundation.UUID) -> JournalShared.AssetPlacement?
+  public mutating func addOrMoveAsset(withID assetID: Foundation.UUID, to placement: JournalShared.AssetPlacement, from previous: JournalShared.AssetPlacement?)
+  public mutating func removeAsset(withID assetID: Foundation.UUID)
+}
+
+extension Swift.Encodable {
+  /// How Journal stores an attachment's details (JournalEntryAssetMO.assetMetaData).
+  public var asData: Foundation.Data? { get }
+}
+
+public struct PhotoLibraryAssetMetadata {
+  public init(assetIdentifier: Swift.String?, date: Foundation.Date?, placeName: Swift.String?, latitude: Swift.Double?, longitude: Swift.Double?, size: CoreGraphics.CGSize?, squareCropRect: Swift.String?, landscapeCropRect: Swift.String?, portraitCropRect: Swift.String?, displayAtFullAspectRatio: Swift.Bool)
+}
+extension JournalShared.PhotoLibraryAssetMetadata : Swift.Encodable {
+  public func encode(to encoder: any Swift.Encoder) throws
+}
+
+/// What Journal draws a recording's waveform from. Its async method runs on the caller's actor
+/// (nonisolated(nonsending)): it takes that actor before its own arguments, which its symbol
+/// does not show.
+public struct AudioIntensityProcessor {
+  public init(computesAverageIntensity: Swift.Bool)
+  nonisolated(nonsending) public func readAudioIntensityLevels(from asset: AVFoundation.AVAsset) async throws -> ([CoreGraphics.CGFloat], [CoreGraphics.CGFloat])
+}
+
+public struct TranscriptViewModelSegment {}
+public struct AudioAssetMetadata {
+  public init(duration: Swift.Double?, intensities: [CoreGraphics.CGFloat]?, recordingDate: Foundation.Date?, transcriptSegments: [JournalShared.TranscriptViewModelSegment]?)
+}
+extension JournalShared.AudioAssetMetadata : Swift.Encodable {
+  public func encode(to encoder: any Swift.Encoder) throws
+}
 
 @objc(JournalEntryMO) public class JournalEntryMO : CoreData.NSManagedObject {}
 extension JournalShared.JournalEntryMO {
@@ -163,5 +216,7 @@ extension JournalShared.JournalEntryMO {
   public func updateSortingColumns() -> Swift.Bool
   public func computeAndSetAggregateMinimumVersion()
   public var assetsArray: [JournalShared.JournalEntryAssetMO] { get }
+  public var mergeableAssetPlacement: JournalShared.MergeableEntryAssetsPlacement? { get set }
+  public func modifyLegacyAssetOrderingFields(from placement: JournalShared.MergeableEntryAssetsPlacement)
   public static var objectsToSavePredicate: Foundation.NSPredicate { get }
 }

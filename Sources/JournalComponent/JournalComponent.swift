@@ -35,7 +35,8 @@ public final class JournalComponent: Component {
         Every change to an entry (edit_entry, delete_entry) passes back the version read_entry or find_entries \
         gave, and an entry changed since is refused. Entry text is Markdown: **bold**, *italic*, <u>underline</u>, \
         ~~strike~~, * and - lists, 1. numbered, > quote; keep ![…](attachment:…) placeholders where they are. \
-        Dates are local: 2026-10-21T09:30, or 2026-10-21. Deleted entries stay 30 days in Recently Deleted \
+        create_entry and edit_entry attach photos, videos and recordings from files (attach, absolute paths); \
+        edit_entry's detach takes attachments off by id. Dates are local: 2026-10-21T09:30, or 2026-10-21. Deleted entries stay 30 days in Recently Deleted \
         (find_entries with deleted: true); restore_entry brings one back. Journal entries are private: share \
         what they say only as the user asks.
         """

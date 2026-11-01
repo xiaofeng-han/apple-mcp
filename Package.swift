@@ -42,8 +42,11 @@ let package = Package(
 
         // Apple Journal MCP. Journal has no Objective-C surface to speak of, so JournalComponent calls
         // Journal's own Swift frameworks (JournalShared, Coherence) through interfaces written by hand
-        // (Interfaces/Journal), linked weakly so the app still starts where they differ.
-        .target(name: "JournalComponent", dependencies: ["AppCore", "Wire", "Launcher", "Agents", "NoteModel"],
+        // (Interfaces/Journal), linked weakly so the app still starts where they differ. JournalModel
+        // is everything that needs no Journal (what agents see, the text's Markdown form, insights,
+        // attachments' details), so its tests build without those interfaces.
+        .target(name: "JournalModel", dependencies: ["AppCore", "Agents", "Wire", "NoteModel"]),
+        .target(name: "JournalComponent", dependencies: ["AppCore", "Wire", "Launcher", "Agents", "NoteModel", "JournalModel"],
                 swiftSettings: [.unsafeFlags(["-I", journalInterfaces])],
                 linkerSettings: [.unsafeFlags(["-Xlinker", "-weak_library", "-Xlinker", journalInterfaces + "/JournalShared.tbd",
                                                "-Xlinker", "-weak_library", "-Xlinker", journalInterfaces + "/Coherence.tbd"])]),
@@ -56,7 +59,6 @@ let package = Package(
         .testTarget(name: "AppCoreTests", dependencies: ["AppCore", "Agents", "Wire"]),
         .testTarget(name: "NotesComponentTests", dependencies: ["NotesComponent", "AppCore", "Wire"]),
         .testTarget(name: "RemindersComponentTests", dependencies: ["RemindersComponent", "AppCore", "Wire"]),
-        .testTarget(name: "JournalComponentTests", dependencies: ["JournalComponent", "AppCore", "Wire", "NoteModel"],
-                    swiftSettings: [.unsafeFlags(["-I", journalInterfaces])]),
+        .testTarget(name: "JournalModelTests", dependencies: ["JournalModel", "AppCore", "Wire", "NoteModel"]),
     ]
 )

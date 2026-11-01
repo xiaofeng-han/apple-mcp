@@ -21,7 +21,7 @@ Apple Journal MCP 后来也加在同一套底座上。各 App 都从这里发版
 ## 目录
 
 - `Sources/Wire`、`Launcher`、`Agents`、`AppCore`：共用底座。经 stdio 的 MCP 和工具开关；让 App 自己持有隐私权限；查找、安装和配置 AI 助手；以及每个 App 都在用的模式分发、命令行、技能和设置窗口。
-- `Sources/NotesComponent`（加上 `NoteModel`、`NotesShim`）、`Sources/RemindersComponent`（加上 `ReminderKitShim`）和 `Sources/JournalComponent`（加上 `NoteModel`，以及 `Interfaces/Journal` 里手写的「手记」框架接口）：各 App 自己的代码，即数据和工具。`Sources/AppleNotesMCP`、`Sources/AppleRemindersMCP`、`Sources/AppleJournalMCP` 是各自的可执行文件，各只有一行。
+- `Sources/NotesComponent`（加上 `NoteModel`、`NotesShim`）、`Sources/RemindersComponent`（加上 `ReminderKitShim`）和 `Sources/JournalComponent`（加上 `JournalModel`、`NoteModel`，以及 `Interfaces/Journal` 里手写的「手记」框架接口）：各 App 自己的代码，即数据和工具。`Sources/AppleNotesMCP`、`Sources/AppleRemindersMCP`、`Sources/AppleJournalMCP` 是各自的可执行文件，各只有一行。
 - `Resources/Notes`、`Resources/Reminders`、`Resources/Journal`：各 App 的 Info.plist（版本号在这里）、entitlements、图标和安装包里的文字。
 - `scripts/`：构建、打包、发版和检查，都带 `notes`、`reminders` 或 `journal` 参数。
 - `docs/`：各 App 的文档、[前两个 App 搬到一起的方案](docs/MERGE-PLAN.md)，以及 [Notes](docs/RE-FINDINGS.md) 和 [Journal](docs/RE-FINDINGS-journal.md) 起步时的逆向笔记。

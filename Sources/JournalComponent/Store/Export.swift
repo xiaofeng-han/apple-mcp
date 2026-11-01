@@ -1,4 +1,5 @@
 import Foundation
+import JournalModel
 
 /// Journal's own export makes an archive only Journal opens; this writes entries as Markdown
 /// files anyone can read, with their photos, videos and recordings next to them.

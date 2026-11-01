@@ -1,15 +1,10 @@
 import Foundation
+import JournalModel
 import Wire
 
 func readTools(_ store: JournalStore) -> [Tool] {
     [
-        Tool("overview", title: "Journal overview",
-             summary: """
-                 The journals (with their colors, icons and how many entries each holds), how many entries there \
-                 are in all, bookmarked and in Recently Deleted, and the insights Journal shows: days journaled and \
-                 daily and weekly streaks.
-                 """,
-             input: Schema.object([:]), effect: .reads) { _ in
+        Tool(JournalTools.overview) { _ in
             try await withJournal(store) {
                 let entries = try store.entryObjects(deleted: nil).map(store.info)
                 let live = entries.filter { $0.deleted == nil }
@@ -35,26 +30,7 @@ func readTools(_ store: JournalStore) -> [Tool] {
             }
         },
 
-        Tool("find_entries", title: "Find journal entries",
-             summary: """
-                 Finds entries, newest first: by words (in the title, the text, the writing prompt, and the places, \
-                 people, songs, transcripts and handwriting of attachments), journal, bookmark, date and kind of \
-                 attachment. Each comes with its id and version, a snippet and its attachments by kind. after is \
-                 inclusive, before exclusive.
-                 """,
-             input: Schema.object([
-                 "query": Schema.text("Words that must all appear"),
-                 "journal": Schema.text("Only entries in this journal (name or id)"),
-                 "bookmarked": Schema.flag("Only bookmarked entries"),
-                 "after": Schema.text("2026-10-21: entries dated that day or later"),
-                 "before": Schema.text("2026-10-21: entries dated before that day"),
-                 "attachments": Schema.list(of: ["type": "string", "enum": .array((AssetDetails.kinds.map(\.name) + ["any", "none"]).map { .string($0) })],
-                                            "Only entries with an attachment of one of these kinds; any, or none"),
-                 "deleted": Schema.flag("Look in Recently Deleted instead"),
-                 "sort": Schema.choice(["newest", "oldest", "edited"], "Default newest (by the entry's date); edited: most recently changed first"),
-                 "limit": Schema.whole("Default 50, at most 500"),
-                 "offset": Schema.whole("Skip this many, for the next page"),
-             ]), effect: .reads) { fields in
+        Tool(JournalTools.findEntries) { fields in
             let input = Input(fields)
             let query = try input.text("query"), journalName = try input.text("journal")
             let bookmarked = try input.flag("bookmarked") ?? false, deleted = try input.flag("deleted") ?? false
@@ -109,17 +85,7 @@ func readTools(_ store: JournalStore) -> [Tool] {
             }
         },
 
-        Tool("read_entry", title: "Read journal entries",
-             summary: """
-                 Reads entries in full: the text as Markdown, the date, journal, bookmark, writing prompt, and each \
-                 attachment's details (places, State of Mind, workouts, music, a recording's transcript, …), with \
-                 the version edit_entry and delete_entry take. ![…](attachment:id) placeholders mark attachments \
-                 placed in the text; read_attachment opens any attachment.
-                 """,
-             input: Schema.object([
-                 "id": Schema.text("Entry id"),
-                 "ids": Schema.texts("Several entries, up to 20"),
-             ]), effect: .reads) { fields in
+        Tool(JournalTools.readEntry) { fields in
             let input = Input(fields)
             let id = try input.text("id"), ids = try input.texts("ids")
             guard (id == nil) != (ids == nil) else { throw BadInput("give id or ids") }
@@ -135,16 +101,7 @@ func readTools(_ store: JournalStore) -> [Tool] {
             }
         },
 
-        Tool("read_attachment", title: "Read an attachment",
-             summary: """
-                 Opens one of an entry's attachments (its id from read_entry): photos, a frame of a video, audio \
-                 recordings (with Journal's transcript), and the details of places, State of Mind, workouts, music \
-                 and the rest.
-                 """,
-             input: Schema.object([
-                 "id": Schema.text("Attachment id"),
-                 "text_only": Schema.flag("Only the details, no images or audio"),
-             ], required: ["id"]), effect: .reads) { fields in
+        Tool(JournalTools.readAttachment) { fields in
             let input = Input(fields)
             let reference = try input.requiredText("id").uppercased()
             let textOnly = try input.flag("text_only") ?? false

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import JournalModel
 import Launcher
 import Wire
 
@@ -45,10 +46,10 @@ enum Output {
     }
 
     /// Local time to the minute, as the date fields take it: 2026-10-21T09:30.
-    nonisolated static func stamp(_ date: Date) -> String { Input.minuteFormat.string(from: date) }
+    nonisolated static func stamp(_ date: Date) -> String { Stamp.minute(date) }
 
     /// The local day, YYYY-MM-DD.
-    nonisolated static func day(_ date: Date) -> String { Input.dayFormat.string(from: date) }
+    nonisolated static func day(_ date: Date) -> String { Stamp.day(date) }
 
     static let snippetLength = 160
 

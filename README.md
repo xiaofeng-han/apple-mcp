@@ -21,7 +21,7 @@ Apple Journal MCP was added later on the same base. Releases come from here, one
 ## Layout
 
 - `Sources/Wire`, `Launcher`, `Agents`, `AppCore`: the shared base. MCP over stdio and the choice of tools; holding the app's own privacy permissions; finding, installing and setting up AI agents; and the modes, command line, skill and settings window each app runs.
-- `Sources/NotesComponent` (with `NoteModel`, `NotesShim`), `Sources/RemindersComponent` (with `ReminderKitShim`) and `Sources/JournalComponent` (with `NoteModel`, and the hand-written interfaces to Journal's frameworks in `Interfaces/Journal`): each app's own code, its data and tools. `Sources/AppleNotesMCP`, `Sources/AppleRemindersMCP` and `Sources/AppleJournalMCP` are the executables, one line each.
+- `Sources/NotesComponent` (with `NoteModel`, `NotesShim`), `Sources/RemindersComponent` (with `ReminderKitShim`) and `Sources/JournalComponent` (with `JournalModel`, `NoteModel`, and the hand-written interfaces to Journal's frameworks in `Interfaces/Journal`): each app's own code, its data and tools. `Sources/AppleNotesMCP`, `Sources/AppleRemindersMCP` and `Sources/AppleJournalMCP` are the executables, one line each.
 - `Resources/Notes`, `Resources/Reminders`, `Resources/Journal`: each app's Info.plist (its version), entitlements, icon and installer text.
 - `scripts/`: building, packaging, releasing and checking, each taking `notes`, `reminders` or `journal`.
 - `docs/`: each app's documentation, [the plan the two first apps moved together by](docs/MERGE-PLAN.md) (in Chinese), and the reverse-engineering notes [Notes](docs/RE-FINDINGS.md) and [Journal](docs/RE-FINDINGS-journal.md) started from (in Chinese).

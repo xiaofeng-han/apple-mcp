@@ -4,19 +4,27 @@ import Wire
 /// What Journal keeps about one of an entry's attachments ("assets"): its kind, the details its
 /// metadata holds, and its files. Journal stores the metadata as a version byte (1) followed by
 /// JSON whose keys are its Swift properties; dates are seconds since 2001, data is base64.
-struct AssetInfo: Sendable {
-    let id: String
+package struct AssetInfo: Sendable {
+    package let id: String
     /// Journal's asset type: photo, video, livePhoto, audio, visit, multiPinMap, genericMap,
     /// stateOfMind, workoutIcon, workoutRoute, motionActivity, music, podcast, book,
     /// thirdPartyMedia, contact, link, reflection, drawing, confetti, …
-    let kind: String
+    package let kind: String
     /// Hidden from the entry's grid (Journal keeps them for its layout).
-    let hidden: Bool
-    let details: [String: JSON]
-    let files: [AssetFile]
+    package let hidden: Bool
+    package let details: [String: JSON]
+    package let files: [AssetFile]
+
+    package init(id: String, kind: String, hidden: Bool, details: [String: JSON], files: [AssetFile]) {
+        self.id = id
+        self.kind = kind
+        self.hidden = hidden
+        self.details = details
+        self.files = files
+    }
 
     /// The words to search: places, people, titles, transcripts, handwriting.
-    var searchText: String {
+    package var searchText: String {
         func strings(_ value: JSON) -> [String] {
             switch value {
             case .string(let s): [s]
@@ -29,16 +37,21 @@ struct AssetInfo: Sendable {
     }
 }
 
-struct AssetFile: Sendable {
+package struct AssetFile: Sendable {
     /// Journal's name for the file's role: "image", "video", "audio", "thumbnail", …
-    let name: String
-    let url: URL
-    var exists: Bool { FileManager.default.fileExists(atPath: url.path) }
+    package let name: String
+    package let url: URL
+    package var exists: Bool { FileManager.default.fileExists(atPath: url.path) }
+
+    package init(name: String, url: URL) {
+        self.name = name
+        self.url = url
+    }
 }
 
-enum AssetDetails {
+package enum AssetDetails {
     /// The kinds find_entries filters by, with the asset types each covers.
-    static let kinds: [(name: String, types: Set<String>)] = [
+    package static let kinds: [(name: String, types: Set<String>)] = [
         ("photo", ["photo", "livePhoto"]), ("video", ["video"]), ("audio", ["audio"]),
         ("place", ["visit", "multiPinMap", "genericMap"]), ("state_of_mind", ["stateOfMind"]),
         ("workout", ["workoutIcon", "workoutRoute"]), ("activity", ["motionActivity"]),
@@ -47,19 +60,19 @@ enum AssetDetails {
     ]
 
     /// The kind find_entries and read_entry name an asset type by.
-    static func kind(_ type: String) -> String { kinds.first { $0.types.contains(type) }?.name ?? type }
+    package static func kind(_ type: String) -> String { kinds.first { $0.types.contains(type) }?.name ?? type }
 
-    static let reference = Date(timeIntervalSinceReferenceDate: 0)
+    package static let reference = Date(timeIntervalSinceReferenceDate: 0)
 
     /// The metadata's JSON object, or nil.
-    static func json(_ data: Data?) -> [String: Any]? {
+    package static func json(_ data: Data?) -> [String: Any]? {
         guard let data, data.count > 1 else { return nil }
         let body = data.first == 1 ? data.dropFirst() : data[...]
         return (try? JSONSerialization.jsonObject(with: Data(body))) as? [String: Any]
     }
 
     /// The details worth showing, by asset type.
-    static func details(type: String, metadata: Data?) -> [String: JSON] {
+    package static func details(type: String, metadata: Data?) -> [String: JSON] {
         guard let m = json(metadata) else { return [:] }
         var out: [String: JSON] = [:]
         func text(_ key: String, as name: String? = nil) {
@@ -69,7 +82,7 @@ enum AssetDetails {
             if let value = m[key] as? Double { out[name ?? key] = .double((value * 100_000).rounded() / 100_000) }
         }
         func date(_ key: String, as name: String) {
-            if let value = m[key] as? Double { out[name] = .string(Output.stamp(Date(timeIntervalSinceReferenceDate: value))) }
+            if let value = m[key] as? Double { out[name] = .string(Stamp.minute(Date(timeIntervalSinceReferenceDate: value))) }
         }
         func seconds(_ key: String, as name: String = "duration_seconds") {
             if let value = m[key] as? Double { out[name] = .int(Int(value.rounded())) }
@@ -157,13 +170,13 @@ enum AssetDetails {
         return out
     }
 
-    static func visit(_ m: [String: Any]) -> [String: JSON] {
+    package static func visit(_ m: [String: Any]) -> [String: JSON] {
         var out: [String: JSON] = [:]
         if let name = m["placeName"] as? String, !name.isEmpty { out["place"] = .string(name) }
         if let city = m["city"] as? String, !city.isEmpty { out["city"] = .string(city) }
         if let type = m["typeOfPlace"] as? String, !type.isEmpty { out["type"] = .string(type) }
-        if let start = m["visitStartTime"] as? Double { out["from"] = .string(Output.stamp(Date(timeIntervalSinceReferenceDate: start))) }
-        if let end = m["visitEndTime"] as? Double { out["to"] = .string(Output.stamp(Date(timeIntervalSinceReferenceDate: end))) }
+        if let start = m["visitStartTime"] as? Double { out["from"] = .string(Stamp.minute(Date(timeIntervalSinceReferenceDate: start))) }
+        if let end = m["visitEndTime"] as? Double { out["to"] = .string(Stamp.minute(Date(timeIntervalSinceReferenceDate: end))) }
         if let latitude = m["latitude"] as? Double { out["latitude"] = .double((latitude * 100_000).rounded() / 100_000) }
         if let longitude = m["longitude"] as? Double { out["longitude"] = .double((longitude * 100_000).rounded() / 100_000) }
         return out
@@ -171,15 +184,15 @@ enum AssetDetails {
 }
 
 /// HealthKit's names for a State of Mind, in the order of its raw values (1 first).
-enum StateOfMind {
-    static let valence = ["very unpleasant", "unpleasant", "slightly unpleasant", "neutral", "slightly pleasant", "pleasant", "very pleasant"]
-    static let labels = [
+package enum StateOfMind {
+    package static let valence = ["very unpleasant", "unpleasant", "slightly unpleasant", "neutral", "slightly pleasant", "pleasant", "very pleasant"]
+    package static let labels = [
         "amazed", "amused", "angry", "anxious", "ashamed", "brave", "calm", "content", "disappointed", "discouraged",
         "disgusted", "embarrassed", "excited", "frustrated", "grateful", "guilty", "happy", "hopeless", "irritated",
         "jealous", "joyful", "lonely", "passionate", "peaceful", "proud", "relieved", "sad", "scared", "stressed",
         "surprised", "worried", "annoyed", "confident", "drained", "hopeful", "indifferent", "overwhelmed", "satisfied",
     ]
-    static let associations = [
+    package static let associations = [
         "community", "current events", "dating", "education", "family", "fitness", "friends", "health", "hobbies",
         "identity", "money", "partner", "self care", "spirituality", "tasks", "travel", "work", "weather",
     ]

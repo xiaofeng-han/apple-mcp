@@ -3,8 +3,8 @@ import Wire
 
 /// The tools on the command line: `apple-journal-mcp entries search "lake trip"`. Commands print
 /// exactly what the tool answers (JSON, sometimes after a short lead such as "Created.").
-extension JournalComponent {
-    nonisolated public static let cli = CLI(
+package enum JournalCommands {
+    package static let cli = CLI(
         routes: routes,
         defaultVerbs: ["entries": "list", "journals": "list"],
         rewordings: [
@@ -14,7 +14,7 @@ extension JournalComponent {
         setupAbout: "Check Full Disk Access, and show where to give it",
         clears: false, answer: "JSON answer", nounsSummary: nil, saving: .everything, skillListsRequired: false)
 
-    nonisolated static let routes: [Route] = [
+    static let routes: [Route] = [
         Route(noun: "entries", verb: "list", tool: "find_entries",
               about: "List entries, newest first, with their ids and versions",
               detail: """

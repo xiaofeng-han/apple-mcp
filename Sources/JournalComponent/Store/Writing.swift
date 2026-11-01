@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import JournalModel
 import JournalShared
 import NoteModel
 

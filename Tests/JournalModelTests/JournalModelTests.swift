@@ -3,18 +3,13 @@ import NoteModel
 import Testing
 import Wire
 @testable import AppCore
-@testable import JournalComponent
+@testable import JournalModel
 
-/// What the shared base takes from Journal agrees with Journal's tools. Made without Product.current
-/// (other suites set it), and without opening Journal's data.
-@MainActor
-@Suite struct JournalComponentTests {
-    let tools: [Tool]
-
-    init() {
-        let store = JournalStore(writeGuard: nil)
-        tools = readTools(store) + writeTools(store)
-    }
+/// What the shared base takes from Journal agrees with Journal's tools, as agents see them (the specs
+/// JournalComponent gives its tools). Made without Product.current (other suites set it), and
+/// without Journal's frameworks.
+@Suite struct JournalToolsTests {
+    let tools = JournalTools.all
 
     var names: [String] { tools.map(\.name) }
 
@@ -23,7 +18,7 @@ import Wire
     }
 
     @Test func everyCommandRunsATool() {
-        for route in JournalComponent.cli.routes {
+        for route in JournalCommands.cli.routes {
             guard let tool = tools.first(where: { $0.name == route.tool }) else {
                 Issue.record("\(route.command) runs \(route.tool), which is not a tool")
                 continue
@@ -36,17 +31,17 @@ import Wire
     }
 
     @Test func everyToolHasAChineseTitle() {
-        #expect(Set(JournalComponent.chineseToolTitles.keys) == Set(names))
+        #expect(Set(JournalTools.chineseTitles.keys) == Set(names))
     }
 
     @Test func defaultVerbsAreCommands() {
-        for (noun, verb) in JournalComponent.cli.defaultVerbs {
-            #expect(JournalComponent.cli.routes.contains { $0.noun == noun && $0.verb == verb }, "\(noun) \(verb)")
+        for (noun, verb) in JournalCommands.cli.defaultVerbs {
+            #expect(JournalCommands.cli.routes.contains { $0.noun == noun && $0.verb == verb }, "\(noun) \(verb)")
         }
     }
 
     @Test func identity() {
-        let product = JournalComponent.product
+        let product = JournalTools.product
         #expect([product.command, product.serverName, product.bundleID, product.appName, product.environmentPrefix]
             == ["apple-journal-mcp", "apple-journal", "com.xiaofeng.apple-journal-mcp", "AppleJournalMCP", "APPLE_JOURNAL_MCP"])
     }

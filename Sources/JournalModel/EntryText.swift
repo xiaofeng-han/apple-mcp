@@ -1,11 +1,6 @@
 import AppKit
-import Coherence
 import Foundation
-import JournalShared
 import NoteModel
-
-typealias EntryCRText = CRAttributedString<MergeableTextAttributeScope>
-typealias EntryCRTitle = CRAttributedString<MergeableTitleAttributeScope>
 
 /// An entry's text in one form that both of Journal's formats convert to and from, and that
 /// Markdown maps onto: a string whose characters carry only what Markdown shows of their formatting
@@ -14,33 +9,33 @@ typealias EntryCRTitle = CRAttributedString<MergeableTitleAttributeScope>
 /// entries written before it keep RTF. Writes change the mergeable text in place, only where it
 /// differs, so the rest keeps its formatting (colors, alignment) and its history for merging with
 /// edits made on other devices.
-enum EntryText {
+package enum EntryText {
     /// What Markdown shows of a character's formatting, on each character.
-    static let marksKey = NSAttributedString.Key("AppleJournalMCP.marks")
+    package static let marksKey = NSAttributedString.Key("AppleJournalMCP.marks")
     /// What Markdown shows of a paragraph (list kind and level, quote), on each of its characters.
-    static let paragraphKey = NSAttributedString.Key("AppleJournalMCP.paragraph")
+    package static let paragraphKey = NSAttributedString.Key("AppleJournalMCP.paragraph")
     /// The placeholder id of an inline attachment, on its U+FFFC.
-    static let attachmentKey = NSAttributedString.Key("AppleJournalMCP.attachment")
+    package static let attachmentKey = NSAttributedString.Key("AppleJournalMCP.attachment")
 
-    static let shown: Marks = [.bold, .italic, .strike, .underline]
+    package static let shown: Marks = [.bold, .italic, .strike, .underline]
 
     /// A paragraph as Markdown shows it.
-    struct ParagraphKind: Equatable {
-        enum List: String { case bullet, dash, numbered }
-        var list: List?
-        var level = 0
-        var quote = false
+    package struct ParagraphKind: Equatable {
+        package enum List: String { case bullet, dash, numbered }
+        package var list: List?
+        package var level = 0
+        package var quote = false
 
-        var key: String { (list.map { "\($0.rawValue)\(level)" } ?? "") + (quote ? "q" : "") }
+        package var key: String { (list.map { "\($0.rawValue)\(level)" } ?? "") + (quote ? "q" : "") }
 
-        init(list: List? = nil, level: Int = 0, quote: Bool = false) {
+        package init(list: List? = nil, level: Int = 0, quote: Bool = false) {
             self.list = list
             self.level = list == nil ? 0 : level
             self.quote = quote
         }
 
         /// From the marker formats of a paragraph's lists, outermost first ("{disc}", "{decimal}").
-        init(markers: [String], quote: Bool) {
+        package init(markers: [String], quote: Bool) {
             guard let last = markers.last else {
                 self.init(quote: quote)
                 return
@@ -55,7 +50,7 @@ enum EntryText {
         }
 
         /// The marker formats Journal's own editor uses for a new list item at this level.
-        var markers: [String] {
+        package var markers: [String] {
             guard let list else { return [] }
             return (0...level).map { depth in
                 switch list {
@@ -66,7 +61,7 @@ enum EntryText {
             }
         }
 
-        var style: Style {
+        package var style: Style {
             switch list {
             case .bullet: .bullet
             case .dash: .dash
@@ -78,50 +73,8 @@ enum EntryText {
 
     // MARK: Reading
 
-    /// The canonical form of Journal 3.0's text, and its inline attachments by placeholder id.
-    static func canonical(_ text: EntryCRText) -> (NSAttributedString, [String: Attachment]) {
-        let plain = text.attributedString.string as NSString
-        let out = NSMutableAttributedString()
-        var attachments: [String: Attachment] = [:]
-        var index = 0
-        while index < plain.length {
-            var range = NSRange()
-            let a = text.attributes(at: index, effectiveRange: &range)
-            if range.length <= 0 { range = NSRange(location: index, length: 1) }
-            let end = min(range.location + range.length, plain.length)
-            var marks: Marks = []
-            if let traits = a.font?.traits.rawValue {
-                if traits & MergeableFont.Traits.bold.rawValue != 0 { marks.insert(.bold) }
-                if traits & MergeableFont.Traits.italic.rawValue != 0 { marks.insert(.italic) }
-            }
-            if (a.underline ?? 0) != 0 { marks.insert(.underline) }
-            if (a.strikethrough ?? 0) != 0 { marks.insert(.strike) }
-            let paragraph = ParagraphKind(markers: a.textLists?.textLists.map(\.markerFormatString) ?? [], quote: a.blockQuote ?? false)
-            let start = out.length
-            out.append(NSAttributedString(string: plain.substring(with: NSRange(location: index, length: end - index)),
-                                          attributes: [marksKey: marks.rawValue, paragraphKey: paragraph.key]))
-            for offset in index..<end where plain.character(at: offset) == 0xFFFC {
-                let number = attachments.count + 1
-                let attachment: Attachment
-                if let asset = a.assetAttachment {
-                    attachment = Attachment(id: asset.assetID.uuidString, kind: "asset")
-                } else if let prompt = a.followUpPromptAttachment {
-                    attachment = Attachment(id: "prompt-\(number)", kind: "prompt", label: prompt.prompt)
-                } else if a.adaptiveImageGlyph != nil {
-                    attachment = Attachment(id: "genmoji-\(number)", kind: "genmoji")
-                } else {
-                    attachment = Attachment(id: "inline-\(number)", kind: "attachment")
-                }
-                attachments[attachment.id] = attachment
-                out.addAttributes([attachmentKey: attachment.id, marksKey: 0], range: NSRange(location: start + offset - index, length: 1))
-            }
-            index = end
-        }
-        return (normalized(out), attachments)
-    }
-
     /// The canonical form of an entry kept as RTF (written before Journal 3.0).
-    static func canonical(legacy: NSAttributedString) -> NSAttributedString {
+    package static func canonical(legacy: NSAttributedString) -> NSAttributedString {
         let out = NSMutableAttributedString()
         var count = 0
         legacy.enumerateAttributes(in: NSRange(location: 0, length: legacy.length)) { attrs, range, _ in
@@ -151,7 +104,7 @@ enum EntryText {
     /// Every character of a paragraph carries the paragraph's kind, as its first character has it
     /// (or its line end, for an empty paragraph): the formats keep paragraph formatting on all of a
     /// paragraph, or on part of it.
-    static func normalized(_ text: NSAttributedString) -> NSAttributedString {
+    package static func normalized(_ text: NSAttributedString) -> NSAttributedString {
         let out = NSMutableAttributedString(attributedString: text)
         let string = text.string as NSString
         var start = 0
@@ -165,7 +118,7 @@ enum EntryText {
     }
 
     /// Markdown's model of the text: one paragraph per line.
-    static func blocks(_ canonical: NSAttributedString, attachments: [String: Attachment]) -> [Block] {
+    package static func blocks(_ canonical: NSAttributedString, attachments: [String: Attachment]) -> [Block] {
         let string = canonical.string as NSString
         var blocks: [Block] = []
         var start = 0
@@ -200,7 +153,7 @@ enum EntryText {
         return blocks
     }
 
-    static func kind(_ key: String) -> ParagraphKind {
+    package static func kind(_ key: String) -> ParagraphKind {
         var rest = Substring(key)
         let quote = rest.hasSuffix("q")
         if quote { rest = rest.dropLast() }
@@ -210,7 +163,7 @@ enum EntryText {
         return ParagraphKind(quote: quote)
     }
 
-    static func markdown(_ canonical: NSAttributedString, attachments: [String: Attachment]) -> String {
+    package static func markdown(_ canonical: NSAttributedString, attachments: [String: Attachment]) -> String {
         Markdown.render(blocks(canonical, attachments: attachments)) { attachment in
             switch attachment.kind {
             case "asset": "![asset](attachment:\(attachment.id))"
@@ -224,7 +177,7 @@ enum EntryText {
 
     /// The canonical form of Markdown's model, for writing. What Journal cannot show is said so:
     /// tables are refused; headings become bold text and checklist items bullets.
-    static func canonical(_ blocks: [Block]) throws(JournalError) -> NSAttributedString {
+    package static func canonical(_ blocks: [Block]) throws(JournalError) -> NSAttributedString {
         let out = NSMutableAttributedString()
         for (index, block) in blocks.enumerated() {
             guard case .paragraph(let p) = block else {
@@ -274,71 +227,8 @@ enum EntryText {
         return out
     }
 
-    /// Changes Journal 3.0's text to `new`, only where it differs from it. Inline attachments
-    /// (photos placed in the text, Genmoji, follow-up prompts) cannot be made from Markdown, so a
-    /// change that would remove, move or add one is refused.
-    static func apply(_ new: NSAttributedString, to text: inout EntryCRText) throws(JournalError) {
-        let (old, _) = canonical(text)
-        let target = keepingLineEnds(of: old, in: new)
-        guard let edit = Edit(old: old, new: target) else { return }
-        let oldMiddle = old.attributedSubstring(from: edit.oldRange), newMiddle = target.attributedSubstring(from: edit.newRange)
-        if containsAttachment(oldMiddle) || containsAttachment(newMiddle) {
-            throw .refused("""
-                The change would remove, move or add an attachment placeholder ![…](attachment:…); keep each where \
-                read_entry shows it, and change the text around it only
-                """)
-        }
-        // Text inserted into a paragraph that goes on before or after it takes that paragraph's own
-        // lists and quote (Journal's markers, which Markdown does not show).
-        let newString = target.string as NSString, middle = newMiddle.string as NSString
-        let startsInside = edit.newRange.location > 0 && newString.character(at: edit.newRange.location - 1) != 10
-        let endsInside = edit.oldRange.location + edit.oldRange.length < old.length && !newMiddle.string.hasSuffix("\n")
-        // A paragraph's own formatting is read at its first character.
-        let oldString = old.string as NSString
-        func paragraphStart(_ index: Int) -> Int { oldString.lineRange(for: NSRange(location: index, length: 0)).location }
-        let end = edit.oldRange.location + edit.oldRange.length
-        let before = startsInside ? text.attributes(at: paragraphStart(edit.oldRange.location - 1), effectiveRange: nil) : nil
-        let after = endsInside
-            ? text.attributes(at: paragraphStart(end) < edit.oldRange.location ? paragraphStart(end) : end, effectiveRange: nil) : nil
-        if edit.oldRange.length > 0 { text.removeSubrange(edit.oldRange.location..<(edit.oldRange.location + edit.oldRange.length)) }
-        guard newMiddle.length > 0 else { return }
-        text.insert(contentsOf: NSAttributedString(string: newMiddle.string), at: edit.newRange.location)
-        var lineStart = 0
-        while lineStart < middle.length {
-            let line = middle.lineRange(for: NSRange(location: lineStart, length: 0))
-            let isFirst = lineStart == 0, isLast = line.location + line.length >= middle.length
-            let inherited = isFirst && before != nil ? before : (isLast && after != nil ? after : nil)
-            newMiddle.enumerateAttributes(in: line) { attrs, range, _ in
-                let marks = Marks(rawValue: attrs[marksKey] as? Int ?? 0)
-                let kind = kind(attrs[paragraphKey] as? String ?? "")
-                var typed = EntryCRText.Attributes()
-                var traits = 0
-                if marks.contains(.bold) { traits |= MergeableFont.Traits.bold.rawValue }
-                if marks.contains(.italic) { traits |= MergeableFont.Traits.italic.rawValue }
-                if traits != 0 { typed.font = MergeableFont(traits: MergeableFont.Traits(rawValue: traits), unknownProperties: UnknownValueProperties()) }
-                if marks.contains(.underline) { typed.underline = 1 }
-                if marks.contains(.strike) { typed.strikethrough = 1 }
-                if let inherited {
-                    typed.textLists = inherited.textLists
-                    typed.blockQuote = inherited.blockQuote
-                } else {
-                    if !kind.markers.isEmpty {
-                        typed.textLists = MergeableTextLists(
-                            textLists: kind.markers.map {
-                                MergeableTextList(startingItemNumber: 1, markerFormatString: $0, listOptions: 0, unknownProperties: UnknownValueProperties())
-                            },
-                            unknownProperties: UnknownValueProperties())
-                    }
-                    if kind.quote { typed.blockQuote = true }
-                }
-                text.setAttributes(typed, range: NSRange(location: edit.newRange.location + range.location, length: range.length))
-            }
-            lineStart = line.location + line.length
-        }
-    }
-
     /// Markdown has no empty line at the end of a text; an old text's line ends there are kept.
-    static func keepingLineEnds(of old: NSAttributedString, in new: NSAttributedString) -> NSAttributedString {
+    package static func keepingLineEnds(of old: NSAttributedString, in new: NSAttributedString) -> NSAttributedString {
         let oldEnds = old.string.reversed().prefix { $0 == "\n" }.count
         guard oldEnds > 0, !new.string.hasSuffix("\n") else { return new }
         let out = NSMutableAttributedString(attributedString: new)
@@ -347,7 +237,7 @@ enum EntryText {
         return out
     }
 
-    static func containsAttachment(_ text: NSAttributedString) -> Bool {
+    package static func containsAttachment(_ text: NSAttributedString) -> Bool {
         var found = false
         text.enumerateAttribute(attachmentKey, in: NSRange(location: 0, length: text.length)) { value, _, stop in
             if value != nil {
@@ -360,11 +250,11 @@ enum EntryText {
 
     /// The one span where two texts differ: what lies between their common start and end, the
     /// characters and the formatting Markdown shows both counting (UTF-16, as Coherence counts).
-    struct Edit {
-        let oldRange: NSRange
-        let newRange: NSRange
+    package struct Edit {
+        package let oldRange: NSRange
+        package let newRange: NSRange
 
-        init?(old: NSAttributedString, new: NSAttributedString) {
+        package init?(old: NSAttributedString, new: NSAttributedString) {
             let a = old.string as NSString, b = new.string as NSString
             func same(_ i: Int, _ j: Int) -> Bool {
                 a.character(at: i) == b.character(at: j)
@@ -385,19 +275,9 @@ enum EntryText {
 
     // MARK: Titles and RTF
 
-    /// Changes a title in place, only where it differs.
-    static func apply(title: String, to text: inout EntryCRTitle) {
-        let old = NSAttributedString(string: text.attributedString.string)
-        guard let edit = Edit(old: old, new: NSAttributedString(string: title)) else { return }
-        if edit.oldRange.length > 0 { text.removeSubrange(edit.oldRange.location..<(edit.oldRange.location + edit.oldRange.length)) }
-        if edit.newRange.length > 0 {
-            text.insert(contentsOf: NSAttributedString(string: (title as NSString).substring(with: edit.newRange)), at: edit.newRange.location)
-        }
-    }
-
     /// An entry written before Journal 3.0 keeps RTF: the text in the formatting RTF has for it.
     /// Block quotes have none there and are written as plain paragraphs.
-    static func legacy(_ canonical: NSAttributedString) throws(JournalError) -> NSAttributedString {
+    package static func legacy(_ canonical: NSAttributedString) throws(JournalError) -> NSAttributedString {
         if containsAttachment(canonical) { throw .refused("This entry predates Journal 3.0 and holds no inline attachments") }
         let out = NSMutableAttributedString()
         let base = NSFont.systemFont(ofSize: 17)
@@ -420,7 +300,7 @@ enum EntryText {
         return out
     }
 
-    static func rtf(_ text: NSAttributedString) throws(JournalError) -> Data {
+    package static func rtf(_ text: NSAttributedString) throws(JournalError) -> Data {
         do {
             return try text.data(from: NSRange(location: 0, length: text.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
         } catch {
@@ -428,7 +308,7 @@ enum EntryText {
         }
     }
 
-    static func fromRTF(_ data: Data?) -> NSAttributedString? {
+    package static func fromRTF(_ data: Data?) -> NSAttributedString? {
         guard let data, !data.isEmpty else { return nil }
         return try? NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil)
     }

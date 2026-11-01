@@ -2,20 +2,20 @@ import Foundation
 
 /// What Journal's Insights show, worked out from the entries' dates: days journaled and
 /// streaks, daily and weekly (Journal counts either, as the user chooses).
-struct Insights: Equatable {
-    var entries = 0
-    var daysJournaled = 0
-    var daysThisYear = 0
-    var entriesThisYear = 0
-    var currentDailyStreak = 0
-    var longestDailyStreak = 0
-    var currentWeeklyStreak = 0
-    var longestWeeklyStreak = 0
-    var first: Date?
-    var last: Date?
+package struct Insights: Equatable {
+    package var entries = 0
+    package var daysJournaled = 0
+    package var daysThisYear = 0
+    package var entriesThisYear = 0
+    package var currentDailyStreak = 0
+    package var longestDailyStreak = 0
+    package var currentWeeklyStreak = 0
+    package var longestWeeklyStreak = 0
+    package var first: Date?
+    package var last: Date?
 
     /// A streak still counts until the day (or week) after its last one has passed.
-    init(dates: [Date], now: Date = Date(), calendar: Calendar = .current) {
+    package init(dates: [Date], now: Date = Date(), calendar: Calendar = .current) {
         guard !dates.isEmpty else { return }
         entries = dates.count
         first = dates.min()

@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import ImageIO
+import JournalModel
 import UniformTypeIdentifiers
 import Wire
 

@@ -1,4 +1,5 @@
 import Foundation
+import JournalModel
 import Wire
 
 /// A tool's arguments, read by type. A wrong type or unknown value is BadInput (a JSON-RPC
@@ -76,7 +77,7 @@ struct Input {
     /// A local day, YYYY-MM-DD, as its first moment.
     func day(_ key: String) throws -> Date? {
         guard let text = try text(key) else { return nil }
-        guard let date = Self.dayFormat.date(from: text) else { throw BadInput("\(key) must look like 2026-10-21") }
+        guard let date = Stamp.dayFormat.date(from: text) else { throw BadInput("\(key) must look like 2026-10-21") }
         return date
     }
 
@@ -84,20 +85,9 @@ struct Input {
     /// every time zone the user's devices are in).
     func entryDate(_ key: String) throws -> Date? {
         guard let text = try text(key) else { return nil }
-        if let date = Self.minuteFormat.date(from: text) { return date }
-        if let day = Self.dayFormat.date(from: text) { return Calendar.current.date(byAdding: .hour, value: 12, to: day) }
+        if let date = Stamp.minuteFormat.date(from: text) { return date }
+        if let day = Stamp.dayFormat.date(from: text) { return Calendar.current.date(byAdding: .hour, value: 12, to: day) }
         throw BadInput("\(key) must look like 2026-10-21 or 2026-10-21T09:30")
     }
 
-    static func format(_ pattern: String) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = pattern
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.isLenient = false
-        return formatter
-    }
-
-    static let dayFormat = format("yyyy-MM-dd")
-    static let minuteFormat = format("yyyy-MM-dd'T'HH:mm")
 }

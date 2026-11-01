@@ -2,6 +2,7 @@ import Agents
 import AppCore
 import AppKit
 import Foundation
+import JournalModel
 import JournalShared
 import Launcher
 import NoteModel
@@ -11,9 +12,9 @@ import Wire
 /// Apple Journal MCP on the shared base (see AppCore's Component).
 @MainActor
 public final class JournalComponent: Component {
-    nonisolated public static let product = Product(name: "Apple Journal MCP", bundleID: "com.xiaofeng.apple-journal-mcp", appName: "AppleJournalMCP",
-                                        command: "apple-journal-mcp", serverName: "apple-journal", environmentPrefix: "APPLE_JOURNAL_MCP",
-                                        subject: "Journal", chineseSubject: "手记")
+    nonisolated public static let product = JournalTools.product
+
+    nonisolated public static let cli = JournalCommands.cli
 
     /// APPLE_JOURNAL_MCP_WRITE_GUARD: while set (development and checks), only entries titled with
     /// this prefix, and journals named with it, may be changed.
@@ -39,19 +40,7 @@ public final class JournalComponent: Component {
         what they say only as the user asks.
         """
 
-    nonisolated public static let chineseToolTitles = [
-        "create_entry": "新建手记",
-        "delete_entry": "删除手记",
-        "duplicate_entry": "复制手记",
-        "edit_entry": "修改手记",
-        "export_entries": "导出手记",
-        "find_entries": "查找手记",
-        "manage_journal": "新建、修改或删除手记本",
-        "overview": "手记概览",
-        "read_attachment": "读取附件",
-        "read_entry": "读取手记",
-        "restore_entry": "恢复已删除的手记",
-    ]
+    nonisolated public static let chineseToolTitles = JournalTools.chineseTitles
 
     public var modes: [String: @MainActor @Sendable ([String]) async -> Int32] {
         ["--check-markdown": { [self] _ in checkMarkdown() }]

@@ -1,0 +1,3 @@
+Export journal entries: Writes entries as Markdown files, one per entry, with their photos, videos and recordings, into a new folder. Filters as find_entries: journal, bookmarked, after (inclusive), before (exclusive).
+
+Input schema: {"additionalProperties":false,"properties":{"after":{"description":"2026-10-21: entries dated that day or later","type":"string"},"before":{"description":"2026-10-21: entries dated before that day","type":"string"},"bookmarked":{"description":"Only bookmarked entries","type":"boolean"},"journal":{"description":"Only this journal (name or id)","type":"string"},"to":{"description":"A new folder's path","type":"string"}},"required":["to"],"type":"object"}

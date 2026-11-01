@@ -1,0 +1,9 @@
+usage: apple-journal-mcp entries read [ID] [flags]
+
+Print entries in full, the text as Markdown, each with the version entries edit takes. By id, or several (--ids repeats, up to 20).
+
+  ID             Entry id
+  --id string…   Several entries, up to 20 (repeat for more)
+  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help     Show this help
+

@@ -4,7 +4,7 @@
 # shape, and AppIcon.icns for anything that reads the old format. Needs Xcode for actool, so the
 # output is committed and build-app.sh only copies it; run this after changing the icon:
 #
-#   scripts/build-icon.sh notes|reminders
+#   scripts/build-icon.sh notes|reminders|journal
 #
 # The artwork is the full-bleed square: macOS masks it to its rounded shape. A transparent
 # icon that draws its own shape is shown shrunk inside a grey tile instead.

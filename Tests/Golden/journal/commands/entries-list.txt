@@ -1,0 +1,16 @@
+usage: apple-journal-mcp entries list [flags]
+
+List entries, newest first, with their ids and versions. Filters combine: --journal, --bookmarked, --after (inclusive) and --before (exclusive) dates as YYYY-MM-DD, --attachment KIND (repeat for more; any, none), --deleted for Recently Deleted. --offset gives the next page.
+
+  --journal string             Only entries in this journal (name or id)
+  --[no-]bookmarked            Only bookmarked entries
+  --after string               2026-10-21: entries dated that day or later
+  --before string              2026-10-21: entries dated before that day
+  --attachment string…         Only entries with an attachment of one of these kinds; any, or none (repeat for more)
+  --[no-]deleted               Look in Recently Deleted instead
+  --sort newest|oldest|edited  Default newest (by the entry's date); edited: most recently changed first
+  --limit int                  Default 50, at most 500
+  --offset int                 Skip this many, for the next page
+  --json json|-                Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                   Show this help
+

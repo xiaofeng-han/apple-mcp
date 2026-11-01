@@ -1,0 +1,3 @@
+Journal overview: The journals (with their colors, icons and how many entries each holds), how many entries there are in all, bookmarked and in Recently Deleted, and the insights Journal shows: days journaled and daily and weekly streaks.
+
+Input schema: {"additionalProperties":false,"properties":{},"type":"object"}

@@ -3,7 +3,7 @@
 # published, in a checkout of github.com/xiaofeng-han/homebrew-tap (by default ../homebrew-tap),
 # then commits and pushes:
 #
-#   scripts/update-cask.sh notes|reminders [TAP]
+#   scripts/update-cask.sh notes|reminders|journal [TAP]
 #
 # It sets version and sha256, and keeps the cask pointed at this repository: the zipped app under
 # the app's own tags (notes-v<version>, reminders-v<version>), the app's documentation as its

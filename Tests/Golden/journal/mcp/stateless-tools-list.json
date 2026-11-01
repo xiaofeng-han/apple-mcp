@@ -1,0 +1,479 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "apple-journal-mcp",
+        "version": "dev"
+      }
+    },
+    "cacheScope": "private",
+    "resultType": "complete",
+    "tools": [
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Create a journal entry"
+        },
+        "description": "Creates an entry with a title and text (Markdown, one paragraph per line: **bold**, *italic*, <u>underline</u>, ~~strike~~, * or - lists, 1. numbered, two spaces per indent level, > quote.), dated now or on date, in a journal, bookmarked if asked. Journal uploads it to iCloud; the answer says whether it has yet.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "body": {
+              "description": "The text, as Markdown",
+              "type": "string"
+            },
+            "bookmarked": {
+              "description": "Bookmark it",
+              "type": "boolean"
+            },
+            "date": {
+              "description": "2026-10-21T09:30, or 2026-10-21; default now",
+              "type": "string"
+            },
+            "journal": {
+              "description": "The journal to put it in (name or id); default none, so only All Entries shows it",
+              "type": "string"
+            },
+            "title": {
+              "description": "The title; default none",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "create_entry",
+        "title": "Create a journal entry"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Delete a journal entry"
+        },
+        "description": "Moves an entry to Recently Deleted, where Journal keeps it for 30 days and restore_entry brings it back. permanently deletes one already in Recently Deleted for good, on every device (ask the user first). An entry changed since its version was read is refused.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Entry id",
+              "type": "string"
+            },
+            "permanently": {
+              "description": "Delete an entry in Recently Deleted for good",
+              "type": "boolean"
+            },
+            "version": {
+              "description": "The version read_entry or find_entries gave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "name": "delete_entry",
+        "title": "Delete a journal entry"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Duplicate a journal entry"
+        },
+        "description": "Copies an entry with its text, date, journal and attachments, as Journal's Duplicate does.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Entry id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "duplicate_entry",
+        "title": "Duplicate a journal entry"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Edit a journal entry"
+        },
+        "description": "Changes an entry in one call: its title, its text (body rewrites it all; replace swaps exact Markdown from read_entry, pairs applied in order; append adds Markdown at the end), its date, bookmark or journal. Only what changes is written; the rest keeps its formatting. An entry changed since its version was read is refused.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "append": {
+              "description": "Markdown to add at the end of the text",
+              "type": "string"
+            },
+            "body": {
+              "description": "The whole text, as Markdown",
+              "type": "string"
+            },
+            "bookmarked": {
+              "description": "Bookmark (true) or not (false)",
+              "type": "boolean"
+            },
+            "date": {
+              "description": "2026-10-21T09:30, or 2026-10-21",
+              "type": "string"
+            },
+            "id": {
+              "description": "Entry id",
+              "type": "string"
+            },
+            "journal": {
+              "description": "Move it to this journal (name or id); \"\" takes it out of its journal",
+              "type": "string"
+            },
+            "replace": {
+              "description": "Replacements in the text",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "description": "Replace every occurrence",
+                    "type": "boolean"
+                  },
+                  "new": {
+                    "description": "Markdown",
+                    "type": "string"
+                  },
+                  "old": {
+                    "description": "Exact Markdown; must be unique unless all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "old",
+                  "new"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "title": {
+              "description": "The new title; \"\" for none",
+              "type": "string"
+            },
+            "version": {
+              "description": "The version read_entry or find_entries gave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "name": "edit_entry",
+        "title": "Edit a journal entry"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Export journal entries"
+        },
+        "description": "Writes entries as Markdown files, one per entry, with their photos, videos and recordings, into a new folder. Filters as find_entries: journal, bookmarked, after (inclusive), before (exclusive).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "description": "2026-10-21: entries dated that day or later",
+              "type": "string"
+            },
+            "before": {
+              "description": "2026-10-21: entries dated before that day",
+              "type": "string"
+            },
+            "bookmarked": {
+              "description": "Only bookmarked entries",
+              "type": "boolean"
+            },
+            "journal": {
+              "description": "Only this journal (name or id)",
+              "type": "string"
+            },
+            "to": {
+              "description": "A new folder's path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "to"
+          ],
+          "type": "object"
+        },
+        "name": "export_entries",
+        "title": "Export journal entries"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Find journal entries"
+        },
+        "description": "Finds entries, newest first: by words (in the title, the text, the writing prompt, and the places, people, songs, transcripts and handwriting of attachments), journal, bookmark, date and kind of attachment. Each comes with its id and version, a snippet and its attachments by kind. after is inclusive, before exclusive.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "description": "2026-10-21: entries dated that day or later",
+              "type": "string"
+            },
+            "attachments": {
+              "description": "Only entries with an attachment of one of these kinds; any, or none",
+              "items": {
+                "enum": [
+                  "photo",
+                  "video",
+                  "audio",
+                  "place",
+                  "state_of_mind",
+                  "workout",
+                  "activity",
+                  "music",
+                  "podcast",
+                  "book",
+                  "contact",
+                  "link",
+                  "reflection",
+                  "drawing",
+                  "event",
+                  "any",
+                  "none"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "before": {
+              "description": "2026-10-21: entries dated before that day",
+              "type": "string"
+            },
+            "bookmarked": {
+              "description": "Only bookmarked entries",
+              "type": "boolean"
+            },
+            "deleted": {
+              "description": "Look in Recently Deleted instead",
+              "type": "boolean"
+            },
+            "journal": {
+              "description": "Only entries in this journal (name or id)",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Default 50, at most 500",
+              "type": "integer"
+            },
+            "offset": {
+              "description": "Skip this many, for the next page",
+              "type": "integer"
+            },
+            "query": {
+              "description": "Words that must all appear",
+              "type": "string"
+            },
+            "sort": {
+              "description": "Default newest (by the entry's date); edited: most recently changed first",
+              "enum": [
+                "newest",
+                "oldest",
+                "edited"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "find_entries",
+        "title": "Find journal entries"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Create, change or delete a journal"
+        },
+        "description": "Creates a journal, changes one's name, color or icon, or deletes one. Deleting moves its entries to another journal (move_entries_to), leaves them in All Entries only (the default), or with delete_entries moves them to Recently Deleted too (ask the user first; expected_entries is how many it holds). The default journal cannot be changed.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "create",
+                "update",
+                "delete"
+              ],
+              "type": "string"
+            },
+            "color": {
+              "description": "#RRGGBB, or red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray",
+              "type": "string"
+            },
+            "delete_entries": {
+              "description": "delete: move its entries to Recently Deleted too",
+              "type": "boolean"
+            },
+            "expected_entries": {
+              "description": "delete with delete_entries: how many entries it holds",
+              "type": "integer"
+            },
+            "icon": {
+              "description": "An emoji, or an SF Symbol name such as book.closed",
+              "type": "string"
+            },
+            "journal": {
+              "description": "New journal name for create; journal name or id otherwise",
+              "type": "string"
+            },
+            "move_entries_to": {
+              "description": "delete: the journal to move its entries to (name or id)",
+              "type": "string"
+            },
+            "new_name": {
+              "description": "update: the new name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "journal"
+          ],
+          "type": "object"
+        },
+        "name": "manage_journal",
+        "title": "Create, change or delete a journal"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Journal overview"
+        },
+        "description": "The journals (with their colors, icons and how many entries each holds), how many entries there are in all, bookmarked and in Recently Deleted, and the insights Journal shows: days journaled and daily and weekly streaks.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "name": "overview",
+        "title": "Journal overview"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Read an attachment"
+        },
+        "description": "Opens one of an entry's attachments (its id from read_entry): photos, a frame of a video, audio recordings (with Journal's transcript), and the details of places, State of Mind, workouts, music and the rest.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Attachment id",
+              "type": "string"
+            },
+            "text_only": {
+              "description": "Only the details, no images or audio",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "read_attachment",
+        "title": "Read an attachment"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Read journal entries"
+        },
+        "description": "Reads entries in full: the text as Markdown, the date, journal, bookmark, writing prompt, and each attachment's details (places, State of Mind, workouts, music, a recording's transcript, …), with the version edit_entry and delete_entry take. ![…](attachment:id) placeholders mark attachments placed in the text; read_attachment opens any attachment.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Entry id",
+              "type": "string"
+            },
+            "ids": {
+              "description": "Several entries, up to 20",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "name": "read_entry",
+        "title": "Read journal entries"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Restore a journal entry"
+        },
+        "description": "Brings an entry back from Recently Deleted (find_entries with deleted: true lists them).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Entry id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "restore_entry",
+        "title": "Restore a journal entry"
+      }
+    ],
+    "ttlMs": 0
+  }
+}

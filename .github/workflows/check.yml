@@ -1,8 +1,8 @@
-# Builds Apple Notes MCP and Apple Reminders MCP (one package), checks that what users and agents
+# Builds Apple Notes MCP, Apple Reminders MCP and Apple Journal MCP (one package), checks that what users and agents
 # see has not changed (scripts/golden.py against Tests/Golden), and runs the unit tests, for every
 # pull request and every push to main, on a GitHub-hosted Mac. It uses no secrets: releases are
-# signed and published from a Mac. scripts/e2e.py is not run here, since it needs real Notes and
-# Reminders data and the apps' permissions.
+# signed and published from a Mac. scripts/e2e.py is not run here, since it needs real Notes,
+# Reminders and Journal data and the apps' permissions.
 name: Check
 
 on:
@@ -42,6 +42,7 @@ jobs:
           bin=$(swift build --show-bin-path)
           /usr/bin/python3 -I scripts/golden.py check notes "$bin/AppleNotesMCP" Tests/Golden/notes
           /usr/bin/python3 -I scripts/golden.py check reminders "$bin/AppleRemindersMCP" Tests/Golden/reminders
+          /usr/bin/python3 -I scripts/golden.py check journal "$bin/AppleJournalMCP" Tests/Golden/journal
       # Under a pseudo-terminal, so the output appears as it is written, and with a time limit, so a
       # test that hangs fails the check in minutes and the log shows where it stopped.
       - name: Test

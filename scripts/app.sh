@@ -1,6 +1,7 @@
 # Sourced by the build and release scripts after `cd` to the repository: sets, for the app named in
-# $APP_ID (notes or reminders), everything that differs between Apple Notes MCP and Apple Reminders
-# MCP. Each app keeps its own bundle id, package id, cask and tags; see docs/MERGE-PLAN.md.
+# $APP_ID (notes, reminders or journal), everything that differs between Apple Notes MCP, Apple
+# Reminders MCP and Apple Journal MCP. Each app keeps its own bundle id, package id, cask and tags;
+# see docs/MERGE-PLAN.md.
 #
 #   APP          AppleNotesMCP: the executable, the app bundle and the package's name
 #   TITLE        Apple Notes MCP
@@ -28,8 +29,15 @@ case "${APP_ID:-}" in
     RESOURCES=Resources/Reminders
     PERMISSIONS="Reminders. Full Disk Access is optional, only to list everything in Recently Deleted and to read images on reminders"
     ;;
+  journal)
+    APP=AppleJournalMCP
+    TITLE="Apple Journal MCP"
+    CASK=apple-journal-mcp
+    RESOURCES=Resources/Journal
+    PERMISSIONS="Full Disk Access (to read and write Journal's data). It needs Journal 3.0 (macOS 27.2)"
+    ;;
   *)
-    echo "usage: $0 notes|reminders …" >&2
+    echo "usage: $0 notes|reminders|journal …" >&2
     exit 2
     ;;
 esac

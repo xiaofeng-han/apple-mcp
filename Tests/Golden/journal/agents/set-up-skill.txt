@@ -1,0 +1,1 @@
+Codex CLI: skill set up in <HOME>/.agents/skills/apple-journal/SKILL.md. New sessions will have it.

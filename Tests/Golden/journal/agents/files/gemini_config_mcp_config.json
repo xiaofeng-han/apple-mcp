@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "apple-journal": {
+      "command": "<EXECUTABLE>",
+      "args": ["--stdio"]
+    }
+  }
+}

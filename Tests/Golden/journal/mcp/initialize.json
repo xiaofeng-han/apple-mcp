@@ -1,0 +1,17 @@
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Apple's Journal app on this Mac, synced through iCloud. overview lists the journals and insights; find_entries finds entries (by words, journal, date, bookmark or kind of attachment), read_entry reads them as Markdown with their attachments' details, and read_attachment opens a photo, video or recording. Every change to an entry (edit_entry, delete_entry) passes back the version read_entry or find_entries gave, and an entry changed since is refused. Entry text is Markdown: **bold**, *italic*, <u>underline</u>, ~~strike~~, * and - lists, 1. numbered, > quote; keep ![…](attachment:…) placeholders where they are. Dates are local: 2026-10-21T09:30, or 2026-10-21. Deleted entries stay 30 days in Recently Deleted (find_entries with deleted: true); restore_entry brings one back. Journal entries are private: share what they say only as the user asks.\n\nThe user chooses which of these tools are offered, in the Tools tab of the Apple Journal MCP settings window (opened by opening the app). A tool named here that is not in your tool list is turned off there.",
+    "protocolVersion": "2025-11-25",
+    "serverInfo": {
+      "name": "apple-journal-mcp",
+      "version": "dev"
+    }
+  }
+}

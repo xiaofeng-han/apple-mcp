@@ -21,8 +21,8 @@ exist (so every tool is offered); the executable's path and the throwaway HOME a
 Left out because they differ from Mac to Mac: --self-check, and agents that are apps or that may be
 installed for real.
 
-    /usr/bin/python3 -I scripts/golden.py record notes|reminders EXECUTABLE DIR
-    /usr/bin/python3 -I scripts/golden.py check  notes|reminders EXECUTABLE DIR
+    /usr/bin/python3 -I scripts/golden.py record notes|reminders|journal EXECUTABLE DIR
+    /usr/bin/python3 -I scripts/golden.py check  notes|reminders|journal EXECUTABLE DIR
 
 `check` records into a temporary folder and compares it with DIR, printing every difference (exit
 status 1). When DIR does not exist yet, it prints the recording as a base64 .tar.gz between
@@ -30,7 +30,7 @@ status 1). When DIR does not exist yet, it prints the recording as a base64 .tar
 """
 import base64, difflib, io, json, os, re, shutil, stat, subprocess, sys, tarfile, tempfile
 
-PREFIX = {"notes": "APPLE_NOTES_MCP", "reminders": "APPLE_REMINDERS_MCP"}
+PREFIX = {"notes": "APPLE_NOTES_MCP", "reminders": "APPLE_REMINDERS_MCP", "journal": "APPLE_JOURNAL_MCP"}
 FAKE_AGENTS = {  # path under HOME → what it prints for any arguments (Grok is identified by --help)
     ".local/bin/codex": "codex-cli 0.50.0",
     ".local/bin/grok": "Grok Build 1.0.0",
@@ -152,7 +152,7 @@ def _record(app, executable, out, home):
     save("agents/set-up.txt", run("agents", "set-up", "codex", "grok", "agy"))
     save("agents/set-up-again.txt", run("agents", "set-up", "codex", "grok", "agy"))
     save("agents/set-up-skill.txt", run("agents", "set-up", "codex", "--skill"))
-    for path in AGENT_FILES + [f".agents/skills/{name}/SKILL.md" for name in ("apple-notes", "apple-reminders")]:
+    for path in AGENT_FILES + [f".agents/skills/{name}/SKILL.md" for name in ("apple-notes", "apple-reminders", "apple-journal")]:
         full = os.path.join(home, path)
         if os.path.exists(full):
             with open(full) as f:

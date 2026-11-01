@@ -1,0 +1,36 @@
+// swift-interface-format-version: 1.0
+// swift-module-flags: -target arm64-apple-macos26.0 -enable-library-evolution -swift-version 5 -module-name Coherence
+//
+// The part of Coherence, Apple's private framework for mergeable data (CRDTs), that Apple Journal MCP
+// calls: Journal keeps an entry's text and title in it. Written by hand from the framework's exported
+// symbols on macOS 27.2 (see docs/RE-FINDINGS-journal.md); every declaration must mangle exactly as
+// the framework's own, so change one only after checking the symbol it calls.
+import Foundation
+import Swift
+
+public protocol CRAttributeStringAttributeScope {}
+
+public protocol CRAttributeStringKey {
+  associatedtype Value
+  static var name: Swift.String { get }
+}
+
+public struct UnknownValueProperties {
+  public init()
+}
+
+public struct CRAttributedString<A> where A : Coherence.CRAttributeStringAttributeScope {
+  public init(_ string: Foundation.NSAttributedString)
+  public var attributedString: Foundation.NSAttributedString { get }
+  public var count: Swift.Int { get }
+  public mutating func removeSubrange(_ range: Swift.Range<Swift.Int>)
+  public mutating func insert(contentsOf string: Foundation.NSAttributedString, at index: Swift.Int)
+  public func attributes(at index: Swift.Int, effectiveRange: Swift.UnsafeMutablePointer<Foundation.NSRange>?) -> Coherence.CRAttributedString<A>.Attributes
+  public mutating func setAttributes(_ attributes: Coherence.CRAttributedString<A>.Attributes?, range: Foundation.NSRange)
+
+  @dynamicMemberLookup public struct Attributes {
+    public init()
+    public var count: Swift.Int { get }
+    public subscript<K>(dynamicMember keyPath: Swift.WritableKeyPath<A, K>) -> K.Value? where K : Coherence.CRAttributeStringKey { get set }
+  }
+}

@@ -1,8 +1,11 @@
 // Composes Resources/Notes/AppIcon.icon/Assets/artwork.png from the Apple Reminders MCP artwork, so the
-// two apps look like a pair: the same robot and ruled lines, on a Notes page with a yellow header.
+// apps look like a family: the same robot and ruled lines, on a Notes page with a yellow header, or
+// with `journal` a Journal page with a violet-to-coral header (Journal's own colors).
 //
 //   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
 //       Resources/Notes/AppIcon.icon/Assets/artwork.png && scripts/build-icon.sh notes
+//   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
+//       Resources/Journal/AppIcon.icon/Assets/artwork.png journal && scripts/build-icon.sh journal
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -10,6 +13,7 @@ import UniformTypeIdentifiers
 
 let size = 1024
 let source = URL(fileURLWithPath: CommandLine.arguments[1]), output = URL(fileURLWithPath: CommandLine.arguments[2])
+let journal = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "journal"
 let image = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithURL(source as CFURL, nil)!, 0, nil)!
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 func bitmap() -> [UInt8] { [UInt8](repeating: 0, count: size * size * 4) }
@@ -35,13 +39,17 @@ func put(_ x: Int, _ y: Int, _ c: (Double, Double, Double), _ alpha: Double = 1)
 }
 for y in 0..<size { for x in 0..<size { put(x, y, paper) } }
 
-// The yellow header, with a darker edge and a soft shadow onto the page.
+// The header (yellow, or Journal's violet to coral across), with a darker edge and a soft shadow
+// onto the page.
 let band = 250
 for y in 0..<band {
     let t = Double(y) / Double(band)
-    for x in 0..<size { put(x, y, (255, 216 - 22 * t, 84 - 44 * t)) }
+    for x in 0..<size {
+        let s = Double(x) / Double(size)
+        put(x, y, journal ? (142 + 102 * s - 10 * t, 92 + 48 * s - 12 * t, 247 - 139 * s - 14 * t) : (255, 216 - 22 * t, 84 - 44 * t))
+    }
 }
-for y in band..<(band + 3) { for x in 0..<size { put(x, y, (226, 172, 28)) } }
+for y in band..<(band + 3) { for x in 0..<size { put(x, y, journal ? (180 - 40 * Double(x) / Double(size), 92, 160) : (226, 172, 28)) } }
 for y in (band + 3)..<(band + 24) {
     let a = 0.14 * (1 - Double(y - band - 3) / 21)
     for x in 0..<size { put(x, y, (120, 110, 80), a) }

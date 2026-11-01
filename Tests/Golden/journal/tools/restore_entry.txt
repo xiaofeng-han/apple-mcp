@@ -1,0 +1,3 @@
+Restore a journal entry: Brings an entry back from Recently Deleted (find_entries with deleted: true lists them).
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Entry id","type":"string"}},"required":["id"],"type":"object"}

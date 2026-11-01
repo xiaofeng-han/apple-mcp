@@ -3,7 +3,7 @@
 # and the zipped app dist/AppleNotesMCP-<version>.zip or dist/AppleRemindersMCP-<version>.zip (each
 # with its .sha256) from one fresh build-app.sh build, for a GitHub release:
 #
-#   scripts/build-pkg.sh notes|reminders
+#   scripts/build-pkg.sh notes|reminders|journal
 #
 # Installing "for me only" puts the app in ~/Applications without an administrator password;
 # installing for all users puts it in /Applications. From the terminal:

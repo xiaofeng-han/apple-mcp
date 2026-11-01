@@ -1,0 +1,51 @@
+apple-journal-mcp
+├── --stdio                     Serve MCP on stdin and stdout (what agents start)
+├── --settings                  Open the settings window (also what opening the app does)
+├── --self-check                Print a diagnosis
+├── --version                   Print the version
+├── help [COMMAND…]             This tree, or a command's flags (also --help, -h)
+├── setup                       Check Full Disk Access, and show where to give it
+├── skill                       Print the SKILL.md that teaches an agent this command line
+├── agents
+│   ├── list                    Which agents are here and set up (the default)
+│   │       [--skill] [--folder DIR]
+│   ├── set-up (ID… | --all)    Register the server with them, or install the skill
+│   │       [--restart] [--skill] [--folder DIR]
+│   └── install ID…             Install them, then set them up
+│           [--dry-run] [--restart] [--skill] [--folder DIR]
+├── entries
+│   ├── list                    List entries, newest first, with their ids and versions (the default)
+│   │       --journal string --[no-]bookmarked --after string --before string --attachment string…
+│   │       --[no-]deleted --sort newest|oldest|edited --limit int --offset int
+│   ├── search [QUERY]          Find entries with all these words: in the text, title, prompt, and attachments' places, songs, transcripts
+│   │       --after string --attachment string… --before string --[no-]bookmarked --[no-]deleted
+│   │       --journal string --limit int --offset int --sort newest|oldest|edited
+│   ├── read [ID]               Print entries in full, the text as Markdown, each with the version entries edit takes
+│   │       --id string…
+│   ├── create [MARKDOWN]       Create an entry from Markdown, with --title, --date, --journal, --bookmarked, --attach FILE
+│   │       --attach string… --[no-]bookmarked --date string --journal string --title string
+│   ├── edit ID --version string  Change an entry in one go: --title, --body, --replace pairs, --append, --date, --[no-]bookmarked, --journal, --attach, --detach
+│   │       --append string --attach string… --body string --[no-]bookmarked --date string --detach string…
+│   │       --journal string --replace json --title string
+│   ├── delete ID --version string  Move an entry to Recently Deleted; --permanently deletes one there for good (ask the user first)
+│   │       --[no-]permanently
+│   ├── restore ID              Bring an entry back from Recently Deleted (entries list --deleted lists them)
+│   ├── duplicate ID            Copy an entry with its text, date, journal and attachments
+│   └── export FOLDER           Write entries as Markdown files with their photos, videos and recordings into a new folder
+│           --after string --before string --[no-]bookmarked --journal string
+├── journals
+│   ├── list                    The journals with their entries, colors and icons, the counts, and Journal's insights (streaks, days journaled) (the default)
+│   ├── create NAME             Create a journal, with --color and --icon
+│   │       --color string --icon string
+│   ├── update JOURNAL          Change a journal's name, color or icon
+│   │       --new-name string --color string --icon string
+│   └── delete JOURNAL          Delete a journal; its entries stay in All Entries, move (--move-entries-to), or go too (--delete-entries --expected-entries N; ask the user first)
+│           --move-entries-to string --[no-]delete-entries --expected-entries int
+├── attachments
+│   └── read ID                 Open an entry's attachment (ids from entries read): print its details, save its photos, video frames and recordings
+│           --[no-]text-only --output-dir string
+└── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
+
+Every entries, journals, attachments command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.
+Output is the tool's JSON answer. Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.

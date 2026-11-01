@@ -1,0 +1,3 @@
+Duplicate a journal entry: Copies an entry with its text, date, journal and attachments, as Journal's Duplicate does.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Entry id","type":"string"}},"required":["id"],"type":"object"}

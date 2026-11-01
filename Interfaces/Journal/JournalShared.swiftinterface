@@ -1,0 +1,222 @@
+// swift-interface-format-version: 1.0
+// swift-module-flags: -target arm64-apple-macos26.0 -enable-library-evolution -swift-version 5 -module-name JournalShared
+//
+// The part of JournalShared, Journal's private framework, that Apple Journal MCP calls: Journal's own
+// data model and the code that keeps it consistent and ready for Journal to sync. Written by hand from
+// the framework's exported symbols on macOS 27.2 (Journal 3.0; see docs/RE-FINDINGS-journal.md). Every
+// declaration must mangle exactly as the framework's own: the types are resilient, so their layout
+// is never assumed, but a wrong name, label or kind (struct, enum, class) calls nothing or the wrong
+// thing. Methods of the managed object classes are in extensions because the framework declares
+// them there (called directly, not through a dispatch thunk).
+import AVFoundation
+import Coherence
+import CoreData
+import CoreGraphics
+import Foundation
+import Swift
+
+extension CoreData.NSManagedObjectModel {
+  /// Journal's model; reading it also registers the value transformers its mergeable attributes need.
+  public static var shared: CoreData.NSManagedObjectModel { get }
+}
+
+public struct MergeableTextAttributeScope {
+  public enum FontAttribute {}
+  public enum UnderlineAttribute {}
+  public enum StrikethroughAttribute {}
+  public enum TextListsAttribute {}
+  public enum BlockQuoteAttribute {}
+  public enum AssetTextAttachmentAttribute {}
+  public enum AdaptiveImageGlyphAttribute {}
+  public enum FollowUpPromptAttachmentAttribute {}
+  public var font: JournalShared.MergeableTextAttributeScope.FontAttribute { get set }
+  public var underline: JournalShared.MergeableTextAttributeScope.UnderlineAttribute { get set }
+  public var strikethrough: JournalShared.MergeableTextAttributeScope.StrikethroughAttribute { get set }
+  public var textLists: JournalShared.MergeableTextAttributeScope.TextListsAttribute { get set }
+  public var blockQuote: JournalShared.MergeableTextAttributeScope.BlockQuoteAttribute { get set }
+  public var assetAttachment: JournalShared.MergeableTextAttributeScope.AssetTextAttachmentAttribute { get set }
+  public var adaptiveImageGlyph: JournalShared.MergeableTextAttributeScope.AdaptiveImageGlyphAttribute { get set }
+  public var followUpPromptAttachment: JournalShared.MergeableTextAttributeScope.FollowUpPromptAttachmentAttribute { get set }
+}
+extension JournalShared.MergeableTextAttributeScope.FontAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = JournalShared.MergeableFont
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.UnderlineAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = Swift.Int
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.StrikethroughAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = Swift.Int
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.TextListsAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = JournalShared.MergeableTextLists
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.BlockQuoteAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = Swift.Bool
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.AssetTextAttachmentAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = JournalShared.MergeableAssetTextAttachment
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.AdaptiveImageGlyphAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = JournalShared.MergeableAdaptiveImageGlyph
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope.FollowUpPromptAttachmentAttribute : Coherence.CRAttributeStringKey {
+  public typealias Value = JournalShared.MergeableFollowUpPromptAttachment
+  public static var name: Swift.String { get }
+}
+extension JournalShared.MergeableTextAttributeScope : Coherence.CRAttributeStringAttributeScope {}
+public struct MergeableTitleAttributeScope {}
+extension JournalShared.MergeableTitleAttributeScope : Coherence.CRAttributeStringAttributeScope {}
+
+public struct MergeableFont {
+  public struct Traits {
+    public init(rawValue: Swift.Int)
+    public var rawValue: Swift.Int { get }
+    public static var bold: JournalShared.MergeableFont.Traits { get }
+    public static var italic: JournalShared.MergeableFont.Traits { get }
+  }
+  public init(traits: JournalShared.MergeableFont.Traits, unknownProperties: Coherence.UnknownValueProperties)
+  public var traits: JournalShared.MergeableFont.Traits { get }
+}
+
+public struct MergeableTextList {
+  public init(startingItemNumber: Swift.Int, markerFormatString: Swift.String, listOptions: Swift.UInt, unknownProperties: Coherence.UnknownValueProperties)
+  public var startingItemNumber: Swift.Int { get }
+  public var markerFormatString: Swift.String { get }
+}
+
+public struct MergeableTextLists {
+  public init(textLists: [JournalShared.MergeableTextList], unknownProperties: Coherence.UnknownValueProperties)
+  public var textLists: [JournalShared.MergeableTextList] { get }
+}
+
+public struct MergeableAssetTextAttachment {
+  public var assetID: Foundation.UUID { get }
+}
+
+public struct MergeableAdaptiveImageGlyph {
+  public var imageContent: Foundation.Data { get }
+}
+
+public struct MergeableFollowUpPromptAttachment {
+  public var prompt: Swift.String { get }
+}
+
+public struct SRGBColor {
+  public init(red: Swift.Double, green: Swift.Double, blue: Swift.Double, alpha: Swift.Double)
+  public var cgColor: CoreGraphics.CGColor? { get }
+}
+
+public enum MergeableColor {
+  case sRGB(JournalShared.SRGBColor)
+  public var sRGB: JournalShared.SRGBColor? { get }
+  public static var random: JournalShared.MergeableColor { get }
+}
+
+public struct MergeableJournalAttributes {
+  public enum Icon {
+    case emoji(Swift.String)
+    case sfSymbol(Swift.String)
+    public var emoji: Swift.String? { get }
+    public var sfSymbol: Swift.String? { get }
+  }
+}
+
+public enum EntrySource {
+  case blankEntry
+  case unknown
+}
+
+@objc(JournalMO) public class JournalMO : CoreData.NSManagedObject {}
+extension JournalShared.JournalMO {
+  public static var defaultJournalID: Foundation.UUID { get }
+  public static func create(context: CoreData.NSManagedObjectContext, title: Swift.String, color: JournalShared.MergeableColor, icon: JournalShared.MergeableJournalAttributes.Icon, id: Foundation.UUID) -> JournalShared.JournalMO
+  public static func delete(_ journal: JournalShared.JournalMO, moveEntriesToJournalID: Foundation.UUID?, context: CoreData.NSManagedObjectContext)
+  public static func delete(_ journal: JournalShared.JournalMO, shouldDeleteEntries: Swift.Bool)
+  public var title: Swift.String? { get set }
+  public var color: JournalShared.MergeableColor? { get set }
+  public var icon: JournalShared.MergeableJournalAttributes.Icon? { get set }
+  public var isDefaultJournal: Swift.Bool { get }
+}
+
+@objc(JournalEntryAssetMO) public class JournalEntryAssetMO : CoreData.NSManagedObject {}
+@objc(JournalEntryAssetFileAttachmentMO) public class JournalEntryAssetFileAttachmentMO : CoreData.NSManagedObject {}
+extension JournalShared.JournalEntryAssetFileAttachmentMO {
+  public static var objectsToSavePredicate: Foundation.NSPredicate { get }
+}
+
+/// Where an entry shows an attachment: in the grid above the text (at an index), as the one wide
+/// "slim" attachment, hidden, or in the text itself.
+public enum AssetPlacement {
+  case grid(Swift.Int)
+  case slim
+  case hidden
+  case canvas
+  public enum Constants {
+    public static var maxGridCount: Swift.Int { get }
+  }
+}
+
+public struct MergeableEntryAssetsPlacement {
+  public init(defaultState: ()) throws
+  public init(fromLegacyOrderingFieldsOf entry: JournalShared.JournalEntryMO)
+  public func assetPlacement(forAssetID assetID: Foundation.UUID) -> JournalShared.AssetPlacement?
+  public mutating func addOrMoveAsset(withID assetID: Foundation.UUID, to placement: JournalShared.AssetPlacement, from previous: JournalShared.AssetPlacement?)
+  public mutating func removeAsset(withID assetID: Foundation.UUID)
+}
+
+extension Swift.Encodable {
+  /// How Journal stores an attachment's details (JournalEntryAssetMO.assetMetaData).
+  public var asData: Foundation.Data? { get }
+}
+
+public struct PhotoLibraryAssetMetadata {
+  public init(assetIdentifier: Swift.String?, date: Foundation.Date?, placeName: Swift.String?, latitude: Swift.Double?, longitude: Swift.Double?, size: CoreGraphics.CGSize?, squareCropRect: Swift.String?, landscapeCropRect: Swift.String?, portraitCropRect: Swift.String?, displayAtFullAspectRatio: Swift.Bool)
+}
+extension JournalShared.PhotoLibraryAssetMetadata : Swift.Encodable {
+  public func encode(to encoder: any Swift.Encoder) throws
+}
+
+/// What Journal draws a recording's waveform from. Its async method runs on the caller's actor
+/// (nonisolated(nonsending)): it takes that actor before its own arguments, which its symbol
+/// does not show.
+public struct AudioIntensityProcessor {
+  public init(computesAverageIntensity: Swift.Bool)
+  nonisolated(nonsending) public func readAudioIntensityLevels(from asset: AVFoundation.AVAsset) async throws -> ([CoreGraphics.CGFloat], [CoreGraphics.CGFloat])
+}
+
+public struct TranscriptViewModelSegment {}
+public struct AudioAssetMetadata {
+  public init(duration: Swift.Double?, intensities: [CoreGraphics.CGFloat]?, recordingDate: Foundation.Date?, transcriptSegments: [JournalShared.TranscriptViewModelSegment]?)
+}
+extension JournalShared.AudioAssetMetadata : Swift.Encodable {
+  public func encode(to encoder: any Swift.Encoder) throws
+}
+
+@objc(JournalEntryMO) public class JournalEntryMO : CoreData.NSManagedObject {}
+extension JournalShared.JournalEntryMO {
+  public static func create(type: JournalShared.EntrySource, context: CoreData.NSManagedObjectContext, uuid: Foundation.UUID?) -> JournalShared.JournalEntryMO
+  public var mergeableAttributedText: Coherence.CRAttributedString<JournalShared.MergeableTextAttributeScope>? { get set }
+  public var mergeableAttributedTitle: Coherence.CRAttributedString<JournalShared.MergeableTitleAttributeScope>? { get set }
+  public func add(to journal: JournalShared.JournalMO)
+  public func remove(from journal: JournalShared.JournalMO)
+  public func markAsRecentlyDeleted()
+  public func recoverRecentlyDeleted()
+  public func markAsPermanentlyDeleted()
+  public var isRecentlyDeleted: Swift.Bool { get }
+  public func deepCopy() throws -> Self?
+  public var displayDate: Foundation.Date { get }
+  @discardableResult
+  public func updateSortingColumns() -> Swift.Bool
+  public func computeAndSetAggregateMinimumVersion()
+  public var assetsArray: [JournalShared.JournalEntryAssetMO] { get }
+  public var mergeableAssetPlacement: JournalShared.MergeableEntryAssetsPlacement? { get set }
+  public func modifyLegacyAssetOrderingFields(from placement: JournalShared.MergeableEntryAssetsPlacement)
+  public static var objectsToSavePredicate: Foundation.NSPredicate { get }
+}

@@ -1,0 +1,11 @@
+apple-journal-mcp journals
+├── list                        The journals with their entries, colors and icons, the counts, and Journal's insights (streaks, days journaled) (the default)
+├── create NAME                 Create a journal, with --color and --icon
+│       --color string --icon string
+├── update JOURNAL              Change a journal's name, color or icon
+│       --new-name string --color string --icon string
+└── delete JOURNAL              Delete a journal; its entries stay in All Entries, move (--move-entries-to), or go too (--delete-entries --expected-entries N; ask the user first)
+        --move-entries-to string --[no-]delete-entries --expected-entries int
+
+Every journals command also takes --json OBJECT (or --json - for stdin) and --help.
+Flags: --no-NAME turns a flag off; a flag ending in … repeats.

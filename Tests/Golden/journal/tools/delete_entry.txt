@@ -1,0 +1,3 @@
+Delete a journal entry: Moves an entry to Recently Deleted, where Journal keeps it for 30 days and restore_entry brings it back. permanently deletes one already in Recently Deleted for good, on every device (ask the user first). An entry changed since its version was read is refused.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Entry id","type":"string"},"permanently":{"description":"Delete an entry in Recently Deleted for good","type":"boolean"},"version":{"description":"The version read_entry or find_entries gave","type":"string"}},"required":["id","version"],"type":"object"}

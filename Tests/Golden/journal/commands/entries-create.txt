@@ -1,0 +1,13 @@
+usage: apple-journal-mcp entries create [MARKDOWN] [flags]
+
+Create an entry from Markdown, with --title, --date, --journal, --bookmarked, --attach FILE.
+
+  MARKDOWN           The text as Markdown; - reads it from stdin
+  --attach string…   A photo, video or audio recording to add (repeat for more)
+  --[no-]bookmarked  Bookmark it
+  --date string      2026-10-21T09:30, or 2026-10-21; default now
+  --journal string   The journal to put it in (name or id); default none, so only All Entries shows it
+  --title string     The title; default none
+  --json json|-      Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help         Show this help
+

@@ -2,7 +2,7 @@
 
 **English** | [简体中文](notes.zh-CN.md)
 
-Part of [apple-mcp](../README.md), the repository of Apple Notes MCP and [Apple Reminders MCP](reminders.md).
+Part of [apple-mcp](../README.md), the repository of Apple Notes MCP, [Apple Reminders MCP](reminders.md) and [Apple Journal MCP](journal.md).
 
 An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) read and edit Apple Notes on macOS, with native formatting. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click, installing the ones you are missing.
 
@@ -298,19 +298,19 @@ A tool that a later version adds, and that the file therefore doesn't name yet, 
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh notes` builds the release package, `dist/AppleNotesMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release, write its note as a `## <version>` section of [`CHANGELOG-notes.md`](../CHANGELOG-notes.md), run `scripts/e2e.py notes` (and `scripts/e2e.py reminders` too when the shared code changed), and then, on `main`:
+`./scripts/build-pkg.sh notes` builds the release package, `dist/AppleNotesMCP-<version>.pkg`, and its SHA-256 checksum. To publish a release, write its note as a `## <version>` section of [`CHANGELOG-notes.md`](../CHANGELOG-notes.md), run `scripts/e2e.py notes` (and `scripts/e2e.py reminders` and `scripts/e2e.py journal` too when the shared code changed), and then, on `main`:
 
 ```bash
 scripts/release.sh notes 0.4.0       # or first: scripts/release.sh --dry-run notes 0.4.0
 ```
 
-- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and the zipped app and checks that the app is signed with your certificate, then commits `Release Apple Notes MCP <version>`, tags `notes-v<version>` and pushes both. It publishes the GitHub release with the package, the zip (which the Homebrew cask installs) and the note from `CHANGELOG-notes.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh notes`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`). Apple Reminders MCP keeps its own version and is released on its own.
+- **What it does:** it sets the version (the build number goes up by one by itself) and runs `swift test`. It builds the package and the zipped app and checks that the app is signed with your certificate, then commits `Release Apple Notes MCP <version>`, tags `notes-v<version>` and pushes both. It publishes the GitHub release with the package, the zip (which the Homebrew cask installs) and the note from `CHANGELOG-notes.md`, adding the install commands for that version. Last, it points the Homebrew cask at the release with `./scripts/update-cask.sh notes`, in a checkout of [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) (`../homebrew-tap` unless `TAP=<path>`). Apple Reminders MCP and Apple Journal MCP keep their own versions and are released on their own.
 - **If a step fails:** it says what is already done and how to finish by hand.
 - **`--dry-run`:** does everything up to the package, then undoes the version change; nothing is committed, pushed or published.
 
 Every pull request and every push to `main` is built and unit-tested on a GitHub-hosted Mac with the newest Xcode (`.github/workflows/check.yml`). That workflow holds no secrets: signing happens only on your Mac, in `scripts/release.sh`.
 
-The icon's source is the Icon Composer document `Resources/Notes/AppIcon.icon`, whose artwork `scripts/compose-icon.swift` makes from the Apple Reminders MCP icon, so the two look like a pair. After changing it, run `./scripts/build-icon.sh notes` (it needs Xcode for `actool`) and commit `Resources/Notes/AppIcon-compiled`; ordinary builds only copy that folder.
+The icon's source is the Icon Composer document `Resources/Notes/AppIcon.icon`, whose artwork `scripts/compose-icon.swift` makes from the Apple Reminders MCP icon, so the apps look like a family (Apple Journal MCP's is made the same way). After changing it, run `./scripts/build-icon.sh notes` (it needs Xcode for `actool`) and commit `Resources/Notes/AppIcon-compiled`; ordinary builds only copy that folder.
 
 ### Why the permissions belong to this app
 

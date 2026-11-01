@@ -28,7 +28,7 @@ cd "$(dirname "$0")/.."
 DRY_RUN=0
 if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; shift; fi
 if [ $# -ne 2 ] || ! printf '%s\n' "$2" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "usage: scripts/release.sh [--dry-run] notes|reminders <version>   (such as 0.4.0)" >&2
+  echo "usage: scripts/release.sh [--dry-run] notes|reminders|journal <version>   (such as 0.4.0)" >&2
   exit 2
 fi
 APP_ID=$1

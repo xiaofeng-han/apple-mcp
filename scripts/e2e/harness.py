@@ -1,4 +1,4 @@
-"""What the end-to-end checks of both apps share (scripts/e2e/notes.py, scripts/e2e/reminders.py):
+"""What the end-to-end checks of the apps share (scripts/e2e/notes.py, scripts/e2e/reminders.py, journal.py):
 the app to check and its server over stdio, the command line, check() and the summary, and the
 checks of the shared base, which each app passes alike: choosing the tools through tools.json, and
 a stateless (2026-07-28) client.

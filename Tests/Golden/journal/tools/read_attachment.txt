@@ -1,0 +1,3 @@
+Read an attachment: Opens one of an entry's attachments (its id from read_entry): photos, a frame of a video, audio recordings (with Journal's transcript), and the details of places, State of Mind, workouts, music and the rest.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Attachment id","type":"string"},"text_only":{"description":"Only the details, no images or audio","type":"boolean"}},"required":["id"],"type":"object"}

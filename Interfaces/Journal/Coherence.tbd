@@ -1,0 +1,23 @@
+--- !tapi-tbd
+tbd-version:     4
+targets:         [ arm64-macos, arm64e-macos ]
+install-name:    '/System/Library/PrivateFrameworks/Coherence.framework/Versions/A/Coherence'
+current-version: 1
+swift-abi-version: 7
+exports:
+  - targets:         [ arm64-macos, arm64e-macos ]
+    symbols:         [
+                       '_$s9Coherence18CRAttributedStringV010attributedC0So012NSAttributedC0Cvg',
+                       '_$s9Coherence18CRAttributedStringV10AttributesV13dynamicMember5ValueQyd__Sgs15WritableKeyPathCyxqd__G_tcAA011CRAttributecI0Rd__luig',
+                       '_$s9Coherence18CRAttributedStringV10AttributesV13dynamicMember5ValueQyd__Sgs15WritableKeyPathCyxqd__G_tcAA011CRAttributecI0Rd__luis',
+                       '_$s9Coherence18CRAttributedStringV10AttributesVAEyx_GycfC',
+                       '_$s9Coherence18CRAttributedStringV10AttributesVMn',
+                       '_$s9Coherence18CRAttributedStringV10attributes2at14effectiveRangeAC10AttributesVyx_GSi_SpySo8_NSRangeVGSgtF',
+                       '_$s9Coherence18CRAttributedStringV13setAttributes_5rangeyAC0E0Vyx_GSg_So8_NSRangeVtF',
+                       '_$s9Coherence18CRAttributedStringV14removeSubrangeyySnySiGF',
+                       '_$s9Coherence18CRAttributedStringV6insert10contentsOf2atySo012NSAttributedC0C_SitF',
+                       '_$s9Coherence18CRAttributedStringVMn',
+                       '_$s9Coherence18CRAttributedStringVyACyxGSo012NSAttributedC0CcfC',
+                       '_$s9Coherence22UnknownValuePropertiesVACycfC',
+                       '_$s9Coherence22UnknownValuePropertiesVMa' ]
+...

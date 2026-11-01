@@ -1,7 +1,7 @@
 #!/bin/sh
-# Builds dist/AppleNotesMCP.app or dist/AppleRemindersMCP.app (arm64):
+# Builds dist/AppleNotesMCP.app, dist/AppleRemindersMCP.app or dist/AppleJournalMCP.app (arm64):
 #
-#   scripts/build-app.sh notes|reminders
+#   scripts/build-app.sh notes|reminders|journal
 #
 # Signing: the identity "Xiaofeng Local Code Signing" (a long-lived self-signed certificate in
 # the login keychain, created 2026-10-20) gives every build the same designated requirement, so
@@ -10,7 +10,7 @@
 # be allowed again.
 # HARDENED=1 adds the hardened runtime with the app's entitlements: Apple Events for Notes
 # (AppleScript to Notes needs it under the hardened runtime), calendars for Reminders (EventKit
-# needs it there).
+# needs it there), none for Journal (its frameworks are part of macOS).
 set -eu
 cd "$(dirname "$0")/.."
 APP_ID=${1:-}

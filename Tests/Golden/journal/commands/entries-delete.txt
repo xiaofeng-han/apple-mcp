@@ -1,0 +1,10 @@
+usage: apple-journal-mcp entries delete ID --version string [flags]
+
+Move an entry to Recently Deleted; --permanently deletes one there for good (ask the user first). --version is the one entries read, list or search gave; an entry changed elsewhere since then is refused.
+
+  ID                  Entry id
+  --version string    The version read_entry or find_entries gave (required)
+  --[no-]permanently  Delete an entry in Recently Deleted for good
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

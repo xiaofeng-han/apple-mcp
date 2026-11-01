@@ -120,7 +120,7 @@ Commands print the tool's JSON answer, sometimes after a short lead such as `Cre
 
 ## Install
 
-Releases are built for Apple silicon. From the first release on, the default way to install and set up is with Homebrew:
+Releases are built for Apple silicon; the app works with Journal 3.0, which comes with macOS 27.2. The default way to install and set up is with Homebrew:
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-journal-mcp
@@ -128,7 +128,16 @@ apple-journal-mcp setup                  # shows where to give Full Disk Access
 apple-journal-mcp agents set-up --all    # register the server with the agents on this Mac
 ```
 
-To give the agents the skill instead of the server, add `--skill` to the last command. Instead of the last two commands, you can open Apple Journal MCP from Applications: set up your agents in its **AI Assistants** tab, and see Full Disk Access under **General**. Without Homebrew, download `AppleJournalMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) and open it; installing for yourself puts the app in `~/Applications` and needs no administrator password. The app and package have no Developer ID signature; the cask takes off the quarantine, and a package downloaded in a browser has to be allowed under System Settings → Privacy & Security.
+To give the agents the skill instead of the server, add `--skill` to the last command. Instead of the last two commands, you can open Apple Journal MCP from Applications: set up your agents in its **AI Assistants** tab, and see Full Disk Access under **General**.
+
+Without Homebrew, download `AppleJournalMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) and open it, or install it from the terminal:
+
+```bash
+gh release download journal-v0.1.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleJournalMCP-0.1.0.pkg -target CurrentUserHomeDirectory
+```
+
+Installing for yourself puts the app in `~/Applications` and needs no administrator password. The app and package have no Developer ID signature; the cask takes off the quarantine, and a package downloaded in a browser has to be allowed under System Settings → Privacy & Security.
 
 ### After installing
 
@@ -149,7 +158,7 @@ The window's **AI Assistants** tab, **Set Up As** (server or skill) and the **To
 ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 ```
 
-`./scripts/build-pkg.sh journal` builds the release package, and `scripts/release.sh journal <version>` releases it, as described for [Apple Reminders MCP](reminders.md#build-from-source), with the note from [`CHANGELOG-journal.md`](../CHANGELOG-journal.md) and tags `journal-v<version>`. The first release also needs the cask `Casks/apple-journal-mcp.rb` in [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap), made like the other two; `update-cask.sh` only updates a cask that exists. The icon is `Resources/Journal/AppIcon.icon`: `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Journal/AppIcon.icon/Assets/artwork.png journal`, then `./scripts/build-icon.sh journal`.
+`./scripts/build-pkg.sh journal` builds the release package, and `scripts/release.sh journal <version>` releases it, as described for [Apple Reminders MCP](reminders.md#build-from-source), with the note from [`CHANGELOG-journal.md`](../CHANGELOG-journal.md) and tags `journal-v<version>`. The icon is `Resources/Journal/AppIcon.icon`: `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Journal/AppIcon.icon/Assets/artwork.png journal`, then `./scripts/build-icon.sh journal`.
 
 ### Why the permission belongs to this app
 

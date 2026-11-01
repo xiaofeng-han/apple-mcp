@@ -120,7 +120,7 @@ apple-journal-mcp entries export ~/Desktop/journal                  # 带附件�
 
 ## 安装
 
-发布版为 Apple 芯片构建。从第一个发布版起，默认用 Homebrew 安装和配置：
+发布版为 Apple 芯片构建；App 配合 macOS 27.2 自带的「手记」3.0 使用。默认用 Homebrew 安装和配置：
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-journal-mcp
@@ -128,7 +128,15 @@ apple-journal-mcp setup                  # 指出在哪里给完全磁盘访问
 apple-journal-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 agent
 ```
 
-要给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`。也可以不跑后两条命令，而是在「应用程序」里打开 Apple Journal MCP：在「AI 助手」标签页配置 agent，在「通用」里查看完全磁盘访问。不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) 下载 `AppleJournalMCP-<版本>.pkg` 打开；只为自己安装会放到 `~/Applications`，不需要管理员密码。App 和安装包没有 Developer ID 签名；cask 会去掉隔离属性，浏览器下载的安装包要在「系统设置 → 隐私与安全性」里允许。
+要给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`。也可以不跑后两条命令，而是在「应用程序」里打开 Apple Journal MCP：在「AI 助手」标签页配置 agent，在「通用」里查看完全磁盘访问。
+不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) 下载 `AppleJournalMCP-<版本>.pkg` 打开，或在终端里安装：
+
+```bash
+gh release download journal-v0.1.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleJournalMCP-0.1.0.pkg -target CurrentUserHomeDirectory
+```
+
+只为自己安装会放到 `~/Applications`，不需要管理员密码。App 和安装包没有 Developer ID 签名；cask 会去掉隔离属性，浏览器下载的安装包要在「系统设置 → 隐私与安全性」里允许。
 
 ### 安装之后
 
@@ -149,7 +157,7 @@ apple-journal-mcp --self-check
 ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 ```
 
-`./scripts/build-pkg.sh journal` 构建发布用的安装包，`scripts/release.sh journal <版本>` 发版，流程同 [Apple Reminders MCP](reminders.zh-CN.md)，发版说明来自 [`CHANGELOG-journal.md`](../CHANGELOG-journal.md)，tag 是 `journal-v<版本>`。第一次发版还需要在 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 里照另外两个的样子加上 cask `Casks/apple-journal-mcp.rb`；`update-cask.sh` 只更新已有的 cask。图标源文件是 `Resources/Journal/AppIcon.icon`：先 `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Journal/AppIcon.icon/Assets/artwork.png journal`，再 `./scripts/build-icon.sh journal`。
+`./scripts/build-pkg.sh journal` 构建发布用的安装包，`scripts/release.sh journal <版本>` 发版，流程同 [Apple Reminders MCP](reminders.zh-CN.md)，发版说明来自 [`CHANGELOG-journal.md`](../CHANGELOG-journal.md)，tag 是 `journal-v<版本>`。图标源文件是 `Resources/Journal/AppIcon.icon`：先 `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Journal/AppIcon.icon/Assets/artwork.png journal`，再 `./scripts/build-icon.sh journal`。
 
 ### 为什么权限记在这个 App 名下
 

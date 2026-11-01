@@ -149,6 +149,7 @@ ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 - **文本。**「手记」3.0 把手记的正文和标题、手记本的名称颜色图标存为苹果私有框架 Coherence 的可合并值（CRDT），较早的手记存为 RTF。本 App 通过「手记」自己的代码读取和修改它们。
 - **同步。**「手记」的同步引擎会上传所有标记为未上传的对象。写入时像「手记」自己的编辑器那样做这个标记，然后由「手记」上传，通常几秒内完成。
 - **接口。**JournalShared 是没有公开接口的 Swift 框架，所以 `Interfaces/Journal` 里放着为本 App 用到的部分手写的 Swift 接口，以及链接器用来代替框架的桩文件（`scripts/journal-stubs.py` 根据所在 Mac 上的符号生成）。框架是弱链接的。App 启动时检查它调用的每个函数是否都在；缺了哪个（换了 macOS 版本），每个工具都会说明，不读也不改任何东西。`--check-markdown` 读出每个手记、写成 Markdown 再解析回来，看有没有丢东西；系统更新后可以跑一下。
+- **不需要「手记」的部分**单独放在 `JournalModel` 里：agent 看到的工具（名称、说明、参数）、命令、正文的 Markdown 形式、分析和附件详情。`JournalComponent` 给每个工具接上具体做法。单元测试（`JournalModelTests`）只依赖 `JournalModel`，所以既不需要手写的接口，也不需要「手记」。
 - 逆向笔记见 [RE-FINDINGS-journal.md](RE-FINDINGS-journal.md)。
 
 ## 测试

@@ -2,7 +2,7 @@
 
 [English](reminders.md) | **简体中文**
 
-属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Notes MCP](notes.zh-CN.md)。
+属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Notes MCP](notes.zh-CN.md) 和 [Apple Journal MCP](journal.zh-CN.md)。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）完整地读写 macOS 上的「提醒事项」的 MCP 服务器。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
@@ -345,13 +345,13 @@ apple-reminders-mcp skill                                                 # 打�
 ditto dist/AppleRemindersMCP.app ~/Applications/AppleRemindersMCP.app
 ```
 
-`./scripts/build-pkg.sh reminders` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-reminders.md`](../CHANGELOG-reminders.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py reminders`（改过共用代码时 `scripts/e2e.py notes` 也要跑），然后在 `main` 上运行：
+`./scripts/build-pkg.sh reminders` 生成发布用的安装包 `dist/AppleRemindersMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-reminders.md`](../CHANGELOG-reminders.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py reminders`（改过共用代码时 `scripts/e2e.py notes` 和 `scripts/e2e.py journal` 也要跑），然后在 `main` 上运行：
 
 ```bash
 scripts/release.sh reminders 0.4.0   # 也可以先演练：scripts/release.sh --dry-run reminders 0.4.0
 ```
 
-- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打出安装包和 App 的 zip，并检查 App 是用你的证书签名的；接着提交 `Release Apple Reminders MCP <版本>`、打 tag `reminders-v<版本>` 并一起推送。之后用安装包、zip（Homebrew cask 装的就是它）和 `CHANGELOG-reminders.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh reminders` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。Apple Notes MCP 有自己的版本号，单独发版。
+- **它做什么：**设版本号（构建号自动加一），跑 `swift test`。然后打出安装包和 App 的 zip，并检查 App 是用你的证书签名的；接着提交 `Release Apple Reminders MCP <版本>`、打 tag `reminders-v<版本>` 并一起推送。之后用安装包、zip（Homebrew cask 装的就是它）和 `CHANGELOG-reminders.md` 里的说明发布 GitHub release，并自动补上这个版本的安装命令。最后用 `./scripts/update-cask.sh reminders` 把 Homebrew cask 指向新版本，改的是 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 的本地副本（默认 `../homebrew-tap`，`TAP=<路径>` 可以换）。Apple Notes MCP 和 Apple Journal MCP 各有自己的版本号，单独发版。
 - **某一步失败时：**它会说明哪些已经做完，以及剩下的怎么手动完成。
 - **`--dry-run`：**做到打好安装包为止，然后撤销版本号的改动；不提交、不推送、不发布。
 

@@ -14,7 +14,7 @@
 
 ## 一个仓库，三个 App
 
-本仓库原名 `apple-reminders-mcp`（旧链接会自动跳转到这里）。Apple Notes MCP 连同历史从 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) 搬了进来，两个 App 现在共用一套底座：MCP 服务器、命令行、设置窗口和 agent 配置只写一份。对用户没有变化：cask、命令、权限、设置和已配置的 agent 都和以前一样。
+本仓库原名 `apple-reminders-mcp`（旧链接会自动跳转到这里）。Apple Notes MCP 连同历史从 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) 搬了进来，各 App 现在共用一套底座：MCP 服务器、命令行、设置窗口和 agent 配置只写一份。对用户没有变化：cask、命令、权限、设置和已配置的 agent 都和以前一样。
 
 Apple Journal MCP 后来也加在同一套底座上。各 App 都从这里发版，每次发一个，tag 是 `notes-v<版本>`、`reminders-v<版本>` 或 `journal-v<版本>`。Apple Notes MCP 0.1.0 到 0.3.0 是在 [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases)（已归档）发的，Apple Reminders MCP 0.3.0 及以前在这里以 `v<版本>` 发。各自的更新记录在 [CHANGELOG-notes.md](CHANGELOG-notes.md)、[CHANGELOG-reminders.md](CHANGELOG-reminders.md) 和 [CHANGELOG-journal.md](CHANGELOG-journal.md)。
 

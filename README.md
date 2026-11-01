@@ -14,7 +14,7 @@ Each app is its own app: its own name, command (`apple-notes-mcp`, `apple-remind
 
 ## One repository, three apps
 
-This repository was `apple-reminders-mcp` (old links redirect here). Apple Notes MCP moved in from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) with its history, and both apps now share one base: the MCP server, the command line, the settings window and setting up agents are written once. Nothing changed for users: the casks, commands, permissions, settings and agent setups are the same as before.
+This repository was `apple-reminders-mcp` (old links redirect here). Apple Notes MCP moved in from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp) with its history, and the apps now share one base: the MCP server, the command line, the settings window and setting up agents are written once. Nothing changed for users: the casks, commands, permissions, settings and agent setups are the same as before.
 
 Apple Journal MCP was added later on the same base. Releases come from here, one app at a time, tagged `notes-v<version>`, `reminders-v<version>` or `journal-v<version>`. Apple Notes MCP 0.1.0 to 0.3.0 were released from [apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases) (now archived), and Apple Reminders MCP up to 0.3.0 here as `v<version>`. Each app's changes are in [CHANGELOG-notes.md](CHANGELOG-notes.md), [CHANGELOG-reminders.md](CHANGELOG-reminders.md) and [CHANGELOG-journal.md](CHANGELOG-journal.md).
 

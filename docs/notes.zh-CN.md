@@ -2,7 +2,7 @@
 
 [English](notes.md) | **简体中文**
 
-属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Reminders MCP](reminders.zh-CN.md)。
+属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Reminders MCP](reminders.zh-CN.md) 和 [Apple Journal MCP](journal.zh-CN.md)。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）读写 macOS「备忘录」的 MCP 服务器，格式都是原生的。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
@@ -298,7 +298,7 @@ apple-notes-mcp skill                                                 # 打印�
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh notes` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-notes.md`](../CHANGELOG-notes.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py notes`（改过共用代码时 `scripts/e2e.py reminders` 也要跑），然后在 `main` 上运行：
+`./scripts/build-pkg.sh notes` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-notes.md`](../CHANGELOG-notes.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py notes`（改过共用代码时 `scripts/e2e.py reminders` 和 `scripts/e2e.py journal` 也要跑），然后在 `main` 上运行：
 
 ```bash
 scripts/release.sh notes 0.4.0       # 也可以先演练：scripts/release.sh --dry-run notes 0.4.0
@@ -310,7 +310,7 @@ scripts/release.sh notes 0.4.0       # 也可以先演练：scripts/release.sh -
 
 每个 pull request 和每次推送到 `main` 都会在 GitHub 托管的 Mac 上（用最新的 Xcode）编译并跑单元测试（`.github/workflows/check.yml`）。这个 workflow 不带任何密钥：签名只在你自己的 Mac 上、在 `scripts/release.sh` 里进行。
 
-图标的源文件是 Icon Composer 文档 `Resources/Notes/AppIcon.icon`，图稿由 `scripts/compose-icon.swift` 用 Apple Reminders MCP 的图标合成，两个 App 看起来是一对。改了之后运行 `./scripts/build-icon.sh notes`（要用 Xcode 里的 `actool`），再提交 `Resources/Notes/AppIcon-compiled`；平常构建只复制这个目录。
+图标的源文件是 Icon Composer 文档 `Resources/Notes/AppIcon.icon`，图稿由 `scripts/compose-icon.swift` 用 Apple Reminders MCP 的图标合成，几个 App 看起来是一家（Apple Journal MCP 的也是这样合成的）。改了之后运行 `./scripts/build-icon.sh notes`（要用 Xcode 里的 `actool`），再提交 `Resources/Notes/AppIcon-compiled`；平常构建只复制这个目录。
 
 ### 权限为什么记在这个 App 名下
 

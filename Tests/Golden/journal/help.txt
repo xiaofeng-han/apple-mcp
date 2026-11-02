@@ -46,6 +46,6 @@ apple-journal-mcp
 │           --[no-]text-only --output-dir string
 └── call TOOL [JSON | -]        Run any tool on a JSON object of its arguments; call alone lists the tools
 
-Every entries, journals, attachments command also takes --json OBJECT (or --json - for stdin) and --help.
+Every entries, journals, attachments command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off; a flag ending in … repeats.
 Output is the tool's JSON answer. Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.

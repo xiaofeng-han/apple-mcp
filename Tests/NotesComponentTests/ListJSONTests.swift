@@ -18,6 +18,8 @@ import Testing
 
         var notes: [NoteInfo] = []
         var hits: [SearchHit] = []
+        /// Each note's version; a note not here cannot be read.
+        var versions: [String: String] = [:]
         var error: NotesError?
         var listed: [Set<String>?] = []
         var searches: [Search] = []
@@ -35,6 +37,10 @@ import Testing
             if let error { throw error }
             return (hits.count, hits)
         }
+
+        func versions(_ ids: [String]) -> [String: String] {
+            Dictionary(ids.map { ($0, versions[$0] ?? "?") }, uniquingKeysWith: { a, _ in a })
+        }
     }
 
     /// A local time on a day of October 2026.
@@ -49,10 +55,17 @@ import Testing
                  host: nil, hasChecklist: false, checklistInProgress: false, opened: nil)
     }
 
+    /// A description saved a day before the note's last change.
+    static func described(_ text: String) -> Descriptions.Entry {
+        Descriptions.Entry(text: text, noteModified: at(26, 9, 5), written: at(26, 9, 6))
+    }
+
     /// What `run` writes and fails with, and its status.
-    static func run(_ words: [String], _ listing: Listing) -> (status: Int32, lines: [String], failures: [String]) {
+    static func run(_ words: [String], _ listing: Listing, descriptions: [String: Descriptions.Entry] = [:])
+        -> (status: Int32, lines: [String], failures: [String])
+    {
         var lines: [String] = [], failures: [String] = []
-        let status = ListJSON.run(words, from: listing, write: { lines.append($0) }, fail: { failures.append($0) })
+        let status = ListJSON.run(words, from: listing, descriptions: descriptions, write: { lines.append($0) }, fail: { failures.append($0) })
         return (status, lines, failures)
     }
 
@@ -75,8 +88,36 @@ import Testing
         let title = "Quarterly plan | \"draft\" " + String(repeating: "x", count: 80)
         let listing = Listing()
         listing.notes = [Self.note(id, title, in: ["Work", "Q3/Q4"], modified: Self.at(27, 9, 5))]
+        listing.versions = [id: "3f9a0c12b7e4"]
         let rows = try ListJSON.rows(["--list-json"], from: listing)
-        #expect(rows == [ListJSON.Row(id: id, title: title, folder: "Work/Q3\\/Q4", modified: "2026-10-27 09:05", snippet: nil)])
+        #expect(rows == [ListJSON.Row(id: id, title: title, folder: "Work/Q3\\/Q4", modified: "2026-10-27 09:05", version: "3f9a0c12b7e4",
+                                      description: nil, snippet: nil)])
+    }
+
+    @Test func aNoteThatCannotBeReadHasAQuestionMarkForItsVersion() throws {
+        let listing = Listing()
+        listing.notes = [Self.note("A", modified: Self.at(27, 9, 5)), Self.note("B", modified: Self.at(26, 9, 5))]
+        listing.versions = ["A": "aaaaaaaaaaaa"]
+        #expect(try ListJSON.rows(["--list-json"], from: listing).map(\.version) == ["aaaaaaaaaaaa", "?"])
+    }
+
+    /// A saved description shows whether or not the note changed since it was written (B changed
+    /// after); a note without one has no description field at all.
+    @Test func aSavedDescriptionShowsAndAnUnsavedOneIsLeftOut() throws {
+        let listing = Listing()
+        listing.notes = [Self.note("A", modified: Self.at(27, 9, 5)), Self.note("B", modified: Self.at(26, 9, 5))]
+        listing.versions = ["A": "aaaaaaaaaaaa", "B": "bbbbbbbbbbbb"]
+        let descriptions = ["B": Self.described("notion:1a2b3c4d")]
+        let (status, lines, _) = Self.run(["--list-json"], listing, descriptions: descriptions)
+        #expect(status == 0 && lines.count == 2)
+        #expect(try Self.object(lines[0]) == ["id": "A", "title": "A note", "folder": "Notes", "modified": "2026-10-27 09:05", "version": "aaaaaaaaaaaa"])
+        #expect(try Self.object(lines[1]) == ["id": "B", "title": "A note", "folder": "Notes", "modified": "2026-10-26 09:05", "version": "bbbbbbbbbbbb",
+                                              "description": "notion:1a2b3c4d"])
+        #expect(!lines[0].contains("description"))
+
+        listing.hits = [SearchHit(note: Self.note("B", modified: Self.at(26, 9, 5)), snippet: "…tax…", length: 5)]
+        let found = Self.run(["--list-json", "tax"], listing, descriptions: descriptions)
+        #expect(try Self.object(found.lines[0])["description"] == "notion:1a2b3c4d")
     }
 
     @Test(arguments: [["--list-json", ""], ["--list-json", "  "], ["--list-json", " ", "\t"]])
@@ -101,19 +142,23 @@ import Testing
         let listing = Listing()
         listing.hits = [SearchHit(note: Self.note("OLD", "Taxes", in: ["Finance"], modified: Self.at(1, 8, 0)), snippet: "…the tax return is due…", length: 40),
                         SearchHit(note: Self.note("NEW", "Scan", modified: Self.at(27, 9, 5)), snippet: "in the text of image: tax return", length: 0)]
-        let rows = try ListJSON.rows(["--list-json", "tax", "return"], from: listing)
-        #expect(rows == [ListJSON.Row(id: "OLD", title: "Taxes", folder: "Finance", modified: "2026-10-01 08:00", snippet: "…the tax return is due…"),
-                         ListJSON.Row(id: "NEW", title: "Scan", folder: "Notes", modified: "2026-10-27 09:05", snippet: "in the text of image: tax return")])
+        listing.versions = ["OLD": "0123456789ab", "NEW": "ba9876543210"]
+        let rows = try ListJSON.rows(["--list-json", "tax", "return"], from: listing, descriptions: ["NEW": Self.described("A scanned receipt")])
+        #expect(rows == [ListJSON.Row(id: "OLD", title: "Taxes", folder: "Finance", modified: "2026-10-01 08:00", version: "0123456789ab",
+                                      description: nil, snippet: "…the tax return is due…"),
+                         ListJSON.Row(id: "NEW", title: "Scan", folder: "Notes", modified: "2026-10-27 09:05", version: "ba9876543210",
+                                      description: "A scanned receipt", snippet: "in the text of image: tax return")])
     }
 
     @Test func eachRowIsOneLineOfJSON() throws {
         let listing = Listing()
         let title = "Plan | \"Q4\" / 计划 \\ ⏎"
         listing.notes = [Self.note("A", title, in: ["Work"], modified: Self.at(27, 9, 5)), Self.note("B", modified: Self.at(26, 9, 5))]
+        listing.versions = ["A": "3f9a0c12b7e4"]
         let (status, lines, failures) = Self.run(["--list-json"], listing)
         #expect(status == 0 && failures.isEmpty)
         #expect(lines.count == 2 && lines.allSatisfy { !$0.contains("\n") })
-        #expect(try Self.object(lines[0]) == ["id": "A", "title": title, "folder": "Work", "modified": "2026-10-27 09:05"])
+        #expect(try Self.object(lines[0]) == ["id": "A", "title": title, "folder": "Work", "modified": "2026-10-27 09:05", "version": "3f9a0c12b7e4"])
         #expect(try Self.object(lines[1])["id"] == "B")
 
         listing.hits = [SearchHit(note: Self.note("A", title), snippet: "line one ⏎ line two", length: 20)]
@@ -126,9 +171,11 @@ import Testing
     /// splitlines, say) must still get one row per line.
     @Test func lineBreaksInValuesStayOnTheirLine() throws {
         let title = "first\u{2028}second\nthird\r", snippet = "a\u{2029}b\u{85}c"
-        let line = ListJSON.line(ListJSON.Row(id: "A", title: title, folder: "Notes", modified: "2026-10-27 09:05", snippet: snippet))
+        let line = ListJSON.line(ListJSON.Row(id: "A", title: title, folder: "Notes", modified: "2026-10-27 09:05", version: "?",
+                                              description: "one\u{2028}two", snippet: snippet))
         #expect(line.split(whereSeparator: \.isNewline).count == 1, "\(line)")
-        #expect(try Self.object(line) == ["id": "A", "title": title, "folder": "Notes", "modified": "2026-10-27 09:05", "snippet": snippet])
+        #expect(try Self.object(line) == ["id": "A", "title": title, "folder": "Notes", "modified": "2026-10-27 09:05", "version": "?",
+                                          "description": "one\u{2028}two", "snippet": snippet])
     }
 
     @Test(arguments: [["--list-json"], ["--list-json", "nothing", "matches"]])

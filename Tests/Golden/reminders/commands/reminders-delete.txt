@@ -2,8 +2,9 @@ usage: apple-reminders-mcp reminders delete ID --version string
 
 Move a reminder and its subtasks to Recently Deleted.
 
-  ID                Reminder id
-  --version string  Version you read (required)
-  --json json|-     Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help        Show this help
+  ID                  Reminder id
+  --version string    Version you read (required)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

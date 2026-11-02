@@ -19,5 +19,5 @@ apple-journal-mcp entries
 └── export FOLDER               Write entries as Markdown files with their photos, videos and recordings into a new folder
         --after string --before string --[no-]bookmarked --journal string
 
-Every entries command also takes --json OBJECT (or --json - for stdin) and --help.
+Every entries command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off; a flag ending in … repeats.

@@ -4,6 +4,25 @@ Each `## <version>` section is that version's release note, exactly as `scripts/
 
 From 0.4.0 on, Apple Notes MCP is released from this repository, tagged `notes-v<version>`. Releases 0.1.0 to 0.3.0 are on the [Releases of apple-notes-mcp](https://github.com/xiaofeng-han/apple-notes-mcp/releases) (archived), tagged `v<version>`; their notes (from 0.2.0) are kept below.
 
+## 0.5.0
+
+**What's new**
+
+For scripts that keep Apple Notes in step with another store, such as a knowledge base kept in Notion:
+
+- **`--list-json` gives each note's version and description.** Every row now has the `version` that `read_note` gives (`?` for a note that cannot be read) and, when one is saved, the `description` written with `describe_note`. Reading the versions means reading every listed note, so the list is a little slower than before.
+- **Answers as JSON.** Every command, and `call`, takes `--format json` and then prints one JSON object: `notes list`, `folders list`, `notes search` and `notes read` give whole ids, versions, ISO 8601 dates and the Markdown; `notes create`, `copy`, `edit`, `move`, `delete` and `describe` give what they changed, whether it was uploaded, and what failed. Other commands give `{"text": …}`, and a failure is `{"error": …}` on stderr. MCP answers stay text.
+- **A folder guard.** `APPLE_NOTES_MCP_WRITE_FOLDERS=KB/Wiki,KB/Inbox` limits every change to those folders and the folders inside them: notes outside them are not edited, created, moved or deleted, folders change only inside them, and smart folders not at all. Reading is not limited. It works alongside `APPLE_NOTES_MCP_WRITE_GUARD`, and `--self-check` shows it.
+- **Section edits.** `edit_note` takes `replace_section` (`--replace-section '{"heading":"…","markdown":"…"}'`), which replaces what is under a heading and keeps the heading, and `replace_before`, which replaces everything between the title and a heading. They go with `replace`, `insert` and the checklist changes in one call.
+- **`wait: false` for batches.** `create_note`, `edit_note` and `move_note` take `wait: false` (`--no-wait`): the change is saved and its upload requested, and the answer comes at once instead of after iCloud confirms it. iCloud still syncs, only not confirmed per call.
+- **A key of your own.** A script can keep its own key for a note, such as `notion:<page id>`, as the note's description with `describe_note`: it shows in `--list-json` and `notes list --format json`, and lives in this app's own file, never in the note.
+
+The MCP tool list gained optional fields (`wait` on three tools, `replace_section` and `replace_before` on `edit_note`); nothing an agent sends today changes meaning, and agents see the new fields in their next session without being set up again. Agents set up with the skill get the new flags when its text is updated (the AI Assistants tab offers **Update**). Permissions granted to 0.4.2 still apply after upgrading.
+
+---
+
+**更新**：给让「备忘录」与其他存储（比如放在 Notion 里的知识库）保持同步的脚本用。`--list-json` 每行多了 `read_note` 给的 `version`（读不了的笔记是 `?`），以及用 `describe_note` 保存的 `description`（有才出现）；因为要读每条笔记来算版本号，会比以前稍慢。所有命令和 `call` 都支持 `--format json`，打印一个 JSON 对象：`notes list`、`folders list`、`notes search` 和 `notes read` 给出完整 id、版本号、ISO 8601 日期和 Markdown；`notes create`、`copy`、`edit`、`move`、`delete`、`describe` 给出改了什么、是否已上传、哪些失败；其他命令给 `{"text": …}`，失败时在 stderr 打印 `{"error": …}`；MCP 的回答仍是文本。新增按文件夹的写保护：`APPLE_NOTES_MCP_WRITE_FOLDERS=KB/Wiki,KB/Inbox` 把所有修改限制在这些文件夹及其中的文件夹里，读取不受限，可以和 `APPLE_NOTES_MCP_WRITE_GUARD` 同时使用，`--self-check` 会显示。`edit_note` 新增 `replace_section`（`--replace-section '{"heading":"…","markdown":"…"}'`，替换某个小标题下的内容，保留小标题）和 `replace_before`（替换标题和某个小标题之间的内容），可以和 `replace`、`insert`、清单修改在一次调用里一起用。`create_note`、`edit_note`、`move_note` 支持 `wait: false`（`--no-wait`）：保存并请求上传后立刻返回，不等 iCloud 确认，适合批量写入；iCloud 照样同步。脚本可以用 `describe_note` 把自己的标识（比如 `notion:<页面 id>`）存成笔记的简介，它会出现在 `--list-json` 和 `notes list --format json` 里，只存在本 App 自己的文件中，不碰笔记。MCP 工具只多了可选字段，现有调用的含义不变，agent 下次会话就能看到，不用重新配置；用技能配置的 agent 在技能文字更新后（「AI 助手」标签页会显示「更新」）得到新参数。已授予 0.4.2 的权限仍然有效。需要 macOS 26 或更新、Apple 芯片。详见[文档（中文）](https://github.com/xiaofeng-han/apple-mcp/blob/notes-v0.5.0/docs/notes.zh-CN.md)。
+
 ## 0.4.2
 
 **What's new**

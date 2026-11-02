@@ -2,10 +2,11 @@ usage: apple-journal-mcp journals update JOURNAL [flags]
 
 Change a journal's name, color or icon.
 
-  JOURNAL            Journal name or id
-  --new-name string  New name
-  --color string     #RRGGBB, or red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray
-  --icon string      An emoji, or an SF Symbol name such as book.closed
-  --json json|-      Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help         Show this help
+  JOURNAL             Journal name or id
+  --new-name string   New name
+  --color string      #RRGGBB, or red, orange, yellow, green, mint, teal, cyan, blue, indigo, purple, pink, brown, gray
+  --icon string       An emoji, or an SF Symbol name such as book.closed
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

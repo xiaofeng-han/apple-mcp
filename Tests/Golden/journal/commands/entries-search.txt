@@ -12,6 +12,7 @@ Find entries with all these words: in the text, title, prompt, and attachments' 
   --limit int                  Default 50, at most 500
   --offset int                 Skip this many, for the next page
   --sort newest|oldest|edited  Default newest (by the entry's date); edited: most recently changed first
+  --format text|json           Print the answer as text (default) or JSON
   --json json|-                Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                   Show this help
 

@@ -13,6 +13,7 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                  "markdown": Schema.text("The note"),
                  "copy_of": Schema.text("Instead of markdown: the id of a note to copy, attachments and all"),
                  "folder": Schema.text("Path or id; default Notes, or for a copy the note's own folder"),
+                 "wait": waitSchema,
              ]), effect: .writes) { fields in
             let input = Input(fields)
             let markdown = try input.text("markdown"), copyOf = try input.text("copy_of")
@@ -20,22 +21,24 @@ func writeTools(_ store: NotesStore) -> [Tool] {
             let blocks = markdown.map(parseInserted) ?? []
             if markdown != nil, blocks.isEmpty { throw BadInput("markdown is empty") }
             let folder = try input.text("folder")
+            let wait = try input.flag("wait") ?? true
             return try await withNotes(store) {
                 let folderID = try folder.map { reference throws(NotesError) in try store.folder(reference).id }
                 if let copyOf {
-                    return try await report("Created a copy", try store.duplicate(try store.resolveNote(copyOf), into: folderID), store)
+                    return try await report("Created a copy", try store.duplicate(try store.resolveNote(copyOf), into: folderID), store, wait: wait)
                 }
-                return try await report("Created", try store.create(in: folderID, blocks), store)
+                return try await report("Created", try store.create(in: folderID, blocks), store, wait: wait)
             }
         },
 
         Tool("edit_note", title: "Edit a note",
              summary: """
                  Changes a note in one call: replace (exact Markdown from read_note, pairs applied in order), \
-                 insert (Markdown at the end, the start, or under a heading), or rewrite (the whole note); \
-                 check, uncheck and checklist tick, untick, sort or clear checklist items; pinned pins it. Only \
-                 what changes is written; the rest keeps all its formatting. A note changed since its version \
-                 was read is refused.
+                 replace_section (what is under a heading) or replace_before (what is between the title and a \
+                 heading), insert (Markdown at the end, the start, or under a heading), or rewrite (the whole \
+                 note); check, uncheck and checklist tick, untick, sort or clear checklist items; pinned pins it. \
+                 Only what changes is written; the rest keeps all its formatting. A note changed since its \
+                 version was read is refused.
                  """,
              input: Schema.object([
                  "id": Schema.text("Note id"),
@@ -44,6 +47,8 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                      "old": Schema.text("Exact Markdown; must be unique unless all"), "new": Schema.text("Markdown"),
                      "all": Schema.flag("Replace every occurrence"),
                  ], required: ["old", "new"]), "Replacements"),
+                 "replace_section": headingEdit("What is under a heading, up to the next heading of its level or higher, becomes the Markdown; the heading stays"),
+                 "replace_before": headingEdit("Everything between the title and a heading becomes the Markdown; both stay"),
                  "insert": Schema.text("Markdown to add"),
                  "at": Schema.text("end (default), start, or a heading's text; list items join that section's list"),
                  "rewrite": Schema.text("The whole note as Markdown"),
@@ -51,6 +56,7 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                  "uncheck": Schema.texts("Untick the checklist items with these texts"),
                  "checklist": Schema.choice(Checklist.Action.allCases.map(\.rawValue), "Every checklist item: tick, untick, move the ticked ones to the bottom of their list, or delete them"),
                  "pinned": Schema.flag("Pin (true) or unpin (false) the note"),
+                 "wait": waitSchema,
              ], required: ["id", "version"]), effect: .deletes) { fields in
             let input = Input(fields)
             let reference = try input.requiredText("id")
@@ -60,23 +66,28 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                 guard let new = try pair.rawText("new") else { throw BadInput("replace.new is required") }
                 return (old: old, new: new, all: try pair.flag("all") ?? false)
             }
+            let replaceSection = try headingEdit(input, "replace_section"), replaceBefore = try headingEdit(input, "replace_before")
             let insert = try input.rawText("insert").map(parseInserted)
             let at = try input.text("at") ?? "end"
             let rewrite = try input.rawText("rewrite").map(parseInserted)
             let pinned = try input.flag("pinned")
+            let wait = try input.flag("wait") ?? true
             let check = try input.texts("check") ?? [], uncheck = try input.texts("uncheck") ?? []
             let checklist = try input.pick("checklist", from: Checklist.Action.allCases.map(\.rawValue)).flatMap(Checklist.Action.init(rawValue:))
             let ticks = !check.isEmpty || !uncheck.isEmpty || checklist != nil
-            if rewrite != nil, !pairs.isEmpty || insert != nil || ticks { throw BadInput("rewrite cannot be combined with replace, insert or checklist changes") }
-            let changesBody = rewrite != nil || !pairs.isEmpty || insert != nil || ticks
-            if !changesBody, pinned == nil { throw BadInput("give replace, insert, rewrite, check, uncheck, checklist or pinned") }
+            let sections = replaceSection != nil || replaceBefore != nil
+            if rewrite != nil, !pairs.isEmpty || sections || insert != nil || ticks {
+                throw BadInput("rewrite cannot be combined with replace, replace_section, replace_before, insert or checklist changes")
+            }
+            let changesBody = rewrite != nil || !pairs.isEmpty || sections || insert != nil || ticks
+            if !changesBody, pinned == nil { throw BadInput("give replace, replace_section, replace_before, insert, rewrite, check, uncheck, checklist or pinned") }
             if let rewrite, rewrite.isEmpty { throw BadInput("rewrite is empty; delete_note deletes a note") }
             if let insert, insert.isEmpty { throw BadInput("insert is empty") }
             return try await withNotes(store) {
                 let id = try store.resolveNote(reference)
                 guard changesBody else {
                     let result = try store.setPinned(id, pinned!, version: version)
-                    return try await report(pinned! ? "Pinned" : "Unpinned", result, store)
+                    return try await report(pinned! ? "Pinned" : "Unpinned", result, store, wait: wait)
                 }
                 var result = try store.update(id, version: version) { current throws(NotesError) in
                     if var rewrite {
@@ -99,6 +110,12 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                         }
                         blocks = Markdown.parse(markdown)
                     }
+                    if let (heading, replacement) = replaceSection {
+                        blocks = try SectionEdits.replaceSection(heading, with: replacement, in: blocks)
+                    }
+                    if let (heading, replacement) = replaceBefore {
+                        blocks = try SectionEdits.replaceBefore(heading, with: replacement, in: blocks)
+                    }
                     if let insert {
                         blocks.insert(contentsOf: insert, at: try insertionPoint(in: blocks, at: at, for: insert))
                     }
@@ -117,7 +134,7 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                     result.tablesEdited = written.tablesEdited
                     result.added = written.added
                 }
-                return try await report(pinned.map { $0 ? "Updated and pinned" : "Updated and unpinned" } ?? "Updated", result, store)
+                return try await report(pinned.map { $0 ? "Updated and pinned" : "Updated and unpinned" } ?? "Updated", result, store, wait: wait)
             }
         },
 
@@ -133,22 +150,24 @@ func writeTools(_ store: NotesStore) -> [Tool] {
              ]), effect: .deletes) { fields in
             let targets = try Input(fields).targets()
             return try await withNotes(store) {
-                var done: [String] = [], failed: [String] = []
+                var done: [(id: String, title: String)] = [], failed: [String] = []
                 for (reference, version) in targets {
                     do throws(NotesError) {
                         let id = try store.resolveNote(reference)
                         let note = try store.noteInfo(id)
                         try await store.delete(id, version: version)
-                        done.append(note.title)
+                        done.append((id, note.title))
                     } catch {
                         if case .noAccess = error { throw error }
                         if targets.count == 1 { throw error }
                         failed.append("\(reference): \(error)")
                     }
                 }
-                var lines = [done.count == 1 ? "Moved \"\(done[0])\" to Recently Deleted." : "Moved \(done.count) notes to Recently Deleted."]
+                var lines = [done.count == 1 ? "Moved \"\(done[0].title)\" to Recently Deleted." : "Moved \(done.count) notes to Recently Deleted."]
                 if !failed.isEmpty { lines += ["Not deleted:"] + failed.map { "  " + $0 } }
-                return ToolAnswer(lines.joined(separator: "\n"), failed: done.isEmpty)
+                let data: JSON = ["deleted": .array(done.map { ["id": .string($0.id), "title": .string($0.title)] }),
+                                  "failed": .array(failed.map(JSON.string))]
+                return ToolAnswer(lines.joined(separator: "\n"), data: data, failed: done.isEmpty)
             }
         },
 
@@ -165,18 +184,23 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                  "notes": Schema.list(of: Schema.object(["id": Schema.text("Note id"), "version": Schema.text("Its version")], required: ["id", "version"]),
                                       "Instead of id and version: up to 100 notes"),
                  "allow_shared": Schema.flag("The user agreed to changing who can see the notes"),
+                 "wait": waitSchema,
              ], required: ["folder"]), effect: .writes) { fields in
             let input = Input(fields)
             let targets = try input.targets()
             let folder = try input.requiredText("folder")
             let allowShared = try input.flag("allow_shared") ?? false
+            let wait = try input.flag("wait") ?? true
             return try await withNotes(store) {
                 if targets.count == 1 {
                     let id = try store.resolveNote(targets[0].id)
                     let moved = try await store.move(id, to: folder, allowShared: allowShared, version: targets[0].version)
-                    let state = try await store.upload(id)
+                    let state = try await requestUpload(store, id, wait: wait)
+                    let version = try store.version(of: id)
+                    let data: JSON = ["id": .string(id), "title": .string(moved.title), "version": .string(version), "from": .string(moved.from),
+                                      "to": .string(moved.to), "restored": .bool(moved.restored), "uploaded": .bool(state.uploaded), "waited": .bool(wait)]
                     return ToolAnswer("\(moved.restored ? "Restored" : "Moved") \"\(moved.title)\" from \(moved.from) to \(moved.to). "
-                        + "id: \(ShortID.of(id)) | version: \(try store.version(of: id)) | \(uploadText(state)).")
+                        + "id: \(ShortID.of(id)) | version: \(version) | \(uploadText(state, waited: wait)).", data: data)
                 }
                 // Each move is itself what makes Notes upload a note, so the uploads are waited for together.
                 var moved: [(id: String, moved: Moved)] = [], failed: [String] = []
@@ -189,15 +213,24 @@ func writeTools(_ store: NotesStore) -> [Tool] {
                         failed.append("\(reference): \(error)")
                     }
                 }
-                let waiting = await store.waitForUploads(moved.map(\.id))
+                // Without waiting, every upload is one not waited for.
+                let waiting = wait ? await store.waitForUploads(moved.map(\.id)) : moved.count
                 var lines: [String] = []
                 if let first = moved.first {
-                    lines.append("Moved \(moved.count) note\(moved.count == 1 ? "" : "s") to \(first.moved.to)"
-                        + (waiting == 0 ? ", all uploaded to iCloud." : "; \(waiting) not uploaded to iCloud yet (Notes will do so later)."))
+                    let uploads = !wait ? "; \(notWaitedText)."
+                        : waiting == 0 ? ", all uploaded to iCloud." : "; \(waiting) not uploaded to iCloud yet (Notes will do so later)."
+                    lines.append("Moved \(moved.count) note\(moved.count == 1 ? "" : "s") to \(first.moved.to)" + uploads)
                     lines += moved.map { "  \(ShortID.of($0.id)) | \(Output.title($0.moved.title)) | from \($0.moved.from)" }
                 }
                 if !failed.isEmpty { lines += ["Not moved:"] + failed.map { "  " + $0 } }
-                return ToolAnswer(lines.joined(separator: "\n"), failed: moved.isEmpty)
+                let data: JSON = [
+                    "moved": .array(moved.map { item in
+                        ["id": .string(item.id), "title": .string(item.moved.title), "from": .string(item.moved.from), "to": .string(item.moved.to),
+                         "restored": .bool(item.moved.restored)]
+                    }),
+                    "failed": .array(failed.map(JSON.string)), "not_uploaded": .int(waiting), "waited": .bool(wait),
+                ]
+                return ToolAnswer(lines.joined(separator: "\n"), data: data, failed: moved.isEmpty)
             }
         },
 
@@ -315,6 +348,27 @@ func writeTools(_ store: NotesStore) -> [Tool] {
     ]
 }
 
+/// The `wait` field of the writes that upload a note.
+let waitSchema = Schema.flag("Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested")
+
+/// A field of replace_section or replace_before: a heading and the Markdown that goes with it.
+func headingEdit(_ about: String) -> JSON {
+    guard case .object(var schema) = Schema.object([
+        "heading": Schema.text("A heading's text (# optional), as read_note's section takes it"),
+        "markdown": Schema.text("The new Markdown; empty takes out what was there"),
+    ], required: ["heading", "markdown"]) else { return [:] }
+    schema["description"] = .string(about)
+    return .object(schema)
+}
+
+/// replace_section or replace_before as given: the heading, and the paragraphs its Markdown makes.
+func headingEdit(_ input: Input, _ key: String) throws -> (heading: String, blocks: [Block])? {
+    guard let edit = try input.object(key, keys: ["heading", "markdown"]) else { return nil }
+    guard let heading = try edit.text("heading") else { throw BadInput("\(key).heading is required") }
+    guard let markdown = try edit.rawText("markdown") else { throw BadInput("\(key).markdown is required (it may be empty)") }
+    return (heading, parseInserted(markdown))
+}
+
 /// Markdown given to write, without blank lines at its end (they would become empty paragraphs).
 func parseInserted(_ markdown: String) -> [Block] {
     var blocks = Markdown.parse(markdown)
@@ -368,38 +422,56 @@ func closestLine(to text: String, in markdown: String) -> String? {
 
 /// Uploads a change and says how the write went. A note that does not read back exactly as
 /// written is a warning, not a failure: the write happened, and a client that retries would add
-/// the change twice.
+/// the change twice. Without `wait`, the upload is asked for and not waited for, so what only
+/// waiting shows (a table or a tag that iCloud did not take) is not put right.
 @MainActor
-func report(_ verb: String, _ result: WriteResult, _ store: NotesStore) async throws(NotesError) -> ToolAnswer {
+func report(_ verb: String, _ result: WriteResult, _ store: NotesStore, wait: Bool = true) async throws(NotesError) -> ToolAnswer {
     var result = result
-    var state = try await store.upload(result.id, watching: result.added)
+    var state = try await requestUpload(store, result.id, watching: result.added, wait: wait)
     var rebuilt = false
-    // A table changed in place that does not upload (it was edited in Notes during this Notes
-    // session) is made again, so other devices still get the change.
-    let stuck = Set(state.pendingAttachments).intersection(result.tablesEdited)
-    if !state.uploaded, state.noteSynced, !stuck.isEmpty {
-        let again = try store.rebuildTables(result.id, tables: stuck)
-        result = WriteResult(id: again.id, title: again.title, version: again.version, mismatch: result.mismatch ?? again.mismatch, added: result.added)
-        state = try await store.upload(result.id, watching: result.added)
-        rebuilt = true
+    if wait {
+        // A table changed in place that does not upload (it was edited in Notes during this Notes
+        // session) is made again, so other devices still get the change.
+        let stuck = Set(state.pendingAttachments).intersection(result.tablesEdited)
+        if !state.uploaded, state.noteSynced, !stuck.isEmpty {
+            let again = try store.rebuildTables(result.id, tables: stuck)
+            result = WriteResult(id: again.id, title: again.title, version: again.version, mismatch: result.mismatch ?? again.mismatch, added: result.added)
+            state = try await store.upload(result.id, watching: result.added)
+            rebuilt = true
+        }
+        // Notes can mark a new tag deleted while it uploads the note; such tags are brought back and uploaded.
+        if !result.added.isEmpty, try store.repairTags(result.id) { state = try await store.upload(result.id, watching: result.added) }
     }
-    // Notes can mark a new tag deleted while it uploads the note; such tags are brought back and uploaded.
-    if !result.added.isEmpty, try store.repairTags(result.id) { state = try await store.upload(result.id, watching: result.added) }
-    var text = "\(verb) \"\(result.title)\". id: \(ShortID.of(result.id)) | version: \(result.version) | \(uploadText(state))"
+    var text = "\(verb) \"\(result.title)\". id: \(ShortID.of(result.id)) | version: \(result.version) | \(uploadText(state, waited: wait))"
     if rebuilt { text += "; the changed table was made again so iCloud would take it, which reset formatting inside its cells" }
     text += "."
     if let mismatch = result.mismatch {
         text += "\nWarning: the note does not read back exactly as written: \(mismatch). Read it again before changing it further."
     }
-    return ToolAnswer(text)
+    let data: JSON = [
+        "id": .string(result.id), "title": .string(result.title), "version": .string(result.version), "uploaded": .bool(state.uploaded),
+        "waited": .bool(wait), "mismatch": Output.json(result.mismatch), "tables_rebuilt": .bool(rebuilt),
+    ]
+    return ToolAnswer(text, data: data)
+}
+
+/// Asks Notes to upload a note, and waits until iCloud has it, or with `wait` false only looks once.
+@MainActor
+func requestUpload(_ store: NotesStore, _ id: String, watching added: [String] = [], wait: Bool) async throws(NotesError) -> CloudState {
+    if wait { return try await store.upload(id, watching: added) }
+    return try await store.upload(id, watching: added, timeout: 0)
 }
 
 func folderUploadText(_ uploaded: Bool) -> String {
     uploaded ? "uploaded to iCloud" : "saved on this Mac; Notes has not uploaded it to iCloud yet and will do so later"
 }
 
-func uploadText(_ state: CloudState) -> String {
-    state.uploaded ? "uploaded to iCloud" : "saved on this Mac; Notes has not uploaded it to iCloud yet and will do so later"
+/// What a write says when it asked for the upload and did not wait for it (`wait: false`).
+let notWaitedText = "saved on this Mac; upload requested, not waited for"
+
+func uploadText(_ state: CloudState, waited: Bool = true) -> String {
+    guard waited else { return notWaitedText }
+    return state.uploaded ? "uploaded to iCloud" : "saved on this Mac; Notes has not uploaded it to iCloud yet and will do so later"
 }
 
 /// A few lines however large the folder: totals, problems, and what a delete would need.

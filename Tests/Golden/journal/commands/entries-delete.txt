@@ -5,6 +5,7 @@ Move an entry to Recently Deleted; --permanently deletes one there for good (ask
   ID                  Entry id
   --version string    The version read_entry or find_entries gave (required)
   --[no-]permanently  Delete an entry in Recently Deleted for good
+  --format text|json  Print the answer as text (default) or JSON
   --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help          Show this help
 

@@ -15,6 +15,7 @@ Full-text search of titles, text and the text Notes found in attachments, best m
   --sort modified|created|title|opened
                                     Instead of best match: newest modified, created or opened first, or by title
   --limit int                       1 to 100 (default 10)
+  --format text|json                Print the answer as text (default) or JSON
   --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                        Show this help
 

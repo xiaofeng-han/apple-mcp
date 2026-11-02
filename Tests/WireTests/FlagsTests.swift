@@ -135,5 +135,7 @@ func failure(_ flags: Flags, _ words: [String]) -> String? {
         #expect(help.contains("Sort order (default, manual, due-date, title, priority)"))
         #expect(help.contains("--after string"))
         #expect(help.contains("--json json|-"))
+        let format = help.range(of: "--format text|json"), json = help.range(of: "--json json|-")
+        #expect(format != nil && json != nil && format!.lowerBound < json!.lowerBound, "--format comes before --json")
     }
 }

@@ -11,5 +11,5 @@ apple-notes-mcp folders
 │       --[no-]recursive --expected-notes int
 └── export FOLDER TO            Write a folder and its folders as Markdown with the original attachments, to a new folder or .zip
 
-Every folders command also takes --json OBJECT (or --json - for stdin) and --help.
+Every folders command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off; a flag ending in … repeats.

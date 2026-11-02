@@ -9,6 +9,8 @@ Move a note to another folder, or back from Recently Deleted. --version is the o
                            id: Note id
                            version: Its version
   --version string     The version read_note, overview or search gave
+  --[no-]wait          Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
+  --format text|json   Print the answer as text (default) or JSON
   --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help           Show this help
 

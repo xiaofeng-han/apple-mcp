@@ -1,6 +1,6 @@
 usage: apple-notes-mcp notes edit ID --version string [flags]
 
-Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from notes read, applied in order. --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the rest keeps all its formatting.
+Change a note in one go: --replace pairs, --replace-section, --insert Markdown, or --rewrite the whole note; --[no-]pinned. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from notes read, applied in order. --replace-section '{"heading":"…","markdown":"…"}' replaces what is under a heading, which stays; --replace-before replaces everything between the title and the heading. --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the rest keeps all its formatting. --no-wait returns once the change is saved and its upload asked for.
 
   ID                                Note id
   --version string                  From notes read, list or search (required)
@@ -8,6 +8,12 @@ Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the wh
                                         all: Replace every occurrence
                                         new: Markdown
                                         old: Exact Markdown; must be unique unless all
+  --replace-section json            A JSON object {heading, markdown}: what is under the heading becomes the Markdown
+                                        heading: A heading's text (# optional), as read_note's section takes it
+                                        markdown: The new Markdown; empty takes out what was there
+  --replace-before json             A JSON object {heading, markdown}: what is between the title and the heading becomes the Markdown
+                                        heading: A heading's text (# optional), as read_note's section takes it
+                                        markdown: The new Markdown; empty takes out what was there
   --insert string                   Markdown to add; - reads it from stdin
   --at string                       end (default), start, or a heading's text; list items join that section's list
   --rewrite string                  The whole note as Markdown; - reads it from stdin
@@ -16,6 +22,8 @@ Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the wh
   --checklist check_all|uncheck_all|move_checked_down|delete_checked
                                     Every checklist item: tick, untick, move the ticked ones to the bottom of their list, or delete them
   --[no-]pinned                     Pin (true) or unpin (false) the note
+  --[no-]wait                       Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
+  --format text|json                Print the answer as text (default) or JSON
   --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                        Show this help
 

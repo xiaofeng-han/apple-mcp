@@ -317,7 +317,8 @@ public struct Flags: Sendable {
             return (option.usage, text)
         }
         rows += extra
-        rows += [("--json json|-", "Fields as a JSON object (- reads it from stdin); flags override them"), ("-h, --help", "Show this help")]
+        rows += [("--format text|json", "Print the answer as text (default) or JSON"),
+                 ("--json json|-", "Fields as a JSON object (- reads it from stdin); flags override them"), ("-h, --help", "Show this help")]
         let width = min(rows.map(\.0.count).max() ?? 0, 32)
         let indent = String(repeating: " ", count: width + 4)
         let lines = rows.map { label, text in

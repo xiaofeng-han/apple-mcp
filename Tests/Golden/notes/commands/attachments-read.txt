@@ -5,6 +5,7 @@ Open an attachment from a ![…](attachment:ID) placeholder: print its text, sav
   ID                   Attachment id
   --[no-]text-only     Only the text, no images or files
   --output-dir string  Where to save its images, audio and files; default the temporary folder
+  --format text|json   Print the answer as text (default) or JSON
   --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help           Show this help
 

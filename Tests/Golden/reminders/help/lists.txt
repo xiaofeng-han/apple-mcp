@@ -10,5 +10,5 @@ apple-reminders-mcp lists
 └── delete LIST                 Delete a list; one with reminders needs --confirm-delete-reminders (ask the user first)
         --[no-]confirm-delete-reminders
 
-Every lists command also takes --json OBJECT (or --json - for stdin) and --help.
+Every lists command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

@@ -34,6 +34,10 @@
             "markdown": {
               "description": "The note",
               "type": "string"
+            },
+            "wait": {
+              "description": "Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested",
+              "type": "boolean"
             }
           },
           "type": "object"
@@ -140,7 +144,7 @@
           "readOnlyHint": false,
           "title": "Edit a note"
         },
-        "description": "Changes a note in one call: replace (exact Markdown from read_note, pairs applied in order), insert (Markdown at the end, the start, or under a heading), or rewrite (the whole note); check, uncheck and checklist tick, untick, sort or clear checklist items; pinned pins it. Only what changes is written; the rest keeps all its formatting. A note changed since its version was read is refused.",
+        "description": "Changes a note in one call: replace (exact Markdown from read_note, pairs applied in order), replace_section (what is under a heading) or replace_before (what is between the title and a heading), insert (Markdown at the end, the start, or under a heading), or rewrite (the whole note); check, uncheck and checklist tick, untick, sort or clear checklist items; pinned pins it. Only what changes is written; the rest keeps all its formatting. A note changed since its version was read is refused.",
         "inputSchema": {
           "additionalProperties": false,
           "properties": {
@@ -203,6 +207,44 @@
               },
               "type": "array"
             },
+            "replace_before": {
+              "additionalProperties": false,
+              "description": "Everything between the title and a heading becomes the Markdown; both stay",
+              "properties": {
+                "heading": {
+                  "description": "A heading's text (# optional), as read_note's section takes it",
+                  "type": "string"
+                },
+                "markdown": {
+                  "description": "The new Markdown; empty takes out what was there",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "heading",
+                "markdown"
+              ],
+              "type": "object"
+            },
+            "replace_section": {
+              "additionalProperties": false,
+              "description": "What is under a heading, up to the next heading of its level or higher, becomes the Markdown; the heading stays",
+              "properties": {
+                "heading": {
+                  "description": "A heading's text (# optional), as read_note's section takes it",
+                  "type": "string"
+                },
+                "markdown": {
+                  "description": "The new Markdown; empty takes out what was there",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "heading",
+                "markdown"
+              ],
+              "type": "object"
+            },
             "rewrite": {
               "description": "The whole note as Markdown",
               "type": "string"
@@ -217,6 +259,10 @@
             "version": {
               "description": "The version read_note, overview or search gave",
               "type": "string"
+            },
+            "wait": {
+              "description": "Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested",
+              "type": "boolean"
             }
           },
           "required": [
@@ -395,6 +441,10 @@
             "version": {
               "description": "The version read_note, overview or search gave",
               "type": "string"
+            },
+            "wait": {
+              "description": "Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested",
+              "type": "boolean"
             }
           },
           "required": [

@@ -80,6 +80,9 @@ final class NotesStore {
     /// While set (development and checks), only notes whose title starts with this, and folders
     /// whose name does, may be changed.
     let writeGuard: String?
+    /// While set, only notes in these folders and the folders inside them, and those folders, may
+    /// be changed (see FolderGuard).
+    let writeFolders: [String]?
 
     private var readContext: NSManagedObjectContext?
     /// Notes this process moved to Recently Deleted; the store may list them where they were for minutes.
@@ -95,8 +98,9 @@ final class NotesStore {
     var attachmentTextCache: [String: (key: String, texts: [AttachmentText])] = [:]
     private var multipleAccounts = false
 
-    init(writeGuard: String?) {
+    init(writeGuard: String?, writeFolders: [String]? = nil) {
         self.writeGuard = writeGuard
+        self.writeFolders = writeFolders
     }
 
     static let defaultFolderID = "DefaultFolder-CloudKit"
@@ -281,6 +285,13 @@ final class NotesStore {
             names.insert(account, at: 0)
         }
         return names
+    }
+
+    /// A folder's names as overview shows its path, the account's first when there are several,
+    /// for an object that did not come through folders() (which keeps that up to date).
+    func currentNames(of folder: NSManagedObject) throws(NotesError) -> [String] {
+        multipleAccounts = try fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO")).count > 1
+        return names(of: folder)
     }
 
     /// A folder's name as Notes shows it: the store's, unless this process renamed the folder and

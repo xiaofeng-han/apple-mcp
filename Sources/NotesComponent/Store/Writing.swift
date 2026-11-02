@@ -101,6 +101,7 @@ extension NotesStore {
         if Self.isShared(folder) && folder.get("isSharedReadOnly") as? Bool == true {
             throw .refused("that folder is shared with you read-only")
         }
+        try guardFolder(folder, what: "notes")
         let note = try shim { try ANNotes.newNote(inFolder: folder) }
         let id = string(note, "identifier")
         let writer: BodyWriter
@@ -126,8 +127,13 @@ extension NotesStore {
         if source.locked { throw .refused("locked notes are copied in Notes") }
         if source.inTrash { throw .refused("this note is deleted; move it back to a folder first") }
         try guardTitle(source.title)
-        if let folderID, let folder = try object("ICFolder", id: folderID), Self.isShared(folder), folder.get("isSharedReadOnly") as? Bool == true {
-            throw .refused("that folder is shared with you read-only")
+        try guardFolder(try note(id).get("folder") as? NSManagedObject, what: "notes")
+        if let folderID {
+            let folder = try object("ICFolder", id: folderID)
+            if let folder, Self.isShared(folder), folder.get("isSharedReadOnly") as? Bool == true {
+                throw .refused("that folder is shared with you read-only")
+            }
+            try guardFolder(folder, what: "notes")
         }
         guard let executable = Bundle.main.executablePath else { throw .failed("this app cannot find itself to copy the note") }
         let process = Process()
@@ -255,6 +261,7 @@ extension NotesStore {
         if let writeGuard, !string(note, "title").hasPrefix(writeGuard) {
             throw .refused("Refused by the write guard: only notes titled \"\(writeGuard)…\" may be changed.")
         }
+        try guardFolder(note.get("folder") as? NSManagedObject, what: "notes")
     }
 
     /// Keeps the last 20 copies of a note's stored body, so any write can be undone by hand.

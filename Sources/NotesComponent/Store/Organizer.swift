@@ -31,6 +31,7 @@ extension NotesStore {
             throw .refused("shared notes are not deleted here: deleting one can remove it for everyone it is shared with. Delete it in Notes")
         }
         try guardTitle(note.title)
+        try guardFolder(try self.note(id).get("folder") as? NSManagedObject, what: "notes")
         let trash = try trashURI(sameAccountAs: try self.note(id).get("folder") as? NSManagedObject)
         func inTrash() throws(NotesError) -> Bool { try AppleScript.notesList("id of notes of folder id \"\(trash)\"").contains(note.uri) }
         if try inTrash() { throw .refused("Notes already has this note in Recently Deleted; deleting it again would erase it for good") }
@@ -49,11 +50,13 @@ extension NotesStore {
         let note = try self.note(id)
         let info = info(note)
         try guardTitle(info.title)
+        try guardFolder(names: target.names, what: "notes")
         try checkVersion(id, version)
         if note.get("markedForDeletion") as? Bool == true { throw .refused("this note is deleted") }
         if info.locked { throw .refused("locked notes are moved in Notes") }
         let source = note.get("folder") as? NSManagedObject
         let restoring = try isInTrash(info, source: source)
+        if !restoring { try guardFolder(source, what: "notes") }
         if !restoring, let source, source.objectID.uriRepresentation().absoluteString == target.uri {
             throw .refused("the note is already in \(target.path)")
         }
@@ -109,6 +112,8 @@ extension NotesStore {
     struct Destination {
         var uri: String
         var path: String
+        /// The folder's names from the top, as its path has them.
+        var names: [String]
         var accountID: String?
         var shared: Bool
     }
@@ -118,7 +123,7 @@ extension NotesStore {
     private func destination(_ reference: String) throws(NotesError) -> Destination {
         do throws(NotesError) {
             let found = try folder(reference)
-            return Destination(uri: found.uri, path: found.path, accountID: found.accountID, shared: found.shared)
+            return Destination(uri: found.uri, path: found.path, names: found.names, accountID: found.accountID, shared: found.shared)
         } catch .notFound {
             // Notes' own view by path can find a smart folder; it is never a destination.
             if try smartFolder(reference) != nil { _ = try folder(reference) }
@@ -129,7 +134,7 @@ extension NotesStore {
                 throw .notFound("folder \"\(reference)\" (overview lists the folders)")
             }
             let parentShared = names.count > 1 ? ((try? folder(FolderPath.join(Array(names.dropLast())))).map(\.shared) ?? false) : false
-            return Destination(uri: uri, path: FolderPath.join(names), accountID: nil, shared: parentShared)
+            return Destination(uri: uri, path: FolderPath.join(names), names: names, accountID: nil, shared: parentShared)
         }
     }
 
@@ -152,9 +157,12 @@ extension NotesStore {
                 throw .notFound("folder \"\(parentPath)\": create it first, one level at a time")
             }
             if parent.shared { throw .refused("folders are not created inside shared folders here") }
+            // The new folder itself must be one the folder guard lists, or inside one.
+            try guardFolder(names: parent.names + [name], what: "folders")
             container = "folder id \"\(parent.uri)\""
             siblings = try folders().filter { $0.parentID == parent.id }.map(\.name)
         } else {
+            try guardFolder(names: [name], what: "folders")
             var account = try object("ICFolder", id: Self.defaultFolderID)?.get("account") as? NSManagedObject
             if account == nil { account = try fetch("ICAccount", NSPredicate(format: "markedForDeletion == NO")).first }
             guard let account else { throw .failed("no Notes account was found") }
@@ -177,6 +185,8 @@ extension NotesStore {
         let found = try folder(reference)
         try checkChangeable(found, allowShared: allowShared)
         try guardTitle(name, what: "folder names")
+        // Renamed, it must still be inside the folder guard (a listed folder renamed would leave it).
+        try guardFolder(names: Array(found.names.dropLast()) + [name], what: "folders")
         let siblings = try folders().filter { $0.parentID == found.parentID && $0.accountID == found.accountID && $0.id != found.id }
         if siblings.contains(where: { $0.name.lowercased() == name.lowercased() }) { throw .refused("there is already a folder named \"\(name)\" there") }
         try AppleScript.notes("set name of folder id \"\(found.uri)\" to \(AppleScript.quoted(name))")
@@ -193,6 +203,7 @@ extension NotesStore {
     func createSmartFolder(_ name: String, tags: [String], matchAll: Bool) async throws(NotesError) -> NotesStore.SmartFolder {
         try checkFolderName(name)
         try guardTitle(name, what: "folder names")
+        try guardSmartFolder()
         guard !tags.isEmpty else { throw .refused("a smart folder needs tags") }
         for tag in tags {
             if let first = try? notes(taggedWith: tag).notes.first { _ = try repairTags(first.id) }
@@ -239,6 +250,7 @@ extension NotesStore {
             try guardTitle(name, what: "folder names")
         }
         try guardTitle(smart.name, what: "folders named")
+        try guardSmartFolder()
         let context = try writeContext()
         guard let folder = try object("ICFolder", id: smart.id, in: context) else { throw .notFound("smart folder \(smart.name) in Notes' data") }
         do {
@@ -270,6 +282,8 @@ extension NotesStore {
             }
             try guardTitle(parent.name, what: "folders named")
         }
+        // The new parent, or the top level (of the account, when there are several), must be inside the folder guard.
+        try guardFolder(names: parent?.names ?? (multipleAccountsShown ? Array(found.names.prefix(1)) : []), what: "folders")
         if parent?.id == found.parentID { throw .refused("\(found.path) is already there") }
         let siblings = try folders().filter { $0.parentID == parent?.id && $0.accountID == found.accountID && $0.id != found.id }
         if siblings.contains(where: { $0.name.lowercased() == found.name.lowercased() }) {
@@ -443,6 +457,7 @@ extension NotesStore {
             throw .refused("this folder is shared, so a new name changes it for everyone. Ask the user, then pass allow_shared: true")
         }
         try guardTitle(folder.name, what: "folders named")
+        try guardFolder(names: folder.names, what: "folders")
     }
 
     /// The write guard, for a note title or a folder name.

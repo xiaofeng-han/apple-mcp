@@ -2,5 +2,5 @@ apple-journal-mcp attachments
 └── read ID                     Open an entry's attachment (ids from entries read): print its details, save its photos, video frames and recordings
         --[no-]text-only --output-dir string
 
-Every attachments command also takes --json OBJECT (or --json - for stdin) and --help.
+Every attachments command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off; a flag ending in … repeats.

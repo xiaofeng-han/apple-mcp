@@ -6,6 +6,7 @@ Delete a journal; its entries stay in All Entries, move (--move-entries-to), or 
   --move-entries-to string  The journal to move its entries to
   --[no-]delete-entries     Move its entries to Recently Deleted too
   --expected-entries int    With --delete-entries: how many entries it holds
+  --format text|json        Print the answer as text (default) or JSON
   --json json|-             Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                Show this help
 

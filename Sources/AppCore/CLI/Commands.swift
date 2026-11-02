@@ -5,13 +5,41 @@ import Wire
 
 /// The tools on the command line: `apple-notes-mcp notes search "tax return"`, `apple-reminders-mcp
 /// reminders find --list Groceries`. Commands print exactly what the tool answers (Notes: text,
-/// often Markdown; Reminders: JSON, sometimes after a short lead such as "Created."). Exit status:
-/// 0 done; 1 the tool failed (not found, conflict, not allowed), with the reason on stderr; 2 the
-/// command or a flag was wrong.
+/// often Markdown; Reminders: JSON, sometimes after a short lead such as "Created."), or with
+/// `--format json` one JSON object for programs (see execute). Exit status: 0 done; 1 the tool
+/// failed (not found, conflict, not allowed), with the reason on stderr; 2 the command or a flag
+/// was wrong.
 struct Commands {
     let cli: CLI
     let tools: [Tool]
     var program = Product.current.command
+
+    /// How a command prints the answer.
+    enum Format: String, Equatable {
+        /// What the tool answers, as it answers it.
+        case text
+        /// One JSON object: the tool's data, or {"text": …} from a tool that gives none.
+        case json
+    }
+
+    /// Takes `--format text|json` (or `--format=json`) out of the words before any `--`, as the
+    /// route's output flag is, so the tool's flags never see it; text when it is not there.
+    static func takeFormat(from words: inout [String]) throws -> Format {
+        let flagWords = words.prefix { $0 != "--" }
+        let found = flagWords.indices.filter { flagWords[$0] == "--format" || flagWords[$0].hasPrefix("--format=") }
+        guard let index = found.first else { return .text }
+        guard found.count == 1 else { throw BadInput("--format is given twice") }
+        let word = words.remove(at: index)
+        let value: String
+        if word == "--format" {
+            guard index < words.count, words[index] != "--" else { throw BadInput("--format needs a value: text or json") }
+            value = words.remove(at: index)
+        } else {
+            value = String(word.dropFirst("--format=".count))
+        }
+        guard let format = Format(rawValue: value) else { throw BadInput("--format is text or json, not \"\(value)\"") }
+        return format
+    }
 
     /// Everything that is not the server, setup, agents or skill: help, the tool commands, and call.
     func run(_ words: [String]) async -> Int32 {
@@ -41,12 +69,18 @@ struct Commands {
     func run(_ route: Route, _ tool: Tool, _ words: [String]) async -> Int32 {
         let flags = route.flags(tool)
         let hint = "\(program) \(route.command) --help"
-        let flagWords = words.prefix { $0 != "--" }
-        if flagWords.contains("-h") || flagWords.contains("--help") {
+        if words.prefix(while: { $0 != "--" }).contains(where: { $0 == "-h" || $0 == "--help" }) {
             print(help(route, flags))
             return 0
         }
         var words = words
+        let format: Format
+        do {
+            format = try Self.takeFormat(from: &words)
+        } catch {
+            return fail("\(error)", hint: hint)
+        }
+        let flagWords = words.prefix { $0 != "--" }
         var output: String?
         if let flag = route.output?.flag, let index = flagWords.firstIndex(where: { $0 == flag || $0.hasPrefix(flag + "=") }) {
             let word = words.remove(at: index)
@@ -63,7 +97,7 @@ struct Commands {
             guard piped.count <= 1 else { return fail("only one of \(piped.map { "--\($0)" }.joined(separator: ", ")) can read stdin", hint: hint) }
             if let key = piped.first { arguments[key] = .string(String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)) }
             if !route.fallback.unless.contains(where: { arguments[$0] != nil }) { arguments.merge(route.fallback.fields) { given, _ in given } }
-            return await execute(tool, arguments, hint: hint, output: output)
+            return await execute(tool, arguments, hint: hint, output: output, format: format)
         } catch {
             return fail("\(error)", hint: hint)
         }
@@ -71,6 +105,13 @@ struct Commands {
 
     /// `call TOOL [JSON | -]`: any tool, on a JSON object of its arguments.
     func call(_ words: [String]) async -> Int32 {
+        var words = words
+        let format: Format
+        do {
+            format = try Self.takeFormat(from: &words)
+        } catch {
+            return fail("\(error)", hint: "\(program) call")
+        }
         guard let name = words.first else {
             for tool in tools { print("\(tool.name.padding(toLength: 18, withPad: " ", startingAt: 0))\(tool.title)") }
             return 0
@@ -84,14 +125,20 @@ struct Commands {
         var text = words.count == 2 ? words[1] : "{}"
         if text == "-" { text = String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self) }
         guard let arguments = JSON.parse(text)?.object else { return fail("the arguments must be a JSON object", hint: "\(program) call \(name) --help") }
-        return await execute(tool, arguments, hint: "\(program) call \(name) --help", output: nil)
+        return await execute(tool, arguments, hint: "\(program) call \(name) --help", output: nil, format: format)
     }
 
     /// Runs the tool and prints its answer; images, audio and files in it are saved (see Saving),
     /// and printed as where they went. A tool turned off in the settings window's Tools tab is
     /// refused here too: agents set up with the skill run these commands.
-    func execute(_ tool: Tool, _ arguments: [String: JSON], hint: String, output: String?) async -> Int32 {
-        if let refusal = AppSettings.exposure.refusal(tool, among: tools) { return fail(cli.reword(refusal), status: 1) }
+    ///
+    /// With `--format json` the answer is one JSON object on stdout: the tool's data, or
+    /// {"text": …} with the lines printed otherwise (where files were saved among them); a failure
+    /// is {"error": …} on stderr, exit status 1. A wrong command or flag is still told as text.
+    func execute(_ tool: Tool, _ arguments: [String: JSON], hint: String, output: String?, format: Format = .text) async -> Int32 {
+        if let refusal = AppSettings.exposure.refusal(tool, among: tools) {
+            return format == .json ? failure(cli.reword(refusal), format) : fail(cli.reword(refusal), status: 1)
+        }
         let answer: ToolAnswer
         do {
             answer = try await tool.run(arguments)
@@ -110,12 +157,19 @@ struct Commands {
             lines = saved
         }
         let text = lines.joined(separator: "\n")
-        guard !answer.failed else {
-            FileHandle.standardError.write(Data((cli.reword(text) + "\n").utf8))
-            return 1
+        guard !answer.failed else { return failure(cli.reword(text), format) }
+        switch format {
+        case .text: print(text)
+        case .json: print((answer.data ?? ["text": .string(text)]).text)
         }
-        print(text)
         return 0
+    }
+
+    /// The reason a request failed, on stderr (as {"error": …} with `--format json`); exit status 1.
+    func failure(_ reason: String, _ format: Format) -> Int32 {
+        let line = format == .json ? JSON.object(["error": .string(reason)]).text : reason
+        FileHandle.standardError.write(Data((line + "\n").utf8))
+        return 1
     }
 
     /// The answer's lines, with each image, audio clip and file saved in the folder `output` (or the
@@ -285,7 +339,8 @@ struct Commands {
             }
         }
         lines.append("")
-        lines.append("Every \(only ?? cli.nounsSummary ?? nouns.joined(separator: ", ")) command also takes --json OBJECT (or --json - for stdin) and --help.")
+        lines.append("Every \(only ?? cli.nounsSummary ?? nouns.joined(separator: ", ")) command also takes --json OBJECT (or --json - for stdin), "
+            + "--format json (the answer as JSON) and --help.")
         lines.append("Flags: --no-NAME turns a flag off\(cli.clears ? " or clears a field" : ""); a flag ending in … repeats.")
         if only == nil {
             lines.append("Output is the tool's \(cli.answer). Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.")

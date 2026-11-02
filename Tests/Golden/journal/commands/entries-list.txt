@@ -11,6 +11,7 @@ List entries, newest first, with their ids and versions. Filters combine: --jour
   --sort newest|oldest|edited  Default newest (by the entry's date); edited: most recently changed first
   --limit int                  Default 50, at most 500
   --offset int                 Skip this many, for the next page
+  --format text|json           Print the answer as text (default) or JSON
   --json json|-                Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                   Show this help
 

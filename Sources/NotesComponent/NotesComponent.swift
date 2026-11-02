@@ -17,12 +17,16 @@ public final class NotesComponent: Component {
     /// APPLE_NOTES_MCP_WRITE_GUARD: while set (development and checks), only notes titled with this
     /// prefix, and folders named with it, may be changed.
     let writeGuard: String?
+    /// APPLE_NOTES_MCP_WRITE_FOLDERS: while set, only notes in these folders (and the folders in
+    /// them), and those folders, may be changed. See FolderGuard.
+    let writeFolders: [String]?
     let store: NotesStore
     public let tools: [Tool]
 
     public init(_ context: ComponentContext) {
         writeGuard = context.writeGuard
-        store = NotesStore(writeGuard: context.writeGuard)
+        writeFolders = context.writeFolders
+        store = NotesStore(writeGuard: context.writeGuard, writeFolders: context.writeFolders)
         tools = readTools(store, Descriptions()) + attachmentTools(store) + writeTools(store)
     }
 
@@ -105,6 +109,8 @@ public final class NotesComponent: Component {
 
     public var writeGuardDescription: String? { writeGuard.map { "\"\($0)\"" } }
 
+    public var writeFoldersDescription: String? { writeFolders?.joined(separator: ", ") }
+
     public func generalSection(_ panel: PanelState) -> AnyView {
         AnyView(NotesGeneralSection(panel: panel))
     }
@@ -133,7 +139,8 @@ public final class NotesComponent: Component {
 
     /// `--list-json [QUERY]`, for editor pickers (see ListJSON).
     func listJSON(_ words: [String]) -> Int32 {
-        ListJSON.run(words, from: store, write: { print($0) }, fail: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
+        ListJSON.run(words, from: store, descriptions: Descriptions().all(), write: { print($0) },
+                     fail: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
     }
 
     /// `--copy-note NOTE [FOLDER]`, run by create_note's copy_of: prints the copy's id.

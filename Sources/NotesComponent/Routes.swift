@@ -42,21 +42,27 @@ extension NotesComponent {
         Route(noun: "notes", verb: "create", tool: "create_note",
               about: "Create a note from Markdown; its first line is the title",
               detail: "![name](/path/to/file) in the Markdown attaches a file, ![](https://…) adds a link card.",
-              positional: [("markdown", "MARKDOWN")], only: ["folder"], required: ["markdown"],
+              positional: [("markdown", "MARKDOWN")], only: ["folder", "wait"], required: ["markdown"],
               abouts: ["markdown": "The note as Markdown; - reads it from stdin"], stdin: ["markdown"]),
         Route(noun: "notes", verb: "copy", tool: "create_note",
               about: "Copy a note with everything in it, into its own folder or --folder",
-              positional: [("copy_of", "ID")], only: ["folder"], required: ["copy_of"]),
+              positional: [("copy_of", "ID")], only: ["folder", "wait"], required: ["copy_of"]),
         Route(noun: "notes", verb: "edit", tool: "edit_note",
-              about: "Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned",
+              about: "Change a note in one go: --replace pairs, --replace-section, --insert Markdown, or --rewrite the whole note; --[no-]pinned",
               detail: """
                   --version is the one notes read, list or search gave; a note changed elsewhere since then is \
                   refused, so read it again. --replace takes exact Markdown from notes read, applied in order. \
-                  --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the \
-                  rest keeps all its formatting.
+                  --replace-section '{"heading":"…","markdown":"…"}' replaces what is under a heading, which stays; \
+                  --replace-before replaces everything between the title and the heading. --insert adds at the end, \
+                  the start, or under a heading (--at). Only what changes is written; the rest keeps all its \
+                  formatting. --no-wait returns once the change is saved and its upload asked for.
                   """,
-              positional: [("id", "ID")], only: ["version", "replace", "insert", "at", "rewrite", "check", "uncheck", "checklist", "pinned"],
+              positional: [("id", "ID")],
+              only: ["version", "replace", "replace_section", "replace_before", "insert", "at", "rewrite", "check", "uncheck", "checklist",
+                     "pinned", "wait"],
               abouts: ["version": "From notes read, list or search", "replace": "A JSON list of {old, new, all}, applied in order",
+                       "replace_section": "A JSON object {heading, markdown}: what is under the heading becomes the Markdown",
+                       "replace_before": "A JSON object {heading, markdown}: what is between the title and the heading becomes the Markdown",
                        "insert": "Markdown to add; - reads it from stdin", "rewrite": "The whole note as Markdown; - reads it from stdin"],
               stdin: ["insert", "rewrite"]),
         Route(noun: "notes", verb: "delete", tool: "delete_note",

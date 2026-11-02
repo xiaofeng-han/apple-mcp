@@ -66,6 +66,14 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
         #expect(mode([], piped: false) == .settings)
     }
 
+    @Test func writeFoldersAreTrimmedPaths() {
+        #expect(AppMain.folderList(nil) == nil)
+        #expect(AppMain.folderList("") == nil)
+        #expect(AppMain.folderList(" , ,") == nil)
+        #expect(AppMain.folderList("KB/Wiki") == ["KB/Wiki"])
+        #expect(AppMain.folderList(" KB/Wiki ,KB/Inbox, ") == ["KB/Wiki", "KB/Inbox"])
+    }
+
     @Test func theAppsOwnWords() {
         #expect(mode(["authorize"]) == .own("authorize"))
         #expect(mode(["--copy-note", "ID"]) == .own("--copy-note"))
@@ -106,7 +114,7 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
         #expect(lines.contains { $0.hasPrefix("│   ├── list") && $0.hasSuffix("List the items (the default)") })
         #expect(lines.contains { $0.hasPrefix("└── call TOOL [JSON | -]") })
         #expect(lines.suffix(3) == [
-            "Every items, boxes command also takes --json OBJECT (or --json - for stdin) and --help.",
+            "Every items, boxes command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.",
             "Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.",
             "Output is the tool's JSON answer. Exit status: 1 the request failed (reason on stderr), 2 a wrong command or flag.",
         ])
@@ -114,7 +122,7 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
 
     @Test func theAppsWording() {
         let lines = tree(demoCLI(clears: false, nounsSummary: "items, …")).components(separatedBy: "\n")
-        #expect(lines.contains("Every items, … command also takes --json OBJECT (or --json - for stdin) and --help."))
+        #expect(lines.contains("Every items, … command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help."))
         #expect(lines.contains("Flags: --no-NAME turns a flag off; a flag ending in … repeats."))
     }
 
@@ -123,6 +131,46 @@ let demoTools = ["list_items", "read_item", "manage_item", "find_item", "overvie
         #expect(lines.first == "demo boxes")
         #expect(!lines.contains { $0.contains("setup") || $0.contains("items") })
         #expect(lines.last == "Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.")
+    }
+}
+
+/// `--format text|json`, taken out of a command's words before its flags are read.
+@Suite struct FormatTests {
+    func take(_ words: [String]) throws -> (format: Commands.Format, rest: [String]) {
+        var words = words
+        let format = try Commands.takeFormat(from: &words)
+        return (format, words)
+    }
+
+    @Test func absentIsText() throws {
+        let (format, rest) = try take(["ID", "--version", "abc"])
+        #expect(format == .text && rest == ["ID", "--version", "abc"])
+    }
+
+    @Test(arguments: [["ID", "--format", "json", "--limit", "5"], ["ID", "--format=json", "--limit", "5"], ["--format", "json", "ID", "--limit", "5"]])
+    func presentIsTakenOut(words: [String]) throws {
+        let (format, rest) = try take(words)
+        #expect(format == .json && rest == ["ID", "--limit", "5"])
+    }
+
+    @Test func textCanBeAskedFor() throws {
+        let spaced = try take(["--format", "text"]), joined = try take(["--format=text", "ID"])
+        #expect(spaced.format == .text && spaced.rest.isEmpty)
+        #expect(joined.format == .text && joined.rest == ["ID"])
+    }
+
+    @Test(arguments: [["--format", "yaml"], ["--format=JSON"], ["--format="], ["--format"], ["--format", "--", "json"],
+                      ["--format", "json", "--format", "text"]])
+    func aBadValueIsAUsageError(words: [String]) {
+        #expect(throws: BadInput.self) { try take(words) }
+    }
+
+    /// After `--` a word is a value, even one that reads like the flag.
+    @Test func afterTheEndOfFlagsItIsAWord() throws {
+        let (format, rest) = try take(["--", "--format", "json"])
+        #expect(format == .text && rest == ["--", "--format", "json"])
+        let both = try take(["--format", "json", "--", "--format=text"])
+        #expect(both.format == .json && both.rest == ["--", "--format=text"])
     }
 }
 

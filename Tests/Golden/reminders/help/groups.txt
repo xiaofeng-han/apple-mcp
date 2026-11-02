@@ -3,5 +3,5 @@ apple-reminders-mcp groups
 ├── rename GROUP NEW_NAME       Rename a group
 └── delete GROUP                Delete an empty group
 
-Every groups command also takes --json OBJECT (or --json - for stdin) and --help.
+Every groups command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

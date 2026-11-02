@@ -5,6 +5,7 @@ Open an entry's attachment (ids from entries read): print its details, save its 
   ID                   Attachment id
   --[no-]text-only     Only the details, no images or audio
   --output-dir string  Where to save its images, audio and files; default the temporary folder
+  --format text|json   Print the answer as text (default) or JSON
   --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help           Show this help
 

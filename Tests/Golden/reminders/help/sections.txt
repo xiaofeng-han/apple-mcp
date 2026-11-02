@@ -4,5 +4,5 @@ apple-reminders-mcp sections
 ├── move LIST SECTION (--after string | --before string)  Move a section next to another one
 └── delete LIST SECTION         Delete a section; its reminders stay in the list
 
-Every sections command also takes --json OBJECT (or --json - for stdin) and --help.
+Every sections command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

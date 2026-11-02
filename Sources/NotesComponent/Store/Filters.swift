@@ -204,6 +204,7 @@ extension NotesStore {
         if let writeGuard, let other = notes.first(where: { !$0.title.hasPrefix(writeGuard) }) {
             throw .refused("Refused by the write guard: \"\(other.title)\" has the tag")
         }
+        try guardFolders(of: notes)
         for note in notes { _ = try repairTags(note.id) }
         if Self.tagKey(name) != Self.tagKey(old), try tagSummary().contains(where: { Self.tagKey($0.name) == Self.tagKey(name) }) {
             throw .refused("#\(name) is already a tag; notes cannot be moved from one tag to another here")
@@ -244,6 +245,7 @@ extension NotesStore {
         if let writeGuard, let other = notes.first(where: { !$0.title.hasPrefix(writeGuard) }) {
             throw .refused("Refused by the write guard: \"\(other.title)\" has the tag")
         }
+        try guardFolders(of: notes)
         let key = Self.tagKey(name)
         var written: [WriteResult] = [], failed: [String] = []
         for note in notes {
@@ -254,6 +256,14 @@ extension NotesStore {
             }
         }
         return (name, written, failed)
+    }
+
+    /// A tag changes in every note that has it, so one note outside the folder guard refuses the
+    /// whole change.
+    private func guardFolders(of notes: [NoteInfo]) throws(NotesError) {
+        guard let writeFolders, let other = notes.first(where: { !Self.insideGuard($0.folderNames, writeFolders) }) else { return }
+        throw .refused("Refused by the folder guard: \"\(other.title)\" in \(other.folderPath) has the tag; only notes in "
+            + "\(writeFolders.joined(separator: ", ")) may be changed.")
     }
 
     /// The blocks without a tag, and without the space it leaves doubled.

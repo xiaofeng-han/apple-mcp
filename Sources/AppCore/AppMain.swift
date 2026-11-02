@@ -32,6 +32,14 @@ public enum AppMain {
         }
     }
 
+    /// <PREFIX>_WRITE_FOLDERS: folder paths separated by commas ("KB/Wiki, KB/Inbox"), each
+    /// trimmed; nil when it is unset or names none.
+    static func folderList(_ value: String?) -> [String]? {
+        guard let value else { return nil }
+        let paths = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return paths.isEmpty ? nil : paths
+    }
+
     /// Whether stdin is a pipe or a socket, as when an agent starts the server.
     static func inputIsPiped() -> Bool {
         var info = stat()
@@ -54,8 +62,10 @@ public enum AppMain {
         }
         setvbuf(stdout, nil, _IOLBF, 0)
 
-        let writeGuard = ProcessInfo.processInfo.environment[product.environmentPrefix + "_WRITE_GUARD"].flatMap { $0.isEmpty ? nil : $0 }
-        let component = App(ComponentContext(version: version, writeGuard: writeGuard))
+        let environment = ProcessInfo.processInfo.environment
+        let writeGuard = environment[product.environmentPrefix + "_WRITE_GUARD"].flatMap { $0.isEmpty ? nil : $0 }
+        let writeFolders = folderList(environment[product.environmentPrefix + "_WRITE_FOLDERS"])
+        let component = App(ComponentContext(version: version, writeGuard: writeGuard, writeFolders: writeFolders))
         let modes = component.modes
 
         switch mode(words, own: Set(modes.keys), inputIsPiped: inputIsPiped) {
@@ -79,6 +89,7 @@ public enum AppMain {
                     print("Tools offered to AI assistants: none, \(exposure.file.path) can't be read (\(error))")
                 }
                 if let writeGuard = component.writeGuardDescription { print("Write guard: \(writeGuard)") }
+                if let writeFolders = component.writeFoldersDescription { print("Write folders: \(writeFolders)") }
                 return 0
             }
 

@@ -31,17 +31,17 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
             return try await withNotes(store) {
                 let all = descriptions.all()
                 if folder == nil, modified.isEmpty, created.isEmpty, order == nil, filter.isEmpty, !undescribed {
-                    return ToolAnswer(try folderTree(store, descriptions: all, depth: depth))
+                    return try folderTree(store, descriptions: all, depth: depth)
                 }
                 let scope = try folder.map { reference throws(NotesError) in try store.scope(reference) }
                 if case .recentlyDeleted? = scope {
                     if undescribed { throw BadInput("undescribed lists notes in folders, not in Recently Deleted") }
-                    return ToolAnswer(try deletedList(store, descriptions: all, modified: modified, created: created, filter: filter, order: order, limit: limit))
+                    return try deletedList(store, descriptions: all, modified: modified, created: created, filter: filter, order: order, limit: limit)
                 }
-                return ToolAnswer(try noteList(
+                return try noteList(
                     store, descriptions: all, scope: scope, modified: modified, created: created, filter: filter,
                     order: order ?? (created.isEmpty ? .modified : .created),
-                    group: folder != nil && order == nil && modified.isEmpty && created.isEmpty, undescribed: undescribed, limit: limit))
+                    group: folder != nil && order == nil && modified.isEmpty && created.isEmpty, undescribed: undescribed, limit: limit)
             }
         },
 
@@ -86,7 +86,14 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
                     query, matchAll: matchAll, in: scope, modified: modified, created: created, filter: filter, order: order, limit: limit)
                 let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
                 let within = place + (ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))")
-                if hits.isEmpty { return ToolAnswer("No notes match \"\(query)\"\(within).") }
+                @MainActor func data(_ versions: [String: String]) -> JSON {
+                    ["query": .string(query), "total": .int(total), "showing": .int(hits.count), "notes": .array(hits.map { hit in
+                        ["id": .string(hit.note.id), "version": .string(versions[hit.note.id] ?? "?"), "title": .string(hit.note.title),
+                         "folder": .string(deleted ? NotesStore.recentlyDeleted : hit.note.folderPath),
+                         "modified": .string(Output.timestamp(hit.note.modified)), "snippet": .string(hit.snippet)]
+                    })]
+                }
+                if hits.isEmpty { return ToolAnswer("No notes match \"\(query)\"\(within).", data: data([:])) }
                 let kinds = try store.attachmentKinds(Set(hits.map(\.note.id)))
                 let versions = store.versions(hits.map(\.note.id))
                 let items = hits.map { hit in
@@ -99,7 +106,8 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
                     ])
                 }
                 let head = "\(total) note\(total == 1 ? "" : "s") match \"\(query)\"\(within)\(total > hits.count ? ", showing \(hits.count)" : ""):"
-                return ToolAnswer(([head] + Output.sections(items, root: root?.names, rootPath: root?.path ?? "", group: order == nil)).joined(separator: "\n"))
+                return ToolAnswer(([head] + Output.sections(items, root: root?.names, rootPath: root?.path ?? "", group: order == nil)).joined(separator: "\n"),
+                                  data: data(versions))
             }
         },
 
@@ -132,15 +140,18 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
                     }
                     references = [matches[0].id]
                 }
-                var parts: [String] = []
+                var parts: [String] = [], entries: [JSON] = []
                 for reference in references {
                     do {
-                        parts.append(try readNote(store, descriptions, try store.resolveNote(reference), section: section, outline: outline))
+                        let reading = try readNote(store, descriptions, try store.resolveNote(reference), section: section, outline: outline)
+                        parts.append(reading.text)
+                        entries.append(reading.json)
                     } catch let error as NotesError where references.count > 1 {
                         parts.append("\(reference): \(error)")
+                        entries.append(["id": .string(reference), "error": .string("\(error)")])
                     }
                 }
-                return ToolAnswer(parts.joined(separator: "\n\n"))
+                return ToolAnswer(parts.joined(separator: "\n\n"), data: ["notes": .array(entries)])
             }
         },
 
@@ -161,12 +172,12 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
             }
             return try await withNotes(store) {
                 var entries: [String: Descriptions.Entry] = [:]
-                var saved: [String] = [], failed: [String] = []
+                var saved: [(id: String, title: String)] = [], failed: [String] = []
                 for (reference, text) in wanted {
                     do throws(NotesError) {
                         let note = try store.noteInfo(try store.resolveNote(reference))
                         entries[note.id] = Descriptions.Entry(text: text, noteModified: note.modified, written: Date())
-                        saved.append(note.title)
+                        saved.append((note.id, note.title))
                     } catch {
                         guard case .noAccess = error else {
                             failed.append("\(reference): \(error)")
@@ -176,9 +187,11 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
                     }
                 }
                 try descriptions.set(entries)
-                var lines = [saved.count == 1 ? "Saved the description of \"\(saved[0])\"." : "Saved \(saved.count) descriptions."]
+                var lines = [saved.count == 1 ? "Saved the description of \"\(saved[0].title)\"." : "Saved \(saved.count) descriptions."]
                 if !failed.isEmpty { lines += ["Not saved:"] + failed.map { "  " + $0 } }
-                return ToolAnswer(lines.joined(separator: "\n"), failed: saved.isEmpty)
+                let data: JSON = ["saved": .array(saved.map { ["id": .string($0.id), "title": .string($0.title)] }),
+                                  "failed": .array(failed.map(JSON.string))]
+                return ToolAnswer(lines.joined(separator: "\n"), data: data, failed: saved.isEmpty)
             }
         },
     ]
@@ -186,9 +199,9 @@ func readTools(_ store: NotesStore, _ descriptions: Descriptions) -> [Tool] {
 
 /// Folders as an indented tree down to `depth`: "name (notes, described)". A folder at the depth
 /// limit says what it holds below, so the next call can go deeper. Ids are shown only where two
-/// folders have one path.
+/// folders have one path. The JSON has every folder, whatever the depth, and the smart folders.
 @MainActor
-private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions.Entry], depth: Int) throws(NotesError) -> String {
+private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions.Entry], depth: Int) throws(NotesError) -> ToolAnswer {
     let folders = try store.folders()
     var described: [String: Int] = [:]
     for note in try store.notes(inFolders: nil) where Descriptions.isCurrent(descriptions[note.id], modified: note.modified) {
@@ -224,7 +237,14 @@ private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions
         let shown = tags.prefix(60).map { "#\($0.name) (\($0.notes))" }.joined(separator: ", ")
         lines.append("Tags: \(shown)\(tags.count > 60 ? ", and \(tags.count - 60) more" : ""); pass tags to list a tag's notes")
     }
-    return lines.joined(separator: "\n")
+    let data: JSON = [
+        "folders": .array(folders.map { folder in
+            ["id": .string(folder.id), "name": .string(folder.name), "path": .string(folder.path), "notes": .int(folder.noteCount),
+             "shared": .bool(folder.shared)]
+        }),
+        "smart_folders": .array(smart.map { ["id": .string($0.id), "name": .string($0.name), "rule": .string($0.rule)] }),
+    ]
+    return ToolAnswer(lines.joined(separator: "\n"), data: data)
 }
 
 /// The notes in Recently Deleted, most recently deleted first unless `order` says otherwise,
@@ -233,7 +253,7 @@ private func folderTree(_ store: NotesStore, descriptions: [String: Descriptions
 private func deletedList(
     _ store: NotesStore, descriptions: [String: Descriptions.Entry], modified: DateWindow, created: DateWindow, filter: NoteFilter,
     order: NoteOrder?, limit: Int
-) throws(NotesError) -> String {
+) throws(NotesError) -> ToolAnswer {
     var notes = try store.recentlyDeletedNotes().filter { modified.contains($0.note.modified) && created.contains($0.note.created) }
     let passing = Set(try store.matching(notes.map(\.note), filter).map(\.id))
     notes = notes.filter { passing.contains($0.note.id) }
@@ -250,29 +270,26 @@ private func deletedList(
     let texts = try store.plainTexts(ids)
     let kinds = try store.attachmentKinds(ids)
     let versions = store.versions(shown.map(\.note.id))
+    let calendar = Calendar.current
+    let rows = shown.map { note, deleted in
+        let gone = calendar.date(byAdding: .day, value: NotesStore.daysInRecentlyDeleted, to: deleted) ?? deleted
+        let left = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: gone)).day ?? 0)
+        return ListedNote(note: note, version: versions[note.id] ?? "?", text: texts[note.id] ?? "", attachments: kinds[note.id] ?? [:],
+                          description: descriptions[note.id], deleted: (deleted, left))
+    }
+    let data = ListedNote.list(NotesStore.recentlyDeleted, total: notes.count, rows)
     let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
     var lines = ["\(NotesStore.recentlyDeleted)\(ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))") — \(notes.count) note\(notes.count == 1 ? "" : "s")"
         + (notes.count > shown.count ? ", showing \(shown.count)" : "")
         + ". Notes removes each for good \(NotesStore.daysInRecentlyDeleted) days after it was deleted; move_note brings one back to a folder."]
-    guard !notes.isEmpty else { return lines.joined(separator: "\n") }
+    guard !notes.isEmpty else { return ToolAnswer(lines.joined(separator: "\n"), data: data) }
     lines.append("id | version | title | deleted | size | description")
-    let calendar = Calendar.current
-    for (note, deleted) in shown {
-        let text = texts[note.id] ?? ""
-        let gone = calendar.date(byAdding: .day, value: NotesStore.daysInRecentlyDeleted, to: deleted) ?? deleted
-        let left = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: gone)).day ?? 0)
-        let summary: String
-        if note.locked {
-            summary = "(locked)"
-        } else if let entry = descriptions[note.id] {
-            summary = (Descriptions.isCurrent(entry, modified: note.modified) ? "" : "(older) ") + entry.text
-        } else {
-            summary = "~ " + Descriptions.extract(text, title: note.title)
-        }
-        lines.append("\(ShortID.of(note.id)) | \(versions[note.id] ?? "?") | \(Output.title(note.title)) | \(Output.day(deleted)) (\(left) day\(left == 1 ? "" : "s") left) | "
-            + (note.locked ? "locked" : Output.size(characters: text.count, attachments: kinds[note.id] ?? [:])) + " | " + summary)
+    for row in rows {
+        guard let (deleted, left) = row.deleted else { continue }
+        lines.append("\(ShortID.of(row.note.id)) | \(row.version) | \(Output.title(row.note.title)) | \(Output.day(deleted)) (\(left) day\(left == 1 ? "" : "s") left) | "
+            + row.size + " | " + row.summary)
     }
-    return lines.joined(separator: "\n")
+    return ToolAnswer(lines.joined(separator: "\n"), data: data)
 }
 
 /// Notes one per line, filtered and sorted. With `undescribed`, only notes without a current
@@ -281,7 +298,7 @@ private func deletedList(
 private func noteList(
     _ store: NotesStore, descriptions: [String: Descriptions.Entry], scope: NotesStore.Scope?, modified: DateWindow, created: DateWindow,
     filter: NoteFilter, order: NoteOrder, group: Bool, undescribed: Bool, limit: Int
-) throws(NotesError) -> String {
+) throws(NotesError) -> ToolAnswer {
     var root: FolderInfo?
     var heading = "All folders"
     var subfolders: String?
@@ -309,30 +326,22 @@ private func noteList(
     let texts = try store.plainTexts(ids)
     let kinds = try store.attachmentKinds(ids)
     let versions = store.versions(shown.map(\.id))
+    let rows = shown.map { note in
+        let text = texts[note.id] ?? ""
+        return ListedNote(note: note, version: versions[note.id] ?? "?", text: text, attachments: kinds[note.id] ?? [:],
+                          description: descriptions[note.id], opening: undescribed ? opening(text, title: note.title) : nil)
+    }
+    let data = ListedNote.list(heading, total: notes.count, rows)
     let ranges = [Output.range(modified, "modified"), Output.range(created, "created")].compactMap { $0 } + filter.parts
     var lines = ["\(heading)\(ranges.isEmpty ? "" : " (\(ranges.joined(separator: ", ")))") — \(notes.count) "
         + (undescribed ? "notes without a current description" : notes.count == 1 ? "note" : "notes") + (notes.count > shown.count ? ", showing \(shown.count)" : "")]
     if let subfolders { lines.append(subfolders) }
-    guard !notes.isEmpty else { return lines.joined(separator: "\n") }
-    var items: [(folder: [String], lines: [String])] = []
-    for note in shown {
-        let text = texts[note.id] ?? ""
-        let date = order.date(of: note)
-        let line = "\(ShortID.of(note.id)) | \(versions[note.id] ?? "?") | \(note.pinned ? "📌 " : "")\(Output.title(note.title)) | \(date) | "
-            + (note.locked ? "locked" : Output.size(characters: text.count, attachments: kinds[note.id] ?? [:]))
-        if undescribed {
-            items.append((note.folderNames, [line, "  " + opening(text, title: note.title)]))
-            continue
-        }
-        let summary: String
-        if note.locked {
-            summary = "(locked)"
-        } else if let entry = descriptions[note.id] {
-            summary = (Descriptions.isCurrent(entry, modified: note.modified) ? "" : "(older) ") + entry.text
-        } else {
-            summary = "~ " + Descriptions.extract(text, title: note.title)
-        }
-        items.append((note.folderNames, [line + " | " + summary]))
+    guard !notes.isEmpty else { return ToolAnswer(lines.joined(separator: "\n"), data: data) }
+    let items = rows.map { row -> (folder: [String], lines: [String]) in
+        let line = "\(ShortID.of(row.note.id)) | \(row.version) | \(row.note.pinned ? "📌 " : "")\(Output.title(row.note.title)) | "
+            + "\(order.date(of: row.note)) | \(row.size)"
+        if let opening = row.opening { return (row.note.folderNames, [line, "  " + opening]) }
+        return (row.note.folderNames, [line + " | " + row.summary])
     }
     lines.append("id | version | title | \(order.column) | size" + (undescribed ? "" : " | description"))
     lines += Output.sections(items, root: root?.names, rootPath: root?.path ?? "", group: group)
@@ -341,7 +350,7 @@ private func noteList(
     } else if items.contains(where: { $0.lines[0].contains(" | ~ ") }) {
         lines.append("~ marks a description taken from the note's first line; (older) one written before the note last changed.")
     }
-    return lines.joined(separator: "\n")
+    return ToolAnswer(lines.joined(separator: "\n"), data: data)
 }
 
 /// About 300 characters after the title, on one line.
@@ -354,13 +363,34 @@ private func opening(_ text: String, title: String) -> String {
     return joined.count > 300 ? String(joined.prefix(299)) + "…" : joined
 }
 
-/// A header (id, version, folder, date, flags), then the Markdown. Attachment ids are shortened;
-/// writes take them back.
+/// A note as read_note gives it: a header (id, version, folder, date, flags), `---`, then the
+/// Markdown; and the same for programs.
 @MainActor
-private func readNote(_ store: NotesStore, _ descriptions: Descriptions, _ id: String, section: String?, outline: Bool) throws(NotesError) -> String {
+struct NoteReading {
+    let note: NoteInfo
+    let version: String
+    /// The line before `---`.
+    let header: String
+    /// What follows `---`: the whole note, one section, or the outline.
+    let markdown: String
+
+    var text: String { header + "\n---\n" + markdown }
+
+    var json: JSON {
+        ["id": .string(note.id), "version": .string(version), "title": .string(note.title), "folder": .string(note.folderPath),
+         "modified": .string(Output.timestamp(note.modified)), "pinned": .bool(note.pinned), "shared": .bool(note.shared),
+         "in_trash": .bool(note.inTrash), "markdown": .string(markdown)]
+    }
+}
+
+/// A note to read: its header, and the whole note, one section, or the outline. Attachment ids are
+/// shortened; writes take them back.
+@MainActor
+private func readNote(_ store: NotesStore, _ descriptions: Descriptions, _ id: String, section: String?, outline: Bool) throws(NotesError) -> NoteReading {
     let note = try store.noteInfo(id)
     let blocks = try store.blocks(id)
-    var header = "id: \(ShortID.of(id)) | version: \(NotesStore.version(of: blocks)) | folder: \(note.folderPath) | modified: \(Output.minute(note.modified))"
+    let version = NotesStore.version(of: blocks)
+    var header = "id: \(ShortID.of(id)) | version: \(version) | folder: \(note.folderPath) | modified: \(Output.minute(note.modified))"
     if note.pinned { header += " | pinned" }
     if note.shared { header += note.sharedReadOnly ? " | shared with you, read-only" : " | shared" }
     if note.inTrash { header += " | in Recently Deleted (move_note restores it)" }
@@ -373,7 +403,7 @@ private func readNote(_ store: NotesStore, _ descriptions: Descriptions, _ id: S
     let shown = blocks.mappingAttachmentIDs(ShortID.of)
     if outline {
         // Sizes are of each section as read_note returns it.
-        var lines = [header, "---"]
+        var lines: [String] = []
         let firstHeading = shown.firstIndex { Sections.level($0).map { $0 > 1 } ?? false } ?? shown.count
         let intro = Markdown.render(Array(shown[..<firstHeading])).count
         if intro > 0 { lines.append("(before the first heading) — \(intro) chars") }
@@ -382,13 +412,13 @@ private func readNote(_ store: NotesStore, _ descriptions: Descriptions, _ id: S
             let range = Sections.range(in: shown, from: index)
             lines.append(String(repeating: "#", count: level) + " \(p.plainText) — \(Markdown.render(Array(shown[range])).count) chars")
         }
-        return lines.joined(separator: "\n")
+        return NoteReading(note: note, version: version, header: header, markdown: lines.joined(separator: "\n"))
     }
     if let section {
         let range = try Sections.find(section, in: shown)
-        return header + " | this section only\n---\n" + Markdown.render(Array(shown[range]))
+        return NoteReading(note: note, version: version, header: header + " | this section only", markdown: Markdown.render(Array(shown[range])))
     }
-    return header + "\n---\n" + Markdown.render(shown)
+    return NoteReading(note: note, version: version, header: header, markdown: Markdown.render(shown))
 }
 
 /// Sections of a note: a heading and everything under it up to the next heading of the same or

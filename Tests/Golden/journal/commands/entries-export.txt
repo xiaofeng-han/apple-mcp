@@ -2,11 +2,12 @@ usage: apple-journal-mcp entries export FOLDER [flags]
 
 Write entries as Markdown files with their photos, videos and recordings into a new folder.
 
-  FOLDER             A new folder's path
-  --after string     2026-10-21: entries dated that day or later
-  --before string    2026-10-21: entries dated before that day
-  --[no-]bookmarked  Only bookmarked entries
-  --journal string   Only this journal (name or id)
-  --json json|-      Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help         Show this help
+  FOLDER              A new folder's path
+  --after string      2026-10-21: entries dated that day or later
+  --before string     2026-10-21: entries dated before that day
+  --[no-]bookmarked   Only bookmarked entries
+  --journal string    Only this journal (name or id)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

@@ -16,6 +16,7 @@ Find reminders across lists, open ones first by due date; QUERY matches the titl
   --smart-list string       Only what this smart list shows (name or id), as Reminders computes it
   --tag string              Only this tag (without #)
   --[no-]urgent             Only urgent
+  --format text|json        Print the answer as text (default) or JSON
   --json json|-             Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                Show this help
 

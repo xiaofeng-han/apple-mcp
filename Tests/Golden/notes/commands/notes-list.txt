@@ -14,6 +14,7 @@ List notes, newest first, one line each (id | version | title | date | size | de
                                     Newest first by modified (default), created or opened (last opened in Notes), or by title
   --[no-]undescribed                Only notes without a current description
   --limit int                       Notes listed, 1 to 500 (default 30, 50 with undescribed)
+  --format text|json                Print the answer as text (default) or JSON
   --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                        Show this help
 

@@ -2,6 +2,7 @@ usage: apple-reminders-mcp tags list
 
 Every tag in use, with how many open and how many reminders in all have it.
 
-  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help     Show this help
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

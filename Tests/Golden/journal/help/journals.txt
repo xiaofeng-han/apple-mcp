@@ -7,5 +7,5 @@ apple-journal-mcp journals
 └── delete JOURNAL              Delete a journal; its entries stay in All Entries, move (--move-entries-to), or go too (--delete-entries --expected-entries N; ask the user first)
         --move-entries-to string --[no-]delete-entries --expected-entries int
 
-Every journals command also takes --json OBJECT (or --json - for stdin) and --help.
+Every journals command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off; a flag ending in … repeats.

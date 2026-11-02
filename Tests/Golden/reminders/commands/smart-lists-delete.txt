@@ -2,7 +2,8 @@ usage: apple-reminders-mcp smart-lists delete SMART_LIST
 
 Delete a smart list; no reminders are deleted.
 
-  SMART_LIST     Smart list name or id
-  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help     Show this help
+  SMART_LIST          Smart list name or id
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

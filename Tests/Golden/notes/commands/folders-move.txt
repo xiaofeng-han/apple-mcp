@@ -5,6 +5,7 @@ Move a folder into another, or to the top level with "". A shared folder needs -
   FOLDER               Path or id
   INTO                 The folder to put it in; "" for the top level
   --[no-]allow-shared  The user agreed to renaming or moving a shared folder
+  --format text|json   Print the answer as text (default) or JSON
   --json json|-        Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help           Show this help
 

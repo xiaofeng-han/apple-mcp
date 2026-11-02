@@ -9,10 +9,14 @@ public struct ComponentContext: Sendable {
     /// <PREFIX>_WRITE_GUARD, unless unset or empty: while it is set (development and checks), writes
     /// are limited to what it names. Each app reads it its own way.
     public let writeGuard: String?
+    /// <PREFIX>_WRITE_FOLDERS, unless unset or empty: folder paths, as the app lists them, outside
+    /// which nothing may be changed. Only apps with folders read it (Notes).
+    public let writeFolders: [String]?
 
-    public init(version: String, writeGuard: String?) {
+    public init(version: String, writeGuard: String?, writeFolders: [String]? = nil) {
         self.version = version
         self.writeGuard = writeGuard
+        self.writeFolders = writeFolders
     }
 }
 
@@ -47,11 +51,17 @@ public protocol Component: AnyObject, Sendable {
     func selfCheck() async -> [String]
     /// How `--self-check` shows the write guard, when one is set.
     var writeGuardDescription: String? { get }
+    /// How `--self-check` shows the folders writes are limited to, when they are (see
+    /// ComponentContext.writeFolders); nil by default.
+    var writeFoldersDescription: String? { get }
     /// The General tab above the language: what the app may access, and its settings.
     func generalSection(_ panel: PanelState) -> AnyView
 }
 
 extension Component {
+    /// Apps without folders have no folder guard.
+    public var writeFoldersDescription: String? { nil }
+
     /// The skill for a copy of the app (`agents`, `skill`, the AI Assistants tab), on any thread.
     var skillText: @Sendable (Installation) -> String {
         let tools = self.tools

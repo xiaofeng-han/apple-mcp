@@ -5,6 +5,7 @@ Delete an empty folder, or with --recursive --expected-notes N everything in it 
   FOLDER                Path or id
   --[no-]recursive      Also everything in it
   --expected-notes int  With --recursive: the notes you saw in it and its folders
+  --format text|json    Print the answer as text (default) or JSON
   --json json|-         Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help            Show this help
 

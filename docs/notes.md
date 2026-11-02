@@ -21,9 +21,9 @@ Requires macOS 26 or later on Apple silicon; developed and tested on macOS 27.0.
 | `read_note` | A note as Markdown with its version: by id, several ids, or exact title; one section, or an outline with each section's size. The header says whether it is pinned or shared, and which notes link to it |
 | `read_attachment` | An attachment from a `![…](attachment:id)` placeholder: images (scaled), scan pages, drawings, PDFs (text and file), audio (recordings with Notes' transcript and summary), a frame of a video, tables, links and files, with any text Notes recognized in it |
 | `describe_note` | Saves one-line descriptions that `overview` shows, many notes per call |
-| `create_note` | A new note from Markdown, in any folder, attaching files and link cards; or a copy of a note with everything in it (`copy_of`) |
-| `edit_note` | Several changes in one call: exact replacements, Markdown inserted at the start, the end or under a heading (list items join that section's list), or a whole rewrite; ticking or unticking checklist items by their text, ticking or unticking them all, moving ticked items to the bottom or deleting them; pinning |
-| `move_note` | Moves a note, or several, to another folder of its account, or back out of Recently Deleted |
+| `create_note` | A new note from Markdown, in any folder, attaching files and link cards; or a copy of a note with everything in it (`copy_of`). `wait: false` returns without waiting for iCloud |
+| `edit_note` | Several changes in one call: exact replacements, what is under a heading replaced (`replace_section`) or what is between the title and a heading (`replace_before`), Markdown inserted at the start, the end or under a heading (list items join that section's list), or a whole rewrite; ticking or unticking checklist items by their text, ticking or unticking them all, moving ticked items to the bottom or deleting them; pinning. `wait: false` returns without waiting for iCloud |
+| `move_note` | Moves a note, or several, to another folder of its account, or back out of Recently Deleted. `wait: false` returns without waiting for iCloud |
 | `delete_note` | Moves a note, or several, to Recently Deleted |
 | `manage_folder` | Creates, renames, moves (into another folder, or to the top level) or deletes a folder (an empty one, or with `recursive` and `expected_notes` everything in it); creates, renames or deletes a smart folder of the notes with some tags; exports a folder and its folders as Markdown with the original attachments, to a new folder or a `.zip` |
 | `manage_tag` | Renames a tag in every note that has it, or takes it out of every note (with `expected_notes`) |
@@ -52,11 +52,14 @@ One note paragraph is one Markdown line, so a model can change a line without an
 ### Rules
 
 - Every change to a note (`edit_note`, `move_note`, `delete_note`) needs the `version` that `read_note`, `overview` or `search` gave, a hash of the note as Markdown. If the note changed since it was read (on another device, or by another agent), the change is refused instead of overwriting that change; each write answers with the new version. Before every edit the note's stored body is saved under `~/Library/Application Support/AppleNotesMCP/backups/<note id>/` (the last 20).
+- `replace_section` and `replace_before` take a heading as `read_note`'s `section` does (its text, ignoring case and a leading `#`; only one heading may read so) and Markdown, which may be empty. `replace_section` keeps the heading and replaces everything under it up to the next heading of the same or a higher level; `replace_before` keeps the title and replaces everything between it and the heading. Either way the blank lines before the next heading stay. The title is no heading here (`rewrite` replaces the whole note), and neither goes with `rewrite`. In one call they apply after `replace` and before `insert` and the checklist changes.
 - Attachments stay where they are: an edit that would drop a placeholder, or add one that is not in the note, is refused. Tables, tags, links to notes and divider lines are the exception: they can be added and removed, like text. New files and link cards come from `![name](/path)` and `![](https://…)`; a file is taken only from the home folder (not `~/Library` or a hidden folder), a temporary folder or an external drive, because this app can read every file.
 - A smart folder holds no notes of its own: `overview` and `search` take it to list or search the notes its rule picks, and no note can be moved into it.
 - Locked notes cannot be read or changed. Shared notes can be edited (the edits merge with the other people's), but are not deleted here, and a move into or out of a shared folder needs `allow_shared` (after asking the user).
 - `delete_note` and a recursive folder delete only move notes to Recently Deleted, and refuse a note already there (deleting it again would erase it for good). A recursive delete needs `expected_notes`, the number of notes the caller saw, and checks everything before it changes anything.
 - An export goes only to a path that does not exist yet, outside `~/Library`.
+- `create_note`, `edit_note` and `move_note` wait, after each change, until iCloud has it (up to about 20 seconds), and put right what only waiting shows: a table that did not upload is made again, a new tag Notes dropped is brought back. `wait: false` (`--no-wait`) is for batches, such as a script making hundreds of writes in a row: the change is saved and its upload asked for, and the answer comes at once, saying `upload requested, not waited for`. iCloud still syncs the notes, only without confirming each one.
+- `APPLE_NOTES_MCP_WRITE_FOLDERS=KB/Wiki,KB/Inbox`, set where the server or command runs, limits every change to those folders (paths as `overview` shows them, ignoring case) and the folders inside them: a note outside them is not edited, created, copied, moved or deleted, a tag is renamed or taken out only when every note with it is inside, folders are made, renamed, moved and deleted only inside them, and smart folders not at all. Reading and exporting are not limited. It goes with `APPLE_NOTES_MCP_WRITE_GUARD` (a title prefix, for development); with both set, a change has to pass both. `--self-check` prints the folders.
 - Any tool can be turned off for all AI assistants in the settings window (see [Choosing the tools](#choosing-the-tools)).
 
 ## Command line
@@ -91,16 +94,17 @@ apple-notes-mcp
 │   ├── read [ID]               Print notes as Markdown, each with the version that notes edit takes
 │   │       --id string… --title string --section string --[no-]outline
 │   ├── create MARKDOWN         Create a note from Markdown; its first line is the title
-│   │       --folder string
+│   │       --folder string --[no-]wait
 │   ├── copy ID                 Copy a note with everything in it, into its own folder or --folder
-│   │       --folder string
-│   ├── edit ID --version string  Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned
-│   │       --replace json --insert string --at string --rewrite string --check string… --uncheck string…
-│   │       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned
+│   │       --folder string --[no-]wait
+│   ├── edit ID --version string  Change a note in one go: --replace pairs, --replace-section, --insert Markdown, or --rewrite the whole note; --[no-]pinned
+│   │       --replace json --replace-section json --replace-before json --insert string --at string
+│   │       --rewrite string --check string… --uncheck string…
+│   │       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned --[no-]wait
 │   ├── delete [ID]             Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them)
 │   │       --notes json --version string
 │   ├── move [ID] FOLDER        Move a note to another folder, or back from Recently Deleted
-│   │       --[no-]allow-shared --notes json --version string
+│   │       --[no-]allow-shared --notes json --version string --[no-]wait
 │   └── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
 ├── tags
 │   ├── rename TAG NAME         Rename a tag in every note that has it
@@ -131,10 +135,23 @@ apple-notes-mcp
 - **Fields as JSON:** `--json '{…}'` gives fields by their MCP names, and `--json -` reads them from stdin. Flags override them.
 - **Any tool:** `call TOOL '{…}'` runs a tool on its MCP arguments.
 - **Help:** `--help` after a command lists its flags and what each one takes.
+- **Answers as JSON:** `--format json` (or `--format=json`), on any command and on `call`, prints one JSON object instead of the text, for scripts.
 
 A command prints exactly what the tool answers, which is text, often Markdown.
 - **Exit status 1:** the request failed (not found, changed since it was read, not allowed). The reason is on stderr.
 - **Exit status 2:** the command or a flag was wrong.
+
+With `--format json`, ids are whole and dates are ISO 8601 with seconds and the offset (`2026-10-27T09:05:00-07:00`). A failure is `{"error": "…"}` on stderr, exit status 1; a wrong command or flag is still told as text, exit status 2. What each command prints:
+- `notes list`: `{"folder", "total", "showing", "notes": [{"id", "version", "title", "folder", "modified", "created", "pinned", "locked", "chars", "description", "description_current"}]}`; `description` is the saved one or `null`, and `description_current` says whether the note is unchanged since. With `--undescribed` each note also has `opening`; in Recently Deleted, `deleted` and `days_left`.
+- `folders list`: `{"folders": [{"id", "name", "path", "notes", "shared"}], "smart_folders": [{"id", "name", "rule"}]}`, every folder whatever `--depth`.
+- `notes search`: `{"query", "total", "showing", "notes": [{"id", "version", "title", "folder", "modified", "snippet"}]}`.
+- `notes read`: `{"notes": [{"id", "version", "title", "folder", "modified", "pinned", "shared", "in_trash", "markdown"}]}`, `markdown` being what the text prints after `---` (the note, the section or the outline). Of several ids, one that cannot be read is `{"id", "error"}`.
+- `notes create`, `notes copy`, `notes edit`: `{"id", "title", "version", "uploaded", "waited", "mismatch", "tables_rebuilt"}`.
+- `notes move`: `{"id", "title", "version", "from", "to", "restored", "uploaded", "waited"}`; with `--notes`, `{"moved": [{"id", "title", "from", "to", "restored"}], "failed", "not_uploaded", "waited"}`.
+- `notes delete`: `{"deleted": [{"id", "title"}], "failed"}`; `notes describe`: `{"saved": [{"id", "title"}], "failed"}`.
+- The others: `{"text": "…"}`, the text the command prints otherwise.
+
+MCP answers stay text: `--format` is for the command line only.
 
 `notes list` without filters lists the newest notes; `folders list` gives the folder tree, which `overview` gives without arguments. `attachments read` prints what can be read from an attachment, and saves its images, audio and files to `--output-dir`, or to the temporary folder, printing where. Only the first word decides what the program does, so you can search for `setup`. Put `--` before a word that starts with `-`.
 
@@ -148,7 +165,7 @@ apple-notes-mcp notes create - --folder Projects <<'EOF'
 EOF
 ```
 
-For editors and scripts, `apple-notes-mcp --list-json [QUERY]` prints one JSON object per line, with the full `id`, `title`, `folder` and `modified`: every note that is not locked, newest first, or with a query the search results, best match first (at most 100), each with a `snippet`. The lists above cut titles and shorten ids; these values are whole.
+For editors and scripts, `apple-notes-mcp --list-json [QUERY]` prints one JSON object per line, with the full `id`, `title`, `folder` and `modified`, the `version` that `read_note` gives (`?` for a note that cannot be read), and the `description` saved with `describe_note`, whether or not the note changed since (left out when none is saved): every note that is not locked, newest first, or with a query the search results, best match first (at most 100), each with a `snippet`. The lists above cut titles and shorten ids; these values are whole. For the versions it reads every note it lists, so it is a little slower than before 0.5.0. A script can keep its own key for a note in the description with `describe_note`, for example `notion:<page id>`: descriptions live in this app's own file and never touch the note.
 
 ## Install
 
@@ -356,8 +373,9 @@ A build in `dist/` is signed like a release, so it holds the permissions you gav
 - the Markdown conversion, including that every kind of line reads back the same;
 - the planning of edits, and the stored-body decoder;
 - the agent setup: the JSON and TOML editing that keeps the rest of a file as it was, how each agent's settings are read and written, and where each agent's skill goes;
-- how command-line flags are read from the tools' input schemas;
-- `--list-json`: which notes it lists and in what order, what it asks the search for, one JSON object per line, and its exit status;
+- how command-line flags are read from the tools' input schemas, and `--format`;
+- `--list-json`: which notes it lists and in what order, what it asks the search for, their versions and descriptions, one JSON object per line, and its exit status;
+- `replace_section` and `replace_before`, and which folders the folder guard lets through;
 - the choice of tools: the rule for tools the file doesn't name, saving, reading and watching the file, and what the server lists, refuses and announces.
 
 ## Compared with other servers

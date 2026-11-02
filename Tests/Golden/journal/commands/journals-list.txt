@@ -2,6 +2,7 @@ usage: apple-journal-mcp journals list
 
 The journals with their entries, colors and icons, the counts, and Journal's insights (streaks, days journaled).
 
-  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help     Show this help
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

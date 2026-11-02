@@ -29,16 +29,21 @@ public enum Content: Sendable {
 
 public struct ToolAnswer: Sendable {
     public var content: [Content]
+    /// The answer in a form for programs, which the command line prints with `--format json`; nil
+    /// when the tool gives none. MCP answers leave it out: models read the text.
+    public var data: JSON?
     /// The work failed in a way the model can act on (not found, not allowed, conflict).
     public var failed: Bool
 
-    public init(_ text: String, failed: Bool = false) {
+    public init(_ text: String, data: JSON? = nil, failed: Bool = false) {
         content = [.text(text)]
+        self.data = data
         self.failed = failed
     }
 
-    public init(content: [Content], failed: Bool = false) {
+    public init(content: [Content], data: JSON? = nil, failed: Bool = false) {
         self.content = content
+        self.data = data
         self.failed = failed
     }
 }

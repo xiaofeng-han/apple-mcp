@@ -73,6 +73,16 @@ struct Input {
         }
     }
 
+    /// An object with only the given keys.
+    func object(_ key: String, keys: Set<String>) throws -> Input? {
+        guard let value = value(key) else { return nil }
+        guard let fields = value.object else { throw BadInput("\(key) must be an object") }
+        if let unknown = fields.keys.sorted().first(where: { !keys.contains($0) }) {
+            throw BadInput("\(key).\(unknown) is not known; use \(keys.sorted().joined(separator: ", "))")
+        }
+        return Input(fields)
+    }
+
     /// `<field>_after` (inclusive) and `<field>_before` (exclusive) as local days, YYYY-MM-DD.
     func window(_ field: String) throws -> DateWindow {
         func day(_ key: String) throws -> Date? {

@@ -22,5 +22,5 @@ apple-reminders-mcp reminders
 └── image REMINDER_ID IMAGE_ID  Save an image on a reminder (ids from get) and print where; needs Full Disk Access
         --output string
 
-Every reminders command also takes --json OBJECT (or --json - for stdin) and --help.
+Every reminders command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

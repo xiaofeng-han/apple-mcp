@@ -4,6 +4,7 @@ Take a tag out of every note that has it (ask the user first); the notes stay. -
 
   TAG                   The tag, # optional
   --expected-notes int  The number of notes with the tag (required)
+  --format text|json    Print the answer as text (default) or JSON
   --json json|-         Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help            Show this help
 

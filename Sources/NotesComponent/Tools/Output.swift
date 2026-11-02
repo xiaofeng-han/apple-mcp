@@ -54,6 +54,20 @@ enum Output {
         return formatter.string(from: date)
     }
 
+    /// A date in the answers' JSON: ISO 8601 with seconds and the local offset,
+    /// 2026-10-27T09:05:00-07:00.
+    static func timestamp(_ date: Date) -> String { timestampFormat.string(from: date) }
+
+    private static let timestampFormat: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    /// Text in the answers' JSON, or null.
+    static func json(_ text: String?) -> JSON { text.map(JSON.string) ?? .null }
+
     /// Titles are cut in lists; the id names the note anyway.
     static func title(_ title: String, limit: Int = 40) -> String {
         title.count > limit ? String(title.prefix(limit - 1)) + "…" : title

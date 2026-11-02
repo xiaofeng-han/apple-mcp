@@ -4,6 +4,7 @@ Delete a list; one with reminders needs --confirm-delete-reminders (ask the user
 
   LIST                             List name or id
   --[no-]confirm-delete-reminders  Delete a list that still has reminders
+  --format text|json               Print the answer as text (default) or JSON
   --json json|-                    Fields as a JSON object (- reads it from stdin); flags override them
   -h, --help                       Show this help
 

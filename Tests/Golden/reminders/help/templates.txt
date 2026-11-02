@@ -5,5 +5,5 @@ apple-reminders-mcp templates
 │       --list string
 └── delete TEMPLATE             Delete a template
 
-Every templates command also takes --json OBJECT (or --json - for stdin) and --help.
+Every templates command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
 Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

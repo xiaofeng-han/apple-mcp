@@ -2,7 +2,8 @@ usage: apple-journal-mcp entries restore ID
 
 Bring an entry back from Recently Deleted (entries list --deleted lists them).
 
-  ID             Entry id
-  --json json|-  Fields as a JSON object (- reads it from stdin); flags override them
-  -h, --help     Show this help
+  ID                  Entry id
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
 

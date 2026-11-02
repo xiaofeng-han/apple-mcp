@@ -21,9 +21,9 @@
 | `read_note` | 以 Markdown 读一条笔记，附带版本号：按 id、多个 id 或完整标题；可以只读一节，或先看大纲（各节大小）。开头一行会写明是否置顶、共享，以及哪些笔记链接到它 |
 | `read_attachment` | 打开 `![…](attachment:id)` 占位符对应的附件：图片（缩放后）、扫描件的各页、手绘、PDF（文字和文件）、音频（录音附带「备忘录」的文字稿和摘要）、视频的一帧、表格、链接和文件，以及「备忘录」识别出的文字 |
 | `describe_note` | 保存一句话描述（`overview` 会显示），一次可写很多条 |
-| `create_note` | 用 Markdown 新建笔记，可放进任一文件夹，可附文件和链接卡片；或连同全部内容复制一条笔记（`copy_of`） |
-| `edit_note` | 一次调用里做多处修改：精确替换、在开头/末尾/某个小标题下插入 Markdown（列表项会并入该节的列表），或整篇重写；按文字勾选或取消清单项、全部勾选或取消、已勾选的移到底部或删掉；置顶 |
-| `move_note` | 把一条或多条笔记移到同一账户的其他文件夹，或从「最近删除」移回来 |
+| `create_note` | 用 Markdown 新建笔记，可放进任一文件夹，可附文件和链接卡片；或连同全部内容复制一条笔记（`copy_of`）。`wait: false` 不等 iCloud 就返回 |
+| `edit_note` | 一次调用里做多处修改：精确替换、替换某个小标题下的内容（`replace_section`）或标题和某个小标题之间的内容（`replace_before`）、在开头/末尾/某个小标题下插入 Markdown（列表项会并入该节的列表），或整篇重写；按文字勾选或取消清单项、全部勾选或取消、已勾选的移到底部或删掉；置顶。`wait: false` 不等 iCloud 就返回 |
+| `move_note` | 把一条或多条笔记移到同一账户的其他文件夹，或从「最近删除」移回来。`wait: false` 不等 iCloud 就返回 |
 | `delete_note` | 把一条或多条笔记移到「最近删除」 |
 | `manage_folder` | 新建、改名、移动（放进另一个文件夹或移到最上层）、删除文件夹（空文件夹；或加 `recursive` 和 `expected_notes` 连同其中所有内容）；按标签新建、改名、删除智能文件夹；把文件夹及其子文件夹导出成 Markdown 加原始附件，存到新文件夹或 `.zip` |
 | `manage_tag` | 在所有用到某个标签的笔记里给它改名，或把它从所有笔记里去掉（要传 `expected_notes`） |
@@ -52,11 +52,14 @@
 ### 规则
 
 - 对笔记的每一次修改（`edit_note`、`move_note`、`delete_note`）都要带上 `read_note`、`overview` 或 `search` 给的 `version`（笔记 Markdown 的哈希）。如果读过之后笔记又被改了（在别的设备上、或被别的 agent），修改会被拒绝，不会覆盖那次修改；每次写入都会返回新的版本号。每次编辑前，笔记存储的正文会备份到 `~/Library/Application Support/AppleNotesMCP/backups/<笔记 id>/`（保留最近 20 份）。
+- `replace_section` 和 `replace_before` 接受一个小标题（和 `read_note` 的 `section` 一样按文字匹配，不分大小写，开头的 `#` 可有可无，且只能有一个小标题对得上）和一段 Markdown（可以为空）。`replace_section` 保留小标题，把它下面直到下一个同级或更高级小标题之前的内容全部换掉；`replace_before` 保留标题，把标题和这个小标题之间的内容全部换掉。两种都会保留下一个小标题前面的空行。标题在这里不算小标题（整篇替换用 `rewrite`），这两个字段也都不能和 `rewrite` 一起用。同一次调用里，它们在 `replace` 之后、`insert` 和清单修改之前执行。
 - 附件留在原处：会丢掉占位符、或加入笔记里没有的附件的修改都会被拒绝。表格、标签、笔记链接和分割线例外：可以像文字一样新增和删除。新文件和链接卡片用 `![名字](/路径)` 和 `![](https://…)` 加入；文件只从家目录（不含 `~/Library` 和隐藏文件夹）、临时文件夹或外接磁盘里取，因为本 App 能读所有文件。
 - 智能文件夹里没有自己的笔记：`overview` 和 `search` 可以用它列出或搜索它的规则选中的笔记，但不能把笔记移进去。
 - 加锁的笔记不能读也不能改。共享的笔记可以编辑（与其他人的修改合并），但这里不删除；移进或移出共享文件夹要 `allow_shared`（先问用户）。
 - `delete_note` 和递归删除文件夹只把笔记移到「最近删除」；已经在那里的笔记会被拒绝（再删一次就永久删除了）。递归删除要传 `expected_notes`（调用方看到的笔记数），并且在动手之前把所有条件检查完。
 - 导出只能写到还不存在的路径，且不能在 `~/Library` 里。
+- `create_note`、`edit_note` 和 `move_note` 每次修改后都会等到 iCloud 收到为止（最多约 20 秒），并修好只有等待才能发现的问题：没上传的表格会重建，被「备忘录」丢掉的新标签会恢复。`wait: false`（`--no-wait`）用于批量操作，比如脚本连续写几百次：改动保存好、请求上传后立刻返回，回答里写的是 `upload requested, not waited for`。iCloud 照样会同步这些笔记，只是不再逐条确认。
+- 在运行服务器或命令的环境里设置 `APPLE_NOTES_MCP_WRITE_FOLDERS=KB/Wiki,KB/Inbox`，所有修改就只限于这些文件夹（路径写法和 `overview` 显示的一样，不分大小写）及其中的文件夹：在它们之外的笔记不会被编辑、新建、复制、移动或删除；标签只有在带它的每条笔记都在里面时才能改名或去掉；文件夹只能在它们里面新建、改名、移动和删除；智能文件夹完全不能改。读取和导出不受限制。它和 `APPLE_NOTES_MCP_WRITE_GUARD`（按标题前缀，开发时用）可以同时设置，这时一次修改要两者都通过。`--self-check` 会打印这些文件夹。
 - 任何工具都可以在设置窗口里对所有 AI 助手关掉（见[选择开放的工具](#选择开放的工具)）。
 
 ## 命令行
@@ -91,16 +94,17 @@ apple-notes-mcp
 │   ├── read [ID]               Print notes as Markdown, each with the version that notes edit takes
 │   │       --id string… --title string --section string --[no-]outline
 │   ├── create MARKDOWN         Create a note from Markdown; its first line is the title
-│   │       --folder string
+│   │       --folder string --[no-]wait
 │   ├── copy ID                 Copy a note with everything in it, into its own folder or --folder
-│   │       --folder string
-│   ├── edit ID --version string  Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned
-│   │       --replace json --insert string --at string --rewrite string --check string… --uncheck string…
-│   │       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned
+│   │       --folder string --[no-]wait
+│   ├── edit ID --version string  Change a note in one go: --replace pairs, --replace-section, --insert Markdown, or --rewrite the whole note; --[no-]pinned
+│   │       --replace json --replace-section json --replace-before json --insert string --at string
+│   │       --rewrite string --check string… --uncheck string…
+│   │       --checklist check_all|uncheck_all|move_checked_down|delete_checked --[no-]pinned --[no-]wait
 │   ├── delete [ID]             Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them)
 │   │       --notes json --version string
 │   ├── move [ID] FOLDER        Move a note to another folder, or back from Recently Deleted
-│   │       --[no-]allow-shared --notes json --version string
+│   │       --[no-]allow-shared --notes json --version string --[no-]wait
 │   └── describe --descriptions json  Save one-line descriptions of notes, which notes list shows; many notes at once
 ├── tags
 │   ├── rename TAG NAME         Rename a tag in every note that has it
@@ -131,10 +135,23 @@ apple-notes-mcp
 - **用 JSON 传字段：**`--json '{…}'` 按 MCP 的字段名传参，`--json -` 从标准输入读；同时给的参数会覆盖它。
 - **任意工具：**`call TOOL '{…}'` 用 MCP 参数直接调用任意工具。
 - **帮助：**命令后面加 `--help`，列出它的参数和各自的写法。
+- **以 JSON 输出回答：**任何命令和 `call` 加上 `--format json`（或 `--format=json`），就打印一个 JSON 对象而不是文本，给脚本用。
 
 命令的输出就是工具的回答，是文本，常常是 Markdown。
 - **退出码 1：**请求失败（找不到、读取后被改过、不允许），原因写在 stderr。
 - **退出码 2：**命令或参数写错了。
+
+用 `--format json` 时，id 都是完整的，日期是带秒和时区偏移的 ISO 8601（`2026-10-27T09:05:00-07:00`）。失败时在 stderr 打印 `{"error": "…"}`，退出码 1；命令或参数写错仍以文本说明，退出码 2。各命令打印的内容：
+- `notes list`：`{"folder", "total", "showing", "notes": [{"id", "version", "title", "folder", "modified", "created", "pinned", "locked", "chars", "description", "description_current"}]}`；`description` 是保存的简介，没有时为 `null`，`description_current` 表示笔记在写简介之后有没有改过。加 `--undescribed` 时每条还有 `opening`；在「最近删除」里还有 `deleted` 和 `days_left`。
+- `folders list`：`{"folders": [{"id", "name", "path", "notes", "shared"}], "smart_folders": [{"id", "name", "rule"}]}`，不管 `--depth` 都列出所有文件夹。
+- `notes search`：`{"query", "total", "showing", "notes": [{"id", "version", "title", "folder", "modified", "snippet"}]}`。
+- `notes read`：`{"notes": [{"id", "version", "title", "folder", "modified", "pinned", "shared", "in_trash", "markdown"}]}`，`markdown` 就是文本输出里 `---` 之后的内容（整篇、某一节或大纲）。读多个 id 时，读不了的那条是 `{"id", "error"}`。
+- `notes create`、`notes copy`、`notes edit`：`{"id", "title", "version", "uploaded", "waited", "mismatch", "tables_rebuilt"}`。
+- `notes move`：`{"id", "title", "version", "from", "to", "restored", "uploaded", "waited"}`；用 `--notes` 时是 `{"moved": [{"id", "title", "from", "to", "restored"}], "failed", "not_uploaded", "waited"}`。
+- `notes delete`：`{"deleted": [{"id", "title"}], "failed"}`；`notes describe`：`{"saved": [{"id", "title"}], "failed"}`。
+- 其他命令：`{"text": "…"}`，内容就是不加这个参数时打印的文本。
+
+MCP 的回答仍然是文本：`--format` 只用于命令行。
 
 `notes list` 不加筛选时列出最新的笔记；文件夹树用 `folders list`（也就是不带参数的 `overview`）。`attachments read` 打印附件里能读出的文字，把其中的图片、音频和文件存到 `--output-dir`（默认存进临时文件夹），并打印位置。只有第一个词决定做什么，所以可以搜索 `setup`。以 `-` 开头的词前面加 `--`。
 
@@ -148,7 +165,7 @@ apple-notes-mcp notes create - --folder Projects <<'EOF'
 EOF
 ```
 
-给编辑器和脚本用的 `apple-notes-mcp --list-json [查询]` 每行打印一个 JSON 对象，含完整的 `id`、`title`、`folder` 和 `modified`：不带查询时是所有没上锁的笔记，最新的在前；带查询时是搜索结果，最匹配的在前（最多 100 条），每条多一个 `snippet`。上面的列表会截短标题和 id，这里给的都是完整的值。
+给编辑器和脚本用的 `apple-notes-mcp --list-json [查询]` 每行打印一个 JSON 对象，含完整的 `id`、`title`、`folder` 和 `modified`，`read_note` 给的 `version`（读不了的笔记是 `?`），以及用 `describe_note` 保存的 `description`（不管笔记之后改没改过；没保存时不出现这个字段）：不带查询时是所有没上锁的笔记，最新的在前；带查询时是搜索结果，最匹配的在前（最多 100 条），每条多一个 `snippet`。上面的列表会截短标题和 id，这里给的都是完整的值。为了给出版本号，它会读一遍列出的每条笔记，所以比 0.5.0 之前稍慢。脚本可以用 `describe_note` 把自己给笔记的标识存进简介，比如 `notion:<页面 id>`：简介存在本 App 自己的文件里，不会碰到笔记本身。
 
 ## 安装
 
@@ -356,8 +373,9 @@ apple-notes-mcp --check-markdown                                # 每条笔记�
 - Markdown 转换，包括每种行都能原样读回；
 - 修改计划，以及存储正文的解码；
 - agent 配置：保持文件其余部分原样的 JSON 和 TOML 编辑、各 agent 设置的读写、各 agent 技能的位置；
-- 命令行参数如何从工具的输入 schema 读出；
-- `--list-json`：列出哪些笔记、按什么顺序、向搜索要什么、每行一个 JSON 对象，以及退出码；
+- 命令行参数如何从工具的输入 schema 读出，以及 `--format`；
+- `--list-json`：列出哪些笔记、按什么顺序、向搜索要什么、它们的版本号和简介、每行一个 JSON 对象，以及退出码；
+- `replace_section` 和 `replace_before`，以及文件夹写保护放行哪些文件夹；
 - 工具选择：文件里没写到的工具按什么规则处理、文件的读写与监视，以及服务器列出、拒绝和通知了什么。
 
 ## 和同类项目的比较

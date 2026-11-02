@@ -24,7 +24,7 @@ EOF
 
 - Find notes with `notes list` (newest first; `--folder`, `--tag`, `--only pinned|shared|locked|quick-notes|math-notes|calls|checklists|unchecked|tagged|untagged|mentions`, `--attachment KIND`, dates, `--sort opened`) or `notes search QUERY` (it also searches text in images, handwriting and recording transcripts), then `notes read ID`. Each line and each note comes with its `version`. `folders list` shows the folders, smart folders and tags.
 - Every change needs `--version` from `notes read`, `list` or `search`: `notes edit`, `notes move`, `notes delete`. A note changed elsewhere since then is refused; read it again. Each change prints the new version.
-- Make all changes to one note in a single `notes edit ID --version V` call: `--replace '[{"old":"…","new":"…"}]'` takes exact Markdown from `notes read`, `--insert` adds Markdown (`--at` start, end or a heading's text), `--rewrite` replaces the whole note, `--check TEXT` / `--uncheck TEXT` tick checklist items, `--checklist check_all|uncheck_all|move_checked_down|delete_checked`, `--pinned` / `--no-pinned`.
+- Make all changes to one note in a single `notes edit ID --version V` call: `--replace '[{"old":"…","new":"…"}]'` takes exact Markdown from `notes read`, `--replace-section '{"heading":"…","markdown":"…"}'` replaces what is under a heading (the heading stays), `--replace-before '{"heading":"…","markdown":"…"}'` replaces everything between the title and a heading, `--insert` adds Markdown (`--at` start, end or a heading's text), `--rewrite` replaces the whole note, `--check TEXT` / `--uncheck TEXT` tick checklist items, `--checklist check_all|uncheck_all|move_checked_down|delete_checked`, `--pinned` / `--no-pinned`.
 - Each paragraph is one Markdown line: `# title`, `## heading`, `### subheading`, `*` and `-` lists, `1.` numbered, `- [ ]` / `- [x]` checkboxes, `>` quote, two spaces per indent level, ``` monospaced, `**bold**`, `*italic*`, `~~strike~~`, `<u>underline</u>`, `<mark>highlight</mark>` (`<mark class="pink">` and orange, mint, blue), `[link](url)`, `| tables |`, `#tag`, `[text](note:ID)` a link to a note, `---` a divider. The first line of a new note is its title.
 - Keep `![…](attachment:…)` placeholders where they are. `![name](/path/to/file)` attaches a file and `![](https://…)` adds a link card. `attachments read ID` prints what can be read from one (with a recording's transcript) and saves its images, audio and files, printing where.
 - `-` as the Markdown of `notes create`, or as `--insert` or `--rewrite`, reads it from stdin: use a quoted heredoc for notes of several lines.
@@ -73,12 +73,16 @@ EOF
 
 - `notes create MARKDOWN`: Create a note from Markdown; its first line is the title. ![name](/path/to/file) in the Markdown attaches a file, ![](https://…) adds a link card.
   - `--folder string` Path or id; default Notes, or for a copy the note's own folder
+  - `--[no-]wait` Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
 
 - `notes copy ID`: Copy a note with everything in it, into its own folder or --folder.
   - `--folder string` Path or id; default Notes, or for a copy the note's own folder
+  - `--[no-]wait` Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
 
-- `notes edit ID --version string`: Change a note in one go: --replace pairs, --insert Markdown, or --rewrite the whole note; --[no-]pinned. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from notes read, applied in order. --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the rest keeps all its formatting.
+- `notes edit ID --version string`: Change a note in one go: --replace pairs, --replace-section, --insert Markdown, or --rewrite the whole note; --[no-]pinned. --version is the one notes read, list or search gave; a note changed elsewhere since then is refused, so read it again. --replace takes exact Markdown from notes read, applied in order. --replace-section '{"heading":"…","markdown":"…"}' replaces what is under a heading, which stays; --replace-before replaces everything between the title and the heading. --insert adds at the end, the start, or under a heading (--at). Only what changes is written; the rest keeps all its formatting. --no-wait returns once the change is saved and its upload asked for.
   - `--replace json` A JSON list of {old, new, all}, applied in order {all: Replace every occurrence; new: Markdown; old: Exact Markdown; must be unique unless all}
+  - `--replace-section json` A JSON object {heading, markdown}: what is under the heading becomes the Markdown {heading: A heading's text (# optional), as read_note's section takes it; markdown: The new Markdown; empty takes out what was there}
+  - `--replace-before json` A JSON object {heading, markdown}: what is between the title and the heading becomes the Markdown {heading: A heading's text (# optional), as read_note's section takes it; markdown: The new Markdown; empty takes out what was there}
   - `--insert string` Markdown to add; - reads it from stdin
   - `--at string` end (default), start, or a heading's text; list items join that section's list
   - `--rewrite string` The whole note as Markdown; - reads it from stdin
@@ -86,6 +90,7 @@ EOF
   - `--uncheck string…` Untick the checklist items with these texts
   - `--checklist check_all|uncheck_all|move_checked_down|delete_checked` Every checklist item: tick, untick, move the ticked ones to the bottom of their list, or delete them
   - `--[no-]pinned` Pin (true) or unpin (false) the note
+  - `--[no-]wait` Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
 
 - `notes delete [ID]`: Move a note to Recently Deleted (notes move brings it back; notes list --folder "Recently Deleted" lists them). --version is the one notes read, list or search gave; a note changed elsewhere since then is refused.
   - `--notes json` Instead of id and version: up to 100 notes {id: Note id; version: Its version}
@@ -95,6 +100,7 @@ EOF
   - `--[no-]allow-shared` The user agreed to changing who can see the notes
   - `--notes json` Instead of id and version: up to 100 notes {id: Note id; version: Its version}
   - `--version string` The version read_note, overview or search gave
+  - `--[no-]wait` Wait until iCloud has the change (default true); false returns once it is saved and the upload is requested
 
 - `notes describe --descriptions json`: Save one-line descriptions of notes, which notes list shows; many notes at once.
 

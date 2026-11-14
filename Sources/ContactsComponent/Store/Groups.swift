@@ -202,7 +202,7 @@ extension ContactsStore {
         if try allGroups().contains(where: { $0.account == account.id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
             throw ContactsError("\(account.name) has a group named \"\(name)\" already.")
         }
-        let outer = try parent.map { name throws(ContactsError) in try group(name) }
+        let outer = try parent.map { name throws(ContactsError) in try self.group(name) }
         if let outer {
             guard outer.account == account.id else { throw ContactsError("Group \"\(outer.name)\" is in another account.") }
             try guarded(outer.name, what: "groups")

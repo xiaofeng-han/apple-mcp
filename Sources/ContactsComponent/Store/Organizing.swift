@@ -120,8 +120,8 @@ extension ContactsStore {
         let joined = ([keep.identifier] + same.map(\.identifier)).compactMap(text)
         var seen = Set<String>()
         let note = joined.filter { seen.insert($0).inserted }.joined(separator: "\n\n")
-        let groups = Set(same.flatMap { groups(ofCards: [$0]).map(\.identifier) }).subtracting(groups(ofCards: [keep]).map(\.identifier))
-        for id in groups { if let found = try? group(id) { try guarded(found.name, what: "groups") } }
+        let carried = Set(same.flatMap { groups(ofCards: [$0]).map(\.identifier) }).subtracting(groups(ofCards: [keep]).map(\.identifier))
+        for id in carried { if let found = try? group(id) { try guarded(found.name, what: "groups") } }
         let backups = try await backUp(same.map(\.identifier))
         // The merged cards' notes are in the joined note, so theirs are set aside and not put back.
         var newNotes: [String: String?] = [:]
@@ -150,7 +150,7 @@ extension ContactsStore {
                 warnings.append(error.description)
             }
         }
-        for group in groups { try await membership([keep.identifier], in: group, present: true) }
+        for group in carried { try await membership([keep.identifier], in: group, present: true) }
         var result = try await records([keep.identifier]).first ?? .null
         if var object = result.object {
             object["merged"] = .array(backups.map { .string($0.card) })

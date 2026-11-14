@@ -40,7 +40,9 @@
 | 11-13 16:47 | 关掉 Contacts 后读带备注的卡片，连做 8 次 | — | 8/8，每次约 1.1 秒 |
 | 11-13 16:47–16:48 | 冷启动 e2e；四个 App 的 golden；全部单元测试 | — | `80 passed, 0 failed`；各 `0 differ`；8 组 197 项全过 |
 | 11-13 16:49–16:51 | 删掉测试数据：74 个联系人（12 个是链接的）、14 个分组、1 个智能分组 | — | 之后搜 `agent test` 为 0 |
-| 11-13 16:52 | 提交，推送分支，开 PR | 本提交 | — |
+| 11-13 16:52 | 提交，推送分支，开 PR #19 | `8d8c1b8` | — |
+| 11-13 16:53 | PR #19 的 CI 构建失败：CI 的 Swift 6.3.3 报两处名字遮蔽（P13） | `8d8c1b8` | `build-and-test` 失败 |
+| 11-13 16:56–16:58 | 修 P13；构建、四个 App 的 golden、单元测试、e2e | 本提交 | 各 `0 differ`；8 组 197 项全过；`80 passed, 0 failed` |
 
 ---
 
@@ -142,7 +144,7 @@
 
 ---
 
-## 五、提交前的检查（11-13 16:24–16:50）
+## 五、提交前的检查和 CI（11-13 16:24–16:58）
 
 提交前重跑构建、四个 App 的 golden 和全部单元测试（16:26 全过），并做了一轮发布前审计：4 个审计者（文档里的隐私、golden/资源/代码里的隐私、卫生和一致性、CI 能否通过），各配一个核实者。隐私和 CI 都没有问题：CI 上次成功的运行用 Xcode 26.6、Swift 6.3.3，shim 里的私有类和方法全部在运行时查找，用到的 Contacts、AddressBook 头文件和 Apple 事件常量在 26.5 和 27.2 的 SDK 里一致。确认的 5 条小问题都改了：Notes、Reminders、Journal 的文档列出 Contacts（照 Journal 加入时的 `d22fbdd`）；几个脚本和 `Package.swift` 的头注释写上 Contacts；文档写明首次发版要先在 homebrew-tap 加 cask；「200 种关系」改成「200 多种」（实际 217 种，8 个 golden 随之重录，只有这句变了）；本日志的当前状态随提交更新。
 
@@ -153,7 +155,16 @@
 - **原因：** `ensureRunning` 在 Contacts 一出现在进程列表里就发 `ready`，那时它可能还没启动完。赶上这个时机，这个进程发给它的 Apple 事件一直没有回答，每次等满 2 分钟，最多重试 40 次（80 分钟），全部失败后也不报错。同一进程里重试为什么也不行没有查清，多半是 AppleScript 或 Apple 事件缓存了启动中的目标。
 - **解决：** 等 `isFinishedLaunching` 之后再发第一个事件；`ready` 加 `with timeout of 5 seconds`；超时（-1712）或连接失效（-609、-600）时丢掉编译好的脚本，下次重新编译、重新找 Contacts；30 秒还不回答就报错，让用户退出「通讯录」再试。
 - **验证：** 关掉 Contacts 后读带备注的卡片，连做 8 次，8 次都读到备注，每次约 1.1 秒；冷启动跑 e2e `80 passed, 0 failed`（16:47:45–16:48:48）；四个 App 的 golden `0 differ`，`swift test` 8 组 197 项全过。原来的卡死没能再现，所以「同一进程里重新编译能不能救回来」没有验证到，靠 30 秒上限兜底。
-- **提交：** 本次提交
+- **提交：** `8d8c1b8`
+
+### P13 CI 上编译失败：闭包里的方法调用被同名局部常量遮蔽
+
+- **现象：** PR #19 的 `build-and-test` 在 Build 一步失败：`Groups.swift:205:72: error: cannot call value of non-function type 'CNMutableGroup'`，`Organizing.swift:123:67: error: cannot infer key path type from context; consider explicitly specifying a root type`。本机构建没有警告。
+- **怎么查的：** CI 用 Xcode 26.6、Swift 6.3.3，本机是 Swift 6.4.2，没有旧工具链能复现。两处都是在闭包里调用方法（`group(_:)`、`groups(ofCards:)`），而同一个函数里有同名的局部常量：`let group = CNMutableGroup()` 在后面才声明；`let groups = …` 就是那一行本身。CI 编译了 ContactsComponent 的全部 15 个文件，只有这两处错误。
+- **原因：** Swift 6.3 在闭包里按名字查找时，会找到外层函数里同名的局部常量（哪怕在后面才声明）；6.4 找到的是方法。
+- **解决：** 改成 `self.group(name)`；局部常量改名为 `carried`。
+- **验证：** 本机构建，四个 App 的 golden `0 differ`，`swift test` 8 组 197 项全过；e2e `80 passed, 0 failed`，包括「create a nested group」「merge two cards」。CI 的结果看 PR。
+- **提交：** 本提交
 
 ---
 
@@ -167,15 +178,16 @@
 | 「通讯录」刚启动时 AppleScript 找不到对象 | `-1728` | 隐藏启动后重试，最多 10 次，每次隔 300 ms |
 | zsh 的 `GID` 是只读特殊变量 | 脚本里 `GID=...` 报错 | 换个变量名 |
 | 自己的探针数据污染 e2e | 按公司名、用户名搜索多出探针留下的卡片 | e2e 用独有的值（`e2e测试公司`、`e2e9tw` 等），按 id 导出 |
+| 本机的 Swift 比 CI 新 | 本机编得过的代码，在 CI（Xcode 26.6、Swift 6.3.3）上报错，比如闭包里调用的方法被同名局部常量遮蔽（P13） | 闭包里调用和局部常量同名的方法时写 `self.`，或者给常量换个名字；推送后看 CI |
 | 写入保护按显示名判断 | 带 `prefix` 或姓在前的测试卡片显示名不以 `agent test` 开头，被保护拒绝 | 测试卡片不用称谓，姓名顺序用 `given_first` |
 | 从终端直接跑 `osascript` 控制「通讯录」 | 终端没有自动化权限，命令挂住，可能弹出授权框 | 用签过名的 App 本身（或同签名的探针）去调 AppleScript |
 | 「通讯录」卡在存不进去的状态（P09） | 改动读回来对，搜索不到，`unsaved` 为 true | 退出「通讯录」；它没存的改动会丢 |
 
 ---
 
-## 当前状态（11-13 16:52）
+## 当前状态（11-13 16:58）
 
-已提交到分支 `claude/apple-contacts-reverse-engineer-c146a0`，开了 PR 合入 `main`，**未合并、未发版**。构建无警告；单元测试全过（P10 的偶发失败除外）；四个 App 的 golden 都 `0 differ`；Contacts e2e `80 passed, 0 failed`。以前留下的 `agent test` 测试数据已删（这个 App 留的 30 天副本里只有测试数据）。
+已提交到分支 `claude/apple-contacts-reverse-engineer-c146a0`，开了 PR #19 合入 `main`，**未合并、未发版**。CI 第一次构建失败（P13），修复已推送。构建无警告；单元测试全过（P10 的偶发失败除外）；四个 App 的 golden 都 `0 differ`；Contacts e2e `80 passed, 0 failed`。以前留下的 `agent test` 测试数据已删（这个 App 留的 30 天副本里只有测试数据）。
 
 ### 待办与遗留
 

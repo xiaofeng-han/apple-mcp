@@ -1,16 +1,19 @@
 // swift-tools-version:6.2
-// Apple Notes MCP, Apple Reminders MCP and Apple Journal MCP: MCP servers that let AI agents read
-// and write Apple Notes, Apple Reminders and Journal natively, built from one package. Each app
+// Apple Notes MCP, Apple Reminders MCP, Apple Journal MCP and Apple Contacts MCP: MCP servers that
+// let AI agents read and write Apple Notes, Apple Reminders, Journal and Contacts natively, built
+// from one package. Each app
 // keeps its own name, command, permissions and executable (a main.swift of one line); the shared
 // base is Wire (MCP over stdio, the command line's flags, the choice of tools), Launcher (holding
 // the app's own privacy permissions), Agents (finding AI agents and setting them up) and AppCore
 // (the modes, the command line, the settings window). Each app's own code is a component
-// (NotesComponent, RemindersComponent, JournalComponent) that AppCore runs. See docs/MERGE-PLAN.md.
+// (NotesComponent, RemindersComponent, JournalComponent, ContactsComponent) that AppCore runs. See docs/MERGE-PLAN.md.
 //
 // Notes reads through Notes' own data model and edits in place through its private NotesShared
 // framework (NotesShim, NoteModel). Reminders writes through the private ReminderKit framework
 // (ReminderKitShim). Journal reads and writes through its private JournalShared framework, whose
-// Swift interface is written by hand (Interfaces/Journal). All stay native and sync through iCloud.
+// Swift interface is written by hand (Interfaces/Journal). Contacts goes through Contacts.framework,
+// with private parts in ContactsShim, and notes through Contacts.app's AppleScript. All stay native
+// and sync through iCloud.
 import Foundation
 import PackageDescription
 
@@ -53,6 +56,17 @@ let package = Package(
         .executableTarget(name: "AppleJournalMCP", dependencies: ["AppCore", "JournalComponent"],
                           swiftSettings: [.unsafeFlags(["-I", journalInterfaces])]),
 
+        // Apple Contacts MCP. ContactsComponent reads and writes through Contacts.framework, with the
+        // private parts it lacks (linking, My Card, smart lists, distribution lists, accounts) in the
+        // Objective-C ContactsShim, and notes through Contacts.app's AppleScript, since the framework
+        // withholds notes from apps without Apple's notes entitlement. ContactsModel is everything
+        // that needs no Contacts (what agents see, the commands, the values and their checks), so
+        // its tests build anywhere.
+        .target(name: "ContactsShim", linkerSettings: [.linkedFramework("Contacts"), .linkedFramework("AddressBook")]),
+        .target(name: "ContactsModel", dependencies: ["AppCore", "Agents", "Wire"]),
+        .target(name: "ContactsComponent", dependencies: ["AppCore", "Wire", "Launcher", "Agents", "ContactsModel", "ContactsShim"]),
+        .executableTarget(name: "AppleContactsMCP", dependencies: ["AppCore", "ContactsComponent"]),
+
         .testTarget(name: "AgentsTests", dependencies: ["Agents"]),
         .testTarget(name: "WireTests", dependencies: ["Wire"]),
         .testTarget(name: "NoteModelTests", dependencies: ["NoteModel"]),
@@ -60,5 +74,6 @@ let package = Package(
         .testTarget(name: "NotesComponentTests", dependencies: ["NotesComponent", "AppCore", "Wire"]),
         .testTarget(name: "RemindersComponentTests", dependencies: ["RemindersComponent", "AppCore", "Wire"]),
         .testTarget(name: "JournalModelTests", dependencies: ["JournalModel", "AppCore", "Wire", "NoteModel"]),
+        .testTarget(name: "ContactsModelTests", dependencies: ["ContactsModel", "AppCore", "Wire"]),
     ]
 )

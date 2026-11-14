@@ -1,0 +1,12 @@
+usage: apple-contacts-mcp groups create NAME [flags]
+
+Create a group (--account, --parent, --member ID…).
+
+  NAME                The group (name or id); for create, the new group's name
+  --account string    create: the account (name or id); default Contacts' default account
+  --parent string     create: put it inside this group; nest/unnest: the outer group (name or id)
+  --member string…    create, add_members, remove_members: contact or card ids (repeat for more)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

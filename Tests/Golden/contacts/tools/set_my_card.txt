@@ -1,0 +1,3 @@
+Set the My Card: Makes a contact the user's own card (Card > Make This My Card), which Safari AutoFill, Messages' Name and Photo Sharing and other apps use. Confirm with the user first.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Contact or card id","type":"string"}},"required":["id"],"type":"object"}

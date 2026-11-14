@@ -1,0 +1,10 @@
+usage: apple-contacts-mcp contacts changes [flags]
+
+What changed since --since TOKEN; without it, the token to pass next time.
+
+  --[no-]include-own  Include the saves this app made through Contacts' framework
+  --since string      The token a previous call gave
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

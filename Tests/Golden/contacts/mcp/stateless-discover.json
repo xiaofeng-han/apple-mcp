@@ -1,0 +1,28 @@
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {
+        "name": "apple-contacts-mcp",
+        "version": "dev"
+      }
+    },
+    "cacheScope": "public",
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Apple Contacts on this Mac, synced through iCloud (and Google, Exchange, …) to the user's devices. find_contacts searches as Contacts does (every word anywhere on the card, the note included); read_contact reads contacts in full with the version update_contact and delete_contact take, and a contact changed since is refused. A contact may be linked cards from several accounts: writes go to its cards, never copy values between accounts, and read_contact lists the cards. Lists (phones, emails, …) are replaced whole; null clears a field. Contacts has no Recently Deleted: delete_contact reaches every device, so ask the user first; this app keeps a copy for 30 days (restore_contact). Groups hold cards of their own account and can be nested; smart lists fill themselves from rules and stay on this Mac. Never invent contact details the user did not give, and confirm before changing the My Card, merging or deleting.\n\nThe user chooses which of these tools are offered, in the Tools tab of the Apple Contacts MCP settings window (opened by opening the app). A tool named here that is not in your tool list is turned off there.",
+    "resultType": "complete",
+    "serverInfo": {
+      "name": "apple-contacts-mcp",
+      "version": "dev"
+    },
+    "supportedVersions": [
+      "2026-07-28"
+    ],
+    "ttlMs": 3600000
+  }
+}

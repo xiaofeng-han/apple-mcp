@@ -1,0 +1,3 @@
+What changed in Contacts: The contacts and groups added, changed, linked or deleted since a token (from Contacts' change history), on any device; without since, only the current token, to pass next time. Leaves out the saves this app made through Contacts' framework unless include_own; notes, group members, links and smart lists this app changes through Contacts itself show like any other change.
+
+Input schema: {"additionalProperties":false,"properties":{"include_own":{"description":"Include the saves this app made through Contacts' framework","type":"boolean"},"since":{"description":"The token a previous call gave","type":"string"}},"type":"object"}

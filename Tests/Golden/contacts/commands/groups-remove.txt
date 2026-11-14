@@ -1,0 +1,10 @@
+usage: apple-contacts-mcp groups remove GROUP --member string…
+
+Take contacts out of a group (--member ID…).
+
+  GROUP               The group (name or id); for create, the new group's name
+  --member string…    create, add_members, remove_members: contact or card ids (repeat for more) (required)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

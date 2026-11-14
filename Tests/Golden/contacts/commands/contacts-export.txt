@@ -1,0 +1,16 @@
+usage: apple-contacts-mcp contacts export FILE [flags]
+
+Write contacts to a new .vcf file: --id, --group, --query, --my-card, or all.
+
+  FILE                Absolute path of the .vcf file to write (it must not exist)
+  --group string      A group's or smart list's members (name or id)
+  --id string…        These contacts (repeat for more)
+  --[no-]my-card      The My Card
+  --[no-]notes        Include notes (default true)
+  --[no-]photos       Include photos (default true)
+  --query string      Contacts matching these words, as find_contacts
+  --version 3.0|2.1   Default 3.0
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

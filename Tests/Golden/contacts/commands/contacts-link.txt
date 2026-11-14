@@ -1,0 +1,9 @@
+usage: apple-contacts-mcp contacts link --id string…
+
+Link cards of the same person into one contact (--id A --id B …).
+
+  --id string…        link: the contacts or cards to link (two or more) (repeat for more) (required)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

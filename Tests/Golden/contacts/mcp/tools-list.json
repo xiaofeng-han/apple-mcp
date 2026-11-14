@@ -1,0 +1,1582 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "result": {
+    "tools": [
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "What changed in Contacts"
+        },
+        "description": "The contacts and groups added, changed, linked or deleted since a token (from Contacts' change history), on any device; without since, only the current token, to pass next time. Leaves out the saves this app made through Contacts' framework unless include_own; notes, group members, links and smart lists this app changes through Contacts itself show like any other change.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "include_own": {
+              "description": "Include the saves this app made through Contacts' framework",
+              "type": "boolean"
+            },
+            "since": {
+              "description": "The token a previous call gave",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "contact_changes",
+        "title": "What changed in Contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Create a contact"
+        },
+        "description": "Creates a person or a company with any of the fields, in an account (default: the one Contacts puts new cards in) and in groups. Contacts uploads it to iCloud (or the account's server); the answer says once it has.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "Account name or id; default Contacts' default account",
+              "type": "string"
+            },
+            "addresses": {
+              "description": "Postal addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "description": "City",
+                    "type": "string"
+                  },
+                  "country": {
+                    "description": "Country name",
+                    "type": "string"
+                  },
+                  "country_code": {
+                    "description": "ISO country code (us, cn, de, …); it sets the address layout",
+                    "type": "string"
+                  },
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "postal_code": {
+                    "description": "ZIP or postal code",
+                    "type": "string"
+                  },
+                  "state": {
+                    "description": "State, province or region",
+                    "type": "string"
+                  },
+                  "street": {
+                    "description": "Street; lines separated by \\n",
+                    "type": "string"
+                  },
+                  "sub_administrative_area": {
+                    "description": "County",
+                    "type": "string"
+                  },
+                  "sub_locality": {
+                    "description": "District or neighborhood",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "birthday": {
+              "description": "1990-05-17, or 05-17 when the year is not known",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dates": {
+              "description": "Dates other than the birthday; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "anniversary, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "2015-06-01, or 06-01 for a date that comes every year",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "department": {
+              "description": "Department",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "downtime_allowed": {
+              "description": "Screen Time: they can reach the user during Downtime",
+              "type": "boolean"
+            },
+            "emails": {
+              "description": "Email addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, iCloud, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Email address",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "emergency_bypass": {
+              "description": "Let calls and/or texts from them sound even when muted or in a Focus",
+              "enum": [
+                "off",
+                "calls",
+                "texts",
+                "both"
+              ],
+              "type": "string"
+            },
+            "first_name": {
+              "description": "First (given) name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "groups": {
+              "description": "Groups to put it in (name or id), in the same account",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "instant_messages": {
+              "description": "Instant-message addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "service": {
+                    "description": "Skype, Jabber, QQ, WeChat, MSN, Yahoo, ICQ, AIM, Facebook, Gadu-Gadu, Google Talk, or any service",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "User name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "job_title": {
+              "description": "Job title",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "last_name": {
+              "description": "Last (family) name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maiden_name": {
+              "description": "Maiden name (previous family name)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "middle_name": {
+              "description": "Middle name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name_order": {
+              "description": "Name order for this card (Card > Reorder Last Name Before First)",
+              "enum": [
+                "default",
+                "given_first",
+                "family_first"
+              ],
+              "type": "string"
+            },
+            "nickname": {
+              "description": "Nickname",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "note": {
+              "description": "The note: plain text, up to about 150,000 characters (iCloud's limit)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "organization": {
+              "description": "Company",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "other_birthday": {
+              "description": "A birthday in another calendar (Contacts' lunar birthday): {calendar: chinese, hebrew, islamic, … , year, month, day, leap_month}"
+            },
+            "phones": {
+              "description": "Phone numbers; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "mobile, iPhone, home, work, school, main, home fax, work fax, pager, Apple Watch, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Phone number",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "phonetic_first_name": {
+              "description": "Phonetic first name (how it is said)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_last_name": {
+              "description": "Phonetic last name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_middle_name": {
+              "description": "Phonetic middle name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_organization": {
+              "description": "Phonetic company",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "photo": {
+              "description": "Absolute path of an image file (JPEG, PNG, HEIC) to use as the photo; null removes the photo",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "photo_crop": {
+              "description": "With photo: the part of it shown, [x, y, width, height] in the image's pixels, x and y from its top left; default the centered square",
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "prefix": {
+              "description": "Name prefix (Dr., Ms., …)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "related_names": {
+              "description": "Related people; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "mother, father, parent, spouse, partner, child, son, daughter, brother, sister, friend, manager, assistant, mother in law, brother in law, … (any of Contacts' 200-odd relations, in words), or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Their name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "ringtone": {
+              "description": "Call ringtone: a tone id (system:Opening, …), <default> or <none>",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "social_profiles": {
+              "description": "Social profiles; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "service": {
+                    "description": "Twitter, Facebook, LinkedIn, Flickr, Myspace, Sina Weibo, Tencent Weibo, Yelp, or any service",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Profile URL",
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "description": "The service's user identifier",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "User name",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "suffix": {
+              "description": "Name suffix (Jr., III, …)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "text_tone": {
+              "description": "Text tone: a tone id (texttone:Note, …), <default> or <none>",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "description": "A person, or a company (Contacts' Mark as a Company: shown by its organization)",
+              "enum": [
+                "person",
+                "company"
+              ],
+              "type": "string"
+            },
+            "urls": {
+              "description": "Web addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "homepage, home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "wait": {
+              "description": "Wait until iCloud (or the account's server) has it, usually 10–15 seconds and up to 45 (90 with a photo); default true. false answers once it is saved on this Mac",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "name": "create_contact",
+        "title": "Create a contact"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Delete a contact"
+        },
+        "description": "Deletes a contact (all its cards when it is linked, or only card) from every device: Contacts has no Recently Deleted, so this app keeps a copy for 30 days and restore_contact brings it back. Ask the user first.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "card": {
+              "description": "Only this card of a linked contact",
+              "type": "string"
+            },
+            "id": {
+              "description": "Contact or card id",
+              "type": "string"
+            },
+            "version": {
+              "description": "The version read_contact or find_contacts gave",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "name": "delete_contact",
+        "title": "Delete a contact"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Export contacts"
+        },
+        "description": "Writes contacts to a .vcf file, as Contacts' File > Export vCard does: chosen ones, a group's or smart list's, those matching a query, the My Card (Share My Card), or all. vCard 3.0 (or 2.1), with notes and photos unless turned off.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "description": "A group's or smart list's members (name or id)",
+              "type": "string"
+            },
+            "ids": {
+              "description": "These contacts",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "my_card": {
+              "description": "The My Card",
+              "type": "boolean"
+            },
+            "notes": {
+              "description": "Include notes (default true)",
+              "type": "boolean"
+            },
+            "photos": {
+              "description": "Include photos (default true)",
+              "type": "boolean"
+            },
+            "query": {
+              "description": "Contacts matching these words, as find_contacts",
+              "type": "string"
+            },
+            "to": {
+              "description": "Absolute path of the .vcf file to write (it must not exist)",
+              "type": "string"
+            },
+            "version": {
+              "description": "Default 3.0",
+              "enum": [
+                "3.0",
+                "2.1"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "to"
+          ],
+          "type": "object"
+        },
+        "name": "export_contacts",
+        "title": "Export contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Find contacts"
+        },
+        "description": "Finds contacts as Contacts' search field does: every word of query must appear somewhere on the card (any name, company, job, phones, emails, addresses, URLs, social profiles, related names, the note), case and accents ignored. Narrow by phone or email (whole value), group (nested groups included), smart list, account and person or company; or pass criteria (smart-list rules) to find what a smart list would hold. Sorted as Contacts sorts them; each with its id and version.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "Only cards in this account (name or id)",
+              "type": "string"
+            },
+            "criteria": {
+              "description": "{match: all|any, rules: [{field, op, value}]}; a rule may itself be {match, rules}. Fields: any (any text on the card; ops contains, not_contains); name, first_name, last_name, middle_name, nickname, organization, department, job_title, note, phone, email, url, instant_message, street, city, state, zip, country (ops contains, not_contains, is, is_not, is_set, is_not_set; phone/email/url/instant_message also starts_with, ends_with); address (contains, not_contains, is_set, is_not_set); birthday, anniversary, date (next_days, within_days, not_within_days with a number of days; is_set, is_not_set); modified (changed_within_days, not_changed_within_days with days; after with 2026-10-21); group (member_of, not_member_of a group or smart list, by name or id)",
+              "type": "object"
+            },
+            "email": {
+              "description": "An email address",
+              "type": "string"
+            },
+            "group": {
+              "description": "Only members of this group (name or id), including its nested groups",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Default 50, at most 500",
+              "type": "integer"
+            },
+            "offset": {
+              "description": "Skip this many, for the next page",
+              "type": "integer"
+            },
+            "phone": {
+              "description": "A phone number, in any format",
+              "type": "string"
+            },
+            "query": {
+              "description": "Words that must all appear on the card",
+              "type": "string"
+            },
+            "smart_list": {
+              "description": "Only what this smart list holds (name or id)",
+              "type": "string"
+            },
+            "type": {
+              "description": "Only people or only companies",
+              "enum": [
+                "person",
+                "company"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "find_contacts",
+        "title": "Find contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Find duplicate contacts"
+        },
+        "description": "Finds cards that look like the same person, as Contacts' Look for Duplicates does: the same name in the same account, or (with by: email_or_phone) a shared email address or phone number. Each set lists the cards; merge_contacts merges one set.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "Only this account (name or id)",
+              "type": "string"
+            },
+            "by": {
+              "description": "Default name",
+              "enum": [
+                "name",
+                "email_or_phone"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "find_duplicates",
+        "title": "Find duplicate contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Import vCards"
+        },
+        "description": "Imports a .vcf file (one or more vCards, with notes and photos) into an account and optionally a group. A card with the same name as an existing one in that account is a duplicate: skipped and listed (default), merged into it (update), added anyway (keep_both) or put in its place (replace: the old card is deleted, kept 30 days, and the new one joins its groups and links), as in Contacts' import review.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "Account (name or id); default Contacts' default account",
+              "type": "string"
+            },
+            "duplicates": {
+              "description": "What to do with a card whose name exists already; default skip",
+              "enum": [
+                "skip",
+                "update",
+                "keep_both",
+                "replace"
+              ],
+              "type": "string"
+            },
+            "group": {
+              "description": "Also add the imported contacts to this group (name or id)",
+              "type": "string"
+            },
+            "path": {
+              "description": "Absolute path of the .vcf file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        },
+        "name": "import_contacts",
+        "title": "Import vCards"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Link or unlink cards"
+        },
+        "description": "Links cards of the same person (usually in different accounts) into one contact, as Contacts does with same-name cards; unlinks a card, or all of a contact's cards; or chooses which linked card gives the contact its name (prefer_name) or its photo (prefer_photo).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "link",
+                "unlink",
+                "prefer_name",
+                "prefer_photo"
+              ],
+              "type": "string"
+            },
+            "id": {
+              "description": "unlink: a card (only that one) or a contact (all its cards); prefer_name, prefer_photo: the card",
+              "type": "string"
+            },
+            "ids": {
+              "description": "link: the contacts or cards to link (two or more)",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        "name": "link_contacts",
+        "title": "Link or unlink cards"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "List groups and smart lists"
+        },
+        "description": "The groups by account, nested as in Contacts' sidebar, with how many cards each holds, and the smart lists with their rules. With group: its members, nested groups included or not, and for a group the email, phone and address each member is reached by (its distribution list).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "description": "A group or smart list (name or id): list its members",
+              "type": "string"
+            },
+            "nested": {
+              "description": "With group: include the members of its nested groups",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "name": "list_groups",
+        "title": "List groups and smart lists"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Default account and sync"
+        },
+        "description": "Sets the account new contacts go to (iCloud, Google or On My Mac), or asks Contacts to sync accounts with their servers now (Refresh Accounts). Adding or removing an account is done in System Settings → Internet Accounts.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "set_default: the account (name or id); sync: one account, default all",
+              "type": "string"
+            },
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "set_default",
+                "sync"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        "name": "manage_accounts",
+        "title": "Default account and sync"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Manage a group"
+        },
+        "description": "Creates a group (in an account, optionally inside another group and with members), renames or deletes one (its contacts stay), adds or removes members, nests a group in another or takes it out, and chooses which email, phone or address a member is reached by in the group (its distribution list).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "account": {
+              "description": "create: the account (name or id); default Contacts' default account",
+              "type": "string"
+            },
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "create",
+                "rename",
+                "delete",
+                "add_members",
+                "remove_members",
+                "nest",
+                "unnest",
+                "distribution"
+              ],
+              "type": "string"
+            },
+            "address": {
+              "description": "distribution: the label of the member's postal address the group uses",
+              "type": "string"
+            },
+            "email": {
+              "description": "distribution: the member's email address the group uses",
+              "type": "string"
+            },
+            "group": {
+              "description": "The group (name or id); for create, the new group's name",
+              "type": "string"
+            },
+            "member": {
+              "description": "distribution: the member (contact or card id)",
+              "type": "string"
+            },
+            "members": {
+              "description": "create, add_members, remove_members: contact or card ids",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "new_name": {
+              "description": "rename: the new name",
+              "type": "string"
+            },
+            "parent": {
+              "description": "create: put it inside this group; nest/unnest: the outer group (name or id)",
+              "type": "string"
+            },
+            "phone": {
+              "description": "distribution: the member's phone number the group uses",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "group"
+          ],
+          "type": "object"
+        },
+        "name": "manage_group",
+        "title": "Manage a group"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Manage a smart list"
+        },
+        "description": "Creates, changes or deletes a smart list: a list Contacts fills itself with every contact that matches its rules. Contacts keeps smart lists on this Mac only (On My Mac); they do not sync.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "description": "What to do",
+              "enum": [
+                "create",
+                "update",
+                "delete"
+              ],
+              "type": "string"
+            },
+            "criteria": {
+              "description": "{match: all|any, rules: [{field, op, value}]}; a rule may itself be {match, rules}. Fields: any (any text on the card; ops contains, not_contains); name, first_name, last_name, middle_name, nickname, organization, department, job_title, note, phone, email, url, instant_message, street, city, state, zip, country (ops contains, not_contains, is, is_not, is_set, is_not_set; phone/email/url/instant_message also starts_with, ends_with); address (contains, not_contains, is_set, is_not_set); birthday, anniversary, date (next_days, within_days, not_within_days with a number of days; is_set, is_not_set); modified (changed_within_days, not_changed_within_days with days; after with 2026-10-21); group (member_of, not_member_of a group or smart list, by name or id)",
+              "type": "object"
+            },
+            "highlight": {
+              "description": "Highlight it when one of its contacts changes (Contacts' option)",
+              "type": "boolean"
+            },
+            "new_name": {
+              "description": "update: the new name",
+              "type": "string"
+            },
+            "smart_list": {
+              "description": "The smart list (name or id); for create, the new name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "smart_list"
+          ],
+          "type": "object"
+        },
+        "name": "manage_smart_list",
+        "title": "Manage a smart list"
+      },
+      {
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Merge contacts"
+        },
+        "description": "Merges cards into the first one, as Contacts' Merge Selected Cards does: every phone, email, address and other value is kept, empty fields are filled, notes are joined, the photo is kept, the others' groups are added, and the other cards are deleted (this app keeps a copy for 30 days). Cards in other accounts are linked instead. Ask the user first.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ids": {
+              "description": "The cards (or contacts) to merge; the first one is kept",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "versions": {
+              "description": "Their versions, from read_contact or find_contacts, in the same order",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "ids",
+            "versions"
+          ],
+          "type": "object"
+        },
+        "name": "merge_contacts",
+        "title": "Merge contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Contacts overview"
+        },
+        "description": "The accounts (iCloud, Google, On My Mac, …) with how many cards each holds and which one new contacts go to, how many contacts there are (cards linked across accounts count once), the groups and smart lists, and the My Card.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "name": "overview",
+        "title": "Contacts overview"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Read contacts"
+        },
+        "description": "Reads contacts in full (up to 20): every field, the note, the groups it is in, whether it has a photo or poster, its tones, and its cards (one per account when linked: which account, which one gives the name and photo), with the version update_contact and delete_contact take.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Contact or card id",
+              "type": "string"
+            },
+            "ids": {
+              "description": "Several, up to 20",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "name": "read_contact",
+        "title": "Read contacts"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Look at a contact's photo"
+        },
+        "description": "A contact's photo (as shown, or the full image it is cropped from), or the picture of its poster (Contact Poster).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Contact or card id",
+              "type": "string"
+            },
+            "which": {
+              "description": "photo: as Contacts shows it (default); full: the whole image; poster: the poster's picture",
+              "enum": [
+                "photo",
+                "full",
+                "poster"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "read_photo",
+        "title": "Look at a contact's photo"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Restore a deleted contact"
+        },
+        "description": "Lists the contacts this app deleted in the last 30 days, or brings one back with its id, fields, note, photo and groups, in its account.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "A deleted card's id; without it, list them",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "restore_contact",
+        "title": "Restore a deleted contact"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Set the My Card"
+        },
+        "description": "Makes a contact the user's own card (Card > Make This My Card), which Safari AutoFill, Messages' Name and Photo Sharing and other apps use. Confirm with the user first.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "description": "Contact or card id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "name": "set_my_card",
+        "title": "Set the My Card"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Contacts settings"
+        },
+        "description": "Contacts' settings: sort order, name display and short names, the address format, vCard export options and the private My Card, and Show Siri Suggestions. With a field, changes that setting (sort_by, address_format, vcard_version, vcard_notes, vcard_photos, private_my_card); name order, short names and nicknames are macOS-wide and read only here.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "address_format": {
+              "description": "Country whose address layout Contacts uses (ISO code: us, cn, de, …)",
+              "type": "string"
+            },
+            "private_my_card": {
+              "description": "Leave out the My Card's private fields when it is shared",
+              "type": "boolean"
+            },
+            "sort_by": {
+              "description": "Sort contacts by",
+              "enum": [
+                "first_name",
+                "last_name"
+              ],
+              "type": "string"
+            },
+            "vcard_notes": {
+              "description": "Export notes in vCards",
+              "type": "boolean"
+            },
+            "vcard_photos": {
+              "description": "Export photos in vCards",
+              "type": "boolean"
+            },
+            "vcard_version": {
+              "description": "vCard format for export",
+              "enum": [
+                "3.0",
+                "2.1"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "name": "settings",
+        "title": "Contacts settings"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Update a contact"
+        },
+        "description": "Changes only the fields given: null clears one, a list (phones, emails, …) replaces the whole list. Pass the version read_contact or find_contacts gave; a contact changed since is refused. A contact linked across accounts keeps each value on the card it is on; new values go to the card that gives its name, or to card.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "addresses": {
+              "description": "Postal addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "description": "City",
+                    "type": "string"
+                  },
+                  "country": {
+                    "description": "Country name",
+                    "type": "string"
+                  },
+                  "country_code": {
+                    "description": "ISO country code (us, cn, de, …); it sets the address layout",
+                    "type": "string"
+                  },
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "postal_code": {
+                    "description": "ZIP or postal code",
+                    "type": "string"
+                  },
+                  "state": {
+                    "description": "State, province or region",
+                    "type": "string"
+                  },
+                  "street": {
+                    "description": "Street; lines separated by \\n",
+                    "type": "string"
+                  },
+                  "sub_administrative_area": {
+                    "description": "County",
+                    "type": "string"
+                  },
+                  "sub_locality": {
+                    "description": "District or neighborhood",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "birthday": {
+              "description": "1990-05-17, or 05-17 when the year is not known",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "card": {
+              "description": "For a linked contact: the card (id) new values and single fields go to",
+              "type": "string"
+            },
+            "dates": {
+              "description": "Dates other than the birthday; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "anniversary, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "2015-06-01, or 06-01 for a date that comes every year",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "department": {
+              "description": "Department",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "downtime_allowed": {
+              "description": "Screen Time: they can reach the user during Downtime",
+              "type": "boolean"
+            },
+            "emails": {
+              "description": "Email addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, iCloud, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Email address",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "emergency_bypass": {
+              "description": "Let calls and/or texts from them sound even when muted or in a Focus",
+              "enum": [
+                "off",
+                "calls",
+                "texts",
+                "both"
+              ],
+              "type": "string"
+            },
+            "first_name": {
+              "description": "First (given) name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "description": "Contact or card id",
+              "type": "string"
+            },
+            "instant_messages": {
+              "description": "Instant-message addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "service": {
+                    "description": "Skype, Jabber, QQ, WeChat, MSN, Yahoo, ICQ, AIM, Facebook, Gadu-Gadu, Google Talk, or any service",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "User name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "job_title": {
+              "description": "Job title",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "last_name": {
+              "description": "Last (family) name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maiden_name": {
+              "description": "Maiden name (previous family name)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "middle_name": {
+              "description": "Middle name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name_order": {
+              "description": "Name order for this card (Card > Reorder Last Name Before First)",
+              "enum": [
+                "default",
+                "given_first",
+                "family_first"
+              ],
+              "type": "string"
+            },
+            "nickname": {
+              "description": "Nickname",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "note": {
+              "description": "The note: plain text, up to about 150,000 characters (iCloud's limit)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "organization": {
+              "description": "Company",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "other_birthday": {
+              "description": "A birthday in another calendar (Contacts' lunar birthday): {calendar: chinese, hebrew, islamic, … , year, month, day, leap_month}"
+            },
+            "phones": {
+              "description": "Phone numbers; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "mobile, iPhone, home, work, school, main, home fax, work fax, pager, Apple Watch, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Phone number",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "phonetic_first_name": {
+              "description": "Phonetic first name (how it is said)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_last_name": {
+              "description": "Phonetic last name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_middle_name": {
+              "description": "Phonetic middle name",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phonetic_organization": {
+              "description": "Phonetic company",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "photo": {
+              "description": "Absolute path of an image file (JPEG, PNG, HEIC) to use as the photo; null removes the photo",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "photo_crop": {
+              "description": "With photo: the part of it shown, [x, y, width, height] in the image's pixels, x and y from its top left; default the centered square",
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 4,
+              "minItems": 4,
+              "type": "array"
+            },
+            "prefix": {
+              "description": "Name prefix (Dr., Ms., …)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "related_names": {
+              "description": "Related people; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "mother, father, parent, spouse, partner, child, son, daughter, brother, sister, friend, manager, assistant, mother in law, brother in law, … (any of Contacts' 200-odd relations, in words), or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Their name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "ringtone": {
+              "description": "Call ringtone: a tone id (system:Opening, …), <default> or <none>",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "social_profiles": {
+              "description": "Social profiles; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "service": {
+                    "description": "Twitter, Facebook, LinkedIn, Flickr, Myspace, Sina Weibo, Tencent Weibo, Yelp, or any service",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Profile URL",
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "description": "The service's user identifier",
+                    "type": "string"
+                  },
+                  "username": {
+                    "description": "User name",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "suffix": {
+              "description": "Name suffix (Jr., III, …)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "text_tone": {
+              "description": "Text tone: a tone id (texttone:Note, …), <default> or <none>",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "description": "A person, or a company (Contacts' Mark as a Company: shown by its organization)",
+              "enum": [
+                "person",
+                "company"
+              ],
+              "type": "string"
+            },
+            "urls": {
+              "description": "Web addresses; replaces them all",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "homepage, home, work, school, other, or any text",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "URL",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "type": "object"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "version": {
+              "description": "The version read_contact or find_contacts gave",
+              "type": "string"
+            },
+            "wait": {
+              "description": "Wait until iCloud (or the account's server) has it, usually 10–15 seconds and up to 45 (90 with a photo); default true. false answers once it is saved on this Mac",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "name": "update_contact",
+        "title": "Update a contact"
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+usage: apple-contacts-mcp contacts read [ID] [flags]
+
+Print contacts in full, with the note, groups, cards and the version update and delete take. By id (a contact's or one of its cards'), or several (--id repeats, up to 20).
+
+  ID                  Contact or card id
+  --id string…        Several, up to 20 (repeat for more)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

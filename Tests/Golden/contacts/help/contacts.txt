@@ -1,0 +1,51 @@
+apple-contacts-mcp contacts
+├── list                        List contacts, sorted as Contacts sorts them, with their ids and versions (the default)
+│       --group string --smart-list string --account string --type person|company --criteria json --limit int
+│       --offset int
+├── search [QUERY]              Find contacts with all these words anywhere on the card (names, company, phones, emails, addresses, note, …)
+│       --account string --criteria json --email string --group string --limit int --offset int --phone string
+│       --smart-list string --type person|company
+├── read [ID]                   Print contacts in full, with the note, groups, cards and the version update and delete take
+│       --id string…
+├── create                      Create a contact: --first-name, --last-name, --organization, --phones JSON, --note, --photo FILE, …
+│       --type person|company --prefix string --first-name string --middle-name string --last-name string
+│       --maiden-name string --suffix string --nickname string --phonetic-first-name string
+│       --phonetic-middle-name string --phonetic-last-name string --organization string
+│       --phonetic-organization string --department string --job-title string
+│       --name-order default|given_first|family_first --note string --phones json --emails json --urls json
+│       --addresses json --dates json --related-names json --social-profiles json --instant-messages json
+│       --birthday string --other-birthday json|string --photo string --photo-crop int… --ringtone string
+│       --text-tone string --emergency-bypass off|calls|texts|both --[no-]downtime-allowed --account string
+│       --group string… --[no-]wait
+├── update ID --version string  Change only the fields given; --no-FIELD clears one, a list replaces the whole list
+│       --card string --type person|company --prefix string --first-name string --middle-name string
+│       --last-name string --maiden-name string --suffix string --nickname string --phonetic-first-name string
+│       --phonetic-middle-name string --phonetic-last-name string --organization string
+│       --phonetic-organization string --department string --job-title string
+│       --name-order default|given_first|family_first --note string --phones json --emails json --urls json
+│       --addresses json --dates json --related-names json --social-profiles json --instant-messages json
+│       --birthday string --other-birthday json|string --photo string --photo-crop int… --ringtone string
+│       --text-tone string --emergency-bypass off|calls|texts|both --[no-]downtime-allowed --[no-]wait
+├── delete ID --version string  Delete a contact on every device (ask the user first); this app keeps a copy for 30 days
+│       --card string
+├── deleted                     List the contacts this app deleted in the last 30 days
+├── restore ID                  Bring back a contact this app deleted (contacts deleted lists them)
+├── photo ID                    Save a contact's photo (or --which full / poster) and print where
+│       --which photo|full|poster --output string
+├── duplicates                  Find cards that look like the same person (same name in an account, or --by email_or_phone)
+│       --account string --by name|email_or_phone
+├── merge --id string… --version string…  Merge cards into the first (--id A --version VA --id B --version VB …); ask the user first
+├── link --id string…           Link cards of the same person into one contact (--id A --id B …)
+├── unlink ID                   Unlink a card (or, given a contact, all its cards)
+├── prefer-name CARD            Make this card give its linked contact the name
+├── prefer-photo CARD           Make this card give its linked contact the photo
+├── me ID                       Make a contact the My Card (confirm with the user first)
+├── changes                     What changed since --since TOKEN; without it, the token to pass next time
+│       --[no-]include-own --since string
+├── import FILE                 Import a .vcf file into an account (--account) and group (--group); --duplicates skip|update|keep_both|replace
+│       --account string --duplicates skip|update|keep_both|replace --group string
+└── export FILE                 Write contacts to a new .vcf file: --id, --group, --query, --my-card, or all
+        --group string --id string… --[no-]my-card --[no-]notes --[no-]photos --query string --version 3.0|2.1
+
+Every contacts command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

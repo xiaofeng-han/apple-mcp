@@ -1,0 +1,3 @@
+Find duplicate contacts: Finds cards that look like the same person, as Contacts' Look for Duplicates does: the same name in the same account, or (with by: email_or_phone) a shared email address or phone number. Each set lists the cards; merge_contacts merges one set.
+
+Input schema: {"additionalProperties":false,"properties":{"account":{"description":"Only this account (name or id)","type":"string"},"by":{"description":"Default name","enum":["name","email_or_phone"],"type":"string"}},"type":"object"}

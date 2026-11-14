@@ -1,0 +1,73 @@
+usage: apple-contacts-mcp contacts create [flags]
+
+Create a contact: --first-name, --last-name, --organization, --phones JSON, --note, --photo FILE, …. Lists are JSON: --phones '[{"label":"mobile","value":"+1 555 0100"}]'. --note - reads the note from stdin.
+
+  --type person|company             A person, or a company (Contacts' Mark as a Company: shown by its organization)
+  --prefix string                   Name prefix (Dr., Ms., …)
+  --first-name string               First (given) name
+  --middle-name string              Middle name
+  --last-name string                Last (family) name
+  --maiden-name string              Maiden name (previous family name)
+  --suffix string                   Name suffix (Jr., III, …)
+  --nickname string                 Nickname
+  --phonetic-first-name string      Phonetic first name (how it is said)
+  --phonetic-middle-name string     Phonetic middle name
+  --phonetic-last-name string       Phonetic last name
+  --organization string             Company
+  --phonetic-organization string    Phonetic company
+  --department string               Department
+  --job-title string                Job title
+  --name-order default|given_first|family_first
+                                    Name order for this card (Card > Reorder Last Name Before First)
+  --note string                     The note: plain text, up to about 150,000 characters (iCloud's limit)
+  --phones json                     Phone numbers; replaces them all
+                                        label: mobile, iPhone, home, work, school, main, home fax, work fax, pager, Apple Watch, other, or any text
+                                        value: Phone number
+  --emails json                     Email addresses; replaces them all
+                                        label: home, work, school, iCloud, other, or any text
+                                        value: Email address
+  --urls json                       Web addresses; replaces them all
+                                        label: homepage, home, work, school, other, or any text
+                                        value: URL
+  --addresses json                  Postal addresses; replaces them all
+                                        city: City
+                                        country: Country name
+                                        country_code: ISO country code (us, cn, de, …); it sets the address layout
+                                        label: home, work, school, other, or any text
+                                        postal_code: ZIP or postal code
+                                        state: State, province or region
+                                        street: Street; lines separated by \n
+                                        sub_administrative_area: County
+                                        sub_locality: District or neighborhood
+  --dates json                      Dates other than the birthday; replaces them all
+                                        label: anniversary, other, or any text
+                                        value: 2015-06-01, or 06-01 for a date that comes every year
+  --related-names json              Related people; replaces them all
+                                        label: mother, father, parent, spouse, partner, child, son, daughter, brother, sister, friend, manager, assistant, mother in law, brother in law, … (any of Contacts' 200-odd relations, in words), or any text
+                                        value: Their name
+  --social-profiles json            Social profiles; replaces them all
+                                        label: home, work, school, other, or any text
+                                        service: Twitter, Facebook, LinkedIn, Flickr, Myspace, Sina Weibo, Tencent Weibo, Yelp, or any service
+                                        url: Profile URL
+                                        user_id: The service's user identifier
+                                        username: User name
+  --instant-messages json           Instant-message addresses; replaces them all
+                                        label: home, work, school, other, or any text
+                                        service: Skype, Jabber, QQ, WeChat, MSN, Yahoo, ICQ, AIM, Facebook, Gadu-Gadu, Google Talk, or any service
+                                        username: User name
+  --birthday string                 1990-05-17, or 05-17 when the year is not known
+  --other-birthday json|string      A birthday in another calendar (Contacts' lunar birthday): {calendar: chinese, hebrew, islamic, … , year, month, day, leap_month}
+  --photo string                    Absolute path of an image file (JPEG, PNG, HEIC) to use as the photo
+  --photo-crop int…                 With photo: the part of it shown, [x, y, width, height] in the image's pixels, x and y from its top left; default the centered square (repeat for more)
+  --ringtone string                 Call ringtone: a tone id (system:Opening, …), <default> or <none>
+  --text-tone string                Text tone: a tone id (texttone:Note, …), <default> or <none>
+  --emergency-bypass off|calls|texts|both
+                                    Let calls and/or texts from them sound even when muted or in a Focus
+  --[no-]downtime-allowed           Screen Time: they can reach the user during Downtime
+  --account string                  Account name or id; default Contacts' default account
+  --group string…                   Groups to put it in (name or id), in the same account (repeat for more)
+  --[no-]wait                       Wait until iCloud (or the account's server) has it, usually 10–15 seconds and up to 45 (90 with a photo); default true. false answers once it is saved on this Mac
+  --format text|json                Print the answer as text (default) or JSON
+  --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                        Show this help
+

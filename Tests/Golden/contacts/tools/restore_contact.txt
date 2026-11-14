@@ -1,0 +1,3 @@
+Restore a deleted contact: Lists the contacts this app deleted in the last 30 days, or brings one back with its id, fields, note, photo and groups, in its account.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"A deleted card's id; without it, list them","type":"string"}},"type":"object"}

@@ -1,0 +1,9 @@
+usage: apple-contacts-mcp contacts unlink ID
+
+Unlink a card (or, given a contact, all its cards).
+
+  ID                  unlink: a card (only that one) or a contact (all its cards); prefer_name, prefer_photo: the card
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

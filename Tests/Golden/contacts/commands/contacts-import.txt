@@ -1,0 +1,13 @@
+usage: apple-contacts-mcp contacts import FILE [flags]
+
+Import a .vcf file into an account (--account) and group (--group); --duplicates skip|update|keep_both|replace.
+
+  FILE                              Absolute path of the .vcf file
+  --account string                  Account (name or id); default Contacts' default account
+  --duplicates skip|update|keep_both|replace
+                                    What to do with a card whose name exists already; default skip
+  --group string                    Also add the imported contacts to this group (name or id)
+  --format text|json                Print the answer as text (default) or JSON
+  --json json|-                     Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                        Show this help
+

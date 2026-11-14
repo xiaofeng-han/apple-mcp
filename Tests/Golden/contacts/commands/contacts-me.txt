@@ -1,0 +1,9 @@
+usage: apple-contacts-mcp contacts me ID
+
+Make a contact the My Card (confirm with the user first).
+
+  ID                  Contact or card id
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

@@ -1,0 +1,9 @@
+apple-contacts-mcp smart-lists
+├── create NAME --criteria json Create a smart list from --criteria JSON (see --help), with --highlight
+│       --[no-]highlight
+├── update SMART_LIST           Change a smart list's name (--new-name), rules (--criteria) or highlight
+│       --new-name string --criteria json --[no-]highlight
+└── delete SMART_LIST           Delete a smart list (its contacts stay)
+
+Every smart-lists command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

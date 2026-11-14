@@ -1,0 +1,7 @@
+apple-contacts-mcp accounts
+├── list                        The accounts with their counts and the default one, the groups, smart lists and My Card (the default)
+├── default ACCOUNT             Make an account the one new contacts go to
+└── sync [ACCOUNT]              Ask Contacts to sync accounts now (one, or all)
+
+Every accounts command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

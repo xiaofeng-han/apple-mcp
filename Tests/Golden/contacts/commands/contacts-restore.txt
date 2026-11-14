@@ -1,0 +1,9 @@
+usage: apple-contacts-mcp contacts restore ID
+
+Bring back a contact this app deleted (contacts deleted lists them).
+
+  ID                  A deleted card's id; without it, list them
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

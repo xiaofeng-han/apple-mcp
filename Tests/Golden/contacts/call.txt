@@ -1,0 +1,20 @@
+overview          Contacts overview
+find_contacts     Find contacts
+read_contact      Read contacts
+read_photo        Look at a contact's photo
+list_groups       List groups and smart lists
+find_duplicates   Find duplicate contacts
+contact_changes   What changed in Contacts
+create_contact    Create a contact
+update_contact    Update a contact
+delete_contact    Delete a contact
+restore_contact   Restore a deleted contact
+manage_group      Manage a group
+manage_smart_list Manage a smart list
+link_contacts     Link or unlink cards
+merge_contacts    Merge contacts
+set_my_card       Set the My Card
+manage_accounts   Default account and sync
+import_contacts   Import vCards
+export_contacts   Export contacts
+settings          Contacts settings

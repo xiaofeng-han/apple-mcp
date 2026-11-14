@@ -1,0 +1,11 @@
+usage: apple-contacts-mcp contacts delete ID --version string [flags]
+
+Delete a contact on every device (ask the user first); this app keeps a copy for 30 days. --version is the one contacts read, list or search gave. --card deletes one card of a linked contact.
+
+  ID                  Contact or card id
+  --version string    The version read_contact or find_contacts gave (required)
+  --card string       Only this card of a linked contact
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

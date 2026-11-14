@@ -1,0 +1,3 @@
+Merge contacts: Merges cards into the first one, as Contacts' Merge Selected Cards does: every phone, email, address and other value is kept, empty fields are filled, notes are joined, the photo is kept, the others' groups are added, and the other cards are deleted (this app keeps a copy for 30 days). Cards in other accounts are linked instead. Ask the user first.
+
+Input schema: {"additionalProperties":false,"properties":{"ids":{"description":"The cards (or contacts) to merge; the first one is kept","items":{"type":"string"},"type":"array"},"versions":{"description":"Their versions, from read_contact or find_contacts, in the same order","items":{"type":"string"},"type":"array"}},"required":["ids","versions"],"type":"object"}

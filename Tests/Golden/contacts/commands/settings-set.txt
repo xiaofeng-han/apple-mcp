@@ -1,0 +1,14 @@
+usage: apple-contacts-mcp settings set [flags]
+
+Change Contacts' settings: --sort-by, --address-format, --vcard-version, --[no-]vcard-notes, --[no-]vcard-photos, --[no-]private-my-card.
+
+  --address-format string         Country whose address layout Contacts uses (ISO code: us, cn, de, …)
+  --[no-]private-my-card          Leave out the My Card's private fields when it is shared
+  --sort-by first_name|last_name  Sort contacts by
+  --[no-]vcard-notes              Export notes in vCards
+  --[no-]vcard-photos             Export photos in vCards
+  --vcard-version 3.0|2.1         vCard format for export
+  --format text|json              Print the answer as text (default) or JSON
+  --json json|-                   Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                      Show this help
+

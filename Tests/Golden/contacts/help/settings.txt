@@ -1,0 +1,8 @@
+apple-contacts-mcp settings
+├── show                        Contacts' settings (the default)
+└── set                         Change Contacts' settings: --sort-by, --address-format, --vcard-version, --[no-]vcard-notes, --[no-]vcard-photos, --[no-]private-my-card
+        --address-format string --[no-]private-my-card --sort-by first_name|last_name --[no-]vcard-notes
+        --[no-]vcard-photos --vcard-version 3.0|2.1
+
+Every settings command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

@@ -1,0 +1,3 @@
+Look at a contact's photo: A contact's photo (as shown, or the full image it is cropped from), or the picture of its poster (Contact Poster).
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Contact or card id","type":"string"},"which":{"description":"photo: as Contacts shows it (default); full: the whole image; poster: the poster's picture","enum":["photo","full","poster"],"type":"string"}},"required":["id"],"type":"object"}

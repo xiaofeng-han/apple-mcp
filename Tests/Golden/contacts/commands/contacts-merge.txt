@@ -1,0 +1,10 @@
+usage: apple-contacts-mcp contacts merge --id string… --version string…
+
+Merge cards into the first (--id A --version VA --id B --version VB …); ask the user first.
+
+  --id string…        The cards (or contacts) to merge; the first one is kept (repeat for more) (required)
+  --version string…   Their versions, from read_contact or find_contacts, in the same order (repeat for more) (required)
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

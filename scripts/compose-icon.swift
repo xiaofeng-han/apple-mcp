@@ -1,11 +1,14 @@
 // Composes Resources/Notes/AppIcon.icon/Assets/artwork.png from the Apple Reminders MCP artwork, so the
 // apps look like a family: the same robot and ruled lines, on a Notes page with a yellow header, or
-// with `journal` a Journal page with a violet-to-coral header (Journal's own colors).
+// with `journal` a Journal page with a violet-to-coral header (Journal's own colors), or with
+// `contacts` a Contacts card with a blue header.
 //
 //   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
 //       Resources/Notes/AppIcon.icon/Assets/artwork.png && scripts/build-icon.sh notes
 //   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
 //       Resources/Journal/AppIcon.icon/Assets/artwork.png journal && scripts/build-icon.sh journal
+//   swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png \
+//       Resources/Contacts/AppIcon.icon/Assets/artwork.png contacts && scripts/build-icon.sh contacts
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -14,6 +17,7 @@ import UniformTypeIdentifiers
 let size = 1024
 let source = URL(fileURLWithPath: CommandLine.arguments[1]), output = URL(fileURLWithPath: CommandLine.arguments[2])
 let journal = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "journal"
+let contacts = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "contacts"
 let image = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithURL(source as CFURL, nil)!, 0, nil)!
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 func bitmap() -> [UInt8] { [UInt8](repeating: 0, count: size * size * 4) }
@@ -46,10 +50,18 @@ for y in 0..<band {
     let t = Double(y) / Double(band)
     for x in 0..<size {
         let s = Double(x) / Double(size)
-        put(x, y, journal ? (142 + 102 * s - 10 * t, 92 + 48 * s - 12 * t, 247 - 139 * s - 14 * t) : (255, 216 - 22 * t, 84 - 44 * t))
+        let color: (Double, Double, Double)
+        if journal {
+            color = (142 + 102 * s - 10 * t, 92 + 48 * s - 12 * t, 247 - 139 * s - 14 * t)
+        } else if contacts {
+            color = (30 + 90 * s - 6 * t, 120 + 40 * s - 14 * t, 255 - 40 * s - 20 * t)
+        } else {
+            color = (255, 216 - 22 * t, 84 - 44 * t)
+        }
+        put(x, y, color)
     }
 }
-for y in band..<(band + 3) { for x in 0..<size { put(x, y, journal ? (180 - 40 * Double(x) / Double(size), 92, 160) : (226, 172, 28)) } }
+for y in band..<(band + 3) { for x in 0..<size { put(x, y, journal ? (180 - 40 * Double(x) / Double(size), 92, 160) : contacts ? (12, 108, 214) : (226, 172, 28)) } }
 for y in (band + 3)..<(band + 24) {
     let a = 0.14 * (1 - Double(y - band - 3) / 21)
     for x in 0..<size { put(x, y, (120, 110, 80), a) }

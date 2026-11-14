@@ -1,0 +1,10 @@
+usage: apple-contacts-mcp groups members [GROUP] [flags]
+
+A group's or smart list's members (--nested adds its nested groups'), and its distribution list.
+
+  GROUP               A group or smart list (name or id): list its members
+  --[no-]nested       With group: include the members of its nested groups
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

@@ -2,7 +2,7 @@
 
 **English** | [简体中文](journal.zh-CN.md)
 
-Part of [apple-mcp](../README.md), the repository of Apple Journal MCP, [Apple Notes MCP](notes.md) and [Apple Reminders MCP](reminders.md).
+Part of [apple-mcp](../README.md), the repository of Apple Journal MCP, [Apple Notes MCP](notes.md), [Apple Reminders MCP](reminders.md) and [Apple Contacts MCP](contacts.md).
 
 An MCP server that lets AI agents (Claude Code, Codex, Grok Build, OpenCode, Gemini CLI, pi, …) read and write Apple's Journal app on the Mac. Every tool is also a command-line command, so an agent can use a skill instead of the server. Its settings window finds the agents on your Mac and sets each one up either way with one click.
 

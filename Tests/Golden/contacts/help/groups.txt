@@ -1,0 +1,17 @@
+apple-contacts-mcp groups
+├── list                        The groups by account, nested, with their counts, and the smart lists with their rules (the default)
+├── members [GROUP]             A group's or smart list's members (--nested adds its nested groups'), and its distribution list
+│       --[no-]nested
+├── create NAME                 Create a group (--account, --parent, --member ID…)
+│       --account string --parent string --member string…
+├── rename GROUP NEW_NAME       Rename a group
+├── delete GROUP                Delete a group; its contacts stay
+├── add GROUP --member string…  Add contacts to a group (--member ID…)
+├── remove GROUP --member string…  Take contacts out of a group (--member ID…)
+├── nest GROUP --parent string  Put a group inside another (--parent GROUP)
+├── unnest GROUP --parent string  Take a group out of another (--parent GROUP)
+└── distribution GROUP --member string  Choose the email, phone or address a member is reached by in a group (--member ID --email …)
+        --email string --phone string --address string
+
+Every groups command also takes --json OBJECT (or --json - for stdin), --format json (the answer as JSON) and --help.
+Flags: --no-NAME turns a flag off or clears a field; a flag ending in … repeats.

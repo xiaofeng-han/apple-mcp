@@ -1,0 +1,3 @@
+Read contacts: Reads contacts in full (up to 20): every field, the note, the groups it is in, whether it has a photo or poster, its tones, and its cards (one per account when linked: which account, which one gives the name and photo), with the version update_contact and delete_contact take.
+
+Input schema: {"additionalProperties":false,"properties":{"id":{"description":"Contact or card id","type":"string"},"ids":{"description":"Several, up to 20","items":{"type":"string"},"type":"array"}},"type":"object"}

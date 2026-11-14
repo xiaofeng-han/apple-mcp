@@ -38,10 +38,14 @@ enum Skill {
                 if route.verb == "update", let create = cli.routes.first(where: { $0.noun == noun && $0.verb == "create" }),
                     let createTool = tools.first(where: { $0.name == create.tool })
                 {
-                    let shared = Set(create.flags(createTool).options.map(\.name))
+                    let createNames = create.flags(createTool).options.map(\.name)
+                    let shared = Set(createNames)
+                    let own = Set(flags.options.map(\.name))
+                    let missing = createNames.filter { !own.contains($0) }.map { "`--\($0)`" }
                     let clearing = listed.filter { $0.clearable && $0.kind != .flag }.map { "--no-\($0.name)" }
                     listed.removeAll { shared.contains($0.name) }
-                    reference.append("  - Every flag of `\(create.command)`" + (clearing.isEmpty ? "" : "; to clear a field: " + clearing.map { "`\($0)`" }.joined(separator: ", ")))
+                    reference.append("  - Every flag of `\(create.command)`" + (missing.isEmpty ? "" : " except " + missing.joined(separator: ", "))
+                                     + (clearing.isEmpty ? "" : "; to clear a field: " + clearing.map { "`\($0)`" }.joined(separator: ", ")))
                 }
                 let options = listed.map { option -> String in
                     var line = "`\(option.usage)`"

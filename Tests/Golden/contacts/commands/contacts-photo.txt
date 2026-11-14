@@ -1,0 +1,11 @@
+usage: apple-contacts-mcp contacts photo ID [flags]
+
+Save a contact's photo (or --which full / poster) and print where.
+
+  ID                         Contact or card id
+  --which photo|full|poster  photo: as Contacts shows it (default); full: the whole image; poster: the poster's picture
+  --output string            Where to save the image; default a file in the temporary folder
+  --format text|json         Print the answer as text (default) or JSON
+  --json json|-              Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help                 Show this help
+

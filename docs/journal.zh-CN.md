@@ -2,7 +2,7 @@
 
 [English](journal.md) | **简体中文**
 
-属于 [apple-mcp](../README.zh-CN.md)：Apple Journal MCP、[Apple Notes MCP](notes.zh-CN.md) 和 [Apple Reminders MCP](reminders.zh-CN.md) 的仓库。
+属于 [apple-mcp](../README.zh-CN.md)：Apple Journal MCP、[Apple Notes MCP](notes.zh-CN.md)、[Apple Reminders MCP](reminders.zh-CN.md) 和 [Apple Contacts MCP](contacts.zh-CN.md) 的仓库。
 
 一个 MCP 服务器，让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi 等）在 Mac 上读写苹果的「手记」App。每个工具同时是一条命令行命令，所以 agent 也可以用技能代替服务器。它的设置窗口会找出 Mac 上的 agent，一键按其中一种方式配置好。
 
@@ -148,7 +148,7 @@ apple-journal-mcp --self-check
 
 它会打印「手记」的版本和是否支持、权限、看到的手记和手记本数量，以及「手记」是否在用 iCloud 同步。
 
-窗口的「AI 助手」标签页、「配置方式」（服务器或技能）和「工具」标签页和其他两个 App 一样，见[配置 agent](reminders.zh-CN.md)，只是命令换成 `apple-journal-mcp`，服务器名 `apple-journal`，技能 `apple-journal/SKILL.md`，工具开关文件 `~/Library/Application Support/AppleJournalMCP/tools.json`。手动注册时命令是 `/opt/homebrew/bin/apple-journal-mcp --stdio`（或 App 的可执行文件 `AppleJournalMCP.app/Contents/MacOS/AppleJournalMCP`），例如 `claude mcp add -s user apple-journal -- /opt/homebrew/bin/apple-journal-mcp --stdio`。
+窗口的「AI 助手」标签页、「配置方式」（服务器或技能）和「工具」标签页和其他 App 一样，见[配置 agent](reminders.zh-CN.md)，只是命令换成 `apple-journal-mcp`，服务器名 `apple-journal`，技能 `apple-journal/SKILL.md`，工具开关文件 `~/Library/Application Support/AppleJournalMCP/tools.json`。手动注册时命令是 `/opt/homebrew/bin/apple-journal-mcp --stdio`（或 App 的可执行文件 `AppleJournalMCP.app/Contents/MacOS/AppleJournalMCP`），例如 `claude mcp add -s user apple-journal -- /opt/homebrew/bin/apple-journal-mcp --stdio`。
 
 ### 从源码构建
 
@@ -161,7 +161,7 @@ ditto dist/AppleJournalMCP.app ~/Applications/AppleJournalMCP.app
 
 ### 为什么权限记在这个 App 名下
 
-和其他两个 App 一样，它一启动就放弃 macOS 记在启动者名下的责任，以自己的身份重新启动自己，所以完全磁盘访问只需给「Apple Journal MCP」一次，不管哪个 agent 启动它。请用真实路径或 `exec` 它的脚本启动，不要经符号链接。
+和其他 App 一样，它一启动就放弃 macOS 记在启动者名下的责任，以自己的身份重新启动自己，所以完全磁盘访问只需给「Apple Journal MCP」一次，不管哪个 agent 启动它。请用真实路径或 `exec` 它的脚本启动，不要经符号链接。
 
 ## 工作原理
 

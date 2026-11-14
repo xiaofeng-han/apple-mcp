@@ -1,0 +1,18 @@
+usage: apple-contacts-mcp contacts search [QUERY] [flags]
+
+Find contacts with all these words anywhere on the card (names, company, phones, emails, addresses, note, …). --phone and --email match a whole number or address; the list filters work here too.
+
+  QUERY                  Words that must all appear on the card
+  --account string       Only cards in this account (name or id)
+  --criteria json        {match: all|any, rules: [{field, op, value}]}; a rule may itself be {match, rules}. Fields: any (any text on the card; ops contains, not_contains); name, first_name, last_name, middle_name, nickname, organization, department, job_title, note, phone, email, url, instant_message, street, city, state, zip, country (ops contains, not_contains, is, is_not, is_set, is_not_set; phone/email/url/instant_message also starts_with, ends_with); address (contains, not_contains, is_set, is_not_set); birthday, anniversary, date (next_days, within_days, not_within_days with a number of days; is_set, is_not_set); modified (changed_within_days, not_changed_within_days with days; after with 2026-10-21); group (member_of, not_member_of a group or smart list, by name or id)
+  --email string         An email address
+  --group string         Only members of this group (name or id), including its nested groups
+  --limit int            Default 50, at most 500
+  --offset int           Skip this many, for the next page
+  --phone string         A phone number, in any format
+  --smart-list string    Only what this smart list holds (name or id)
+  --type person|company  Only people or only companies
+  --format text|json     Print the answer as text (default) or JSON
+  --json json|-          Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help             Show this help
+

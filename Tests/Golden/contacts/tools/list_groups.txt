@@ -1,0 +1,3 @@
+List groups and smart lists: The groups by account, nested as in Contacts' sidebar, with how many cards each holds, and the smart lists with their rules. With group: its members, nested groups included or not, and for a group the email, phone and address each member is reached by (its distribution list).
+
+Input schema: {"additionalProperties":false,"properties":{"group":{"description":"A group or smart list (name or id): list its members","type":"string"},"nested":{"description":"With group: include the members of its nested groups","type":"boolean"}},"type":"object"}

@@ -1,0 +1,3 @@
+Contacts overview: The accounts (iCloud, Google, On My Mac, …) with how many cards each holds and which one new contacts go to, how many contacts there are (cards linked across accounts count once), the groups and smart lists, and the My Card.
+
+Input schema: {"additionalProperties":false,"properties":{},"type":"object"}

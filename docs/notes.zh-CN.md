@@ -2,7 +2,7 @@
 
 [English](notes.md) | **简体中文**
 
-属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Reminders MCP](reminders.zh-CN.md) 和 [Apple Journal MCP](journal.zh-CN.md)。
+属于 [apple-mcp](../README.zh-CN.md) 仓库，同一仓库里还有 [Apple Reminders MCP](reminders.zh-CN.md)、[Apple Journal MCP](journal.zh-CN.md) 和 [Apple Contacts MCP](contacts.zh-CN.md)。
 
 让 AI agent（Claude Code、Codex、Grok Build、OpenCode、Gemini CLI、pi……）读写 macOS「备忘录」的 MCP 服务器，格式都是原生的。每个工具也是一条命令行命令，所以 agent 也可以不用服务器，改用技能。它的设置窗口会找出 Mac 上的 agent，用任一种方式一键配好每一个，没装的也能直接安装。
 
@@ -315,7 +315,7 @@ apple-notes-mcp skill                                                 # 打印�
 ditto dist/AppleNotesMCP.app ~/Applications/AppleNotesMCP.app
 ```
 
-`./scripts/build-pkg.sh notes` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-notes.md`](../CHANGELOG-notes.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py notes`（改过共用代码时 `scripts/e2e.py reminders` 和 `scripts/e2e.py journal` 也要跑），然后在 `main` 上运行：
+`./scripts/build-pkg.sh notes` 生成发布用的安装包 `dist/AppleNotesMCP-<版本>.pkg` 和它的 SHA-256 校验文件。发布新版本：先把发布说明写成 [`CHANGELOG-notes.md`](../CHANGELOG-notes.md) 里的一节 `## <版本>`，跑一遍 `scripts/e2e.py notes`（改过共用代码时 `scripts/e2e.py reminders`、`scripts/e2e.py journal` 和 `scripts/e2e.py contacts` 也要跑），然后在 `main` 上运行：
 
 ```bash
 scripts/release.sh notes 0.4.0       # 也可以先演练：scripts/release.sh --dry-run notes 0.4.0

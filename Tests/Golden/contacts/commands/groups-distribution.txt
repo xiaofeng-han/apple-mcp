@@ -1,0 +1,13 @@
+usage: apple-contacts-mcp groups distribution GROUP --member string [flags]
+
+Choose the email, phone or address a member is reached by in a group (--member ID --email …).
+
+  GROUP               The group (name or id); for create, the new group's name
+  --member string     distribution: the member (contact or card id) (required)
+  --email string      distribution: the member's email address the group uses
+  --phone string      distribution: the member's phone number the group uses
+  --address string    distribution: the label of the member's postal address the group uses
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

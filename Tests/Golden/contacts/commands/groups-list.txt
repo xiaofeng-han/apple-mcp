@@ -1,0 +1,8 @@
+usage: apple-contacts-mcp groups list
+
+The groups by account, nested, with their counts, and the smart lists with their rules.
+
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "apple-contacts": {
+      "command": "<EXECUTABLE>",
+      "args": ["--stdio"]
+    }
+  }
+}

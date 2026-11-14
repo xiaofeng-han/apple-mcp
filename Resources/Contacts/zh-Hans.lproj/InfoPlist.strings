@@ -1,0 +1,2 @@
+"NSContactsUsageDescription" = "Apple Contacts MCP 让你的 AI 助手读取、新建和修改通讯录。";
+"NSAppleEventsUsageDescription" = "Apple Contacts MCP 通过控制「通讯录」读写联系人的备注和分组成员，macOS 不让其他 App 直接访问这些内容。";

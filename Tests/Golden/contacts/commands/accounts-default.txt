@@ -1,0 +1,9 @@
+usage: apple-contacts-mcp accounts default ACCOUNT
+
+Make an account the one new contacts go to.
+
+  ACCOUNT             set_default: the account (name or id); sync: one account, default all
+  --format text|json  Print the answer as text (default) or JSON
+  --json json|-       Fields as a JSON object (- reads it from stdin); flags override them
+  -h, --help          Show this help
+

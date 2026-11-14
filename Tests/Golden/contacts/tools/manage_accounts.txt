@@ -1,0 +1,3 @@
+Default account and sync: Sets the account new contacts go to (iCloud, Google or On My Mac), or asks Contacts to sync accounts with their servers now (Refresh Accounts). Adding or removing an account is done in System Settings → Internet Accounts.
+
+Input schema: {"additionalProperties":false,"properties":{"account":{"description":"set_default: the account (name or id); sync: one account, default all","type":"string"},"action":{"description":"What to do","enum":["set_default","sync"],"type":"string"}},"required":["action"],"type":"object"}

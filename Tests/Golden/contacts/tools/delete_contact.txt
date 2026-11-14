@@ -1,0 +1,3 @@
+Delete a contact: Deletes a contact (all its cards when it is linked, or only card) from every device: Contacts has no Recently Deleted, so this app keeps a copy for 30 days and restore_contact brings it back. Ask the user first.
+
+Input schema: {"additionalProperties":false,"properties":{"card":{"description":"Only this card of a linked contact","type":"string"},"id":{"description":"Contact or card id","type":"string"},"version":{"description":"The version read_contact or find_contacts gave","type":"string"}},"required":["id","version"],"type":"object"}

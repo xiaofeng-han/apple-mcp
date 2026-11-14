@@ -1,0 +1,3 @@
+Link or unlink cards: Links cards of the same person (usually in different accounts) into one contact, as Contacts does with same-name cards; unlinks a card, or all of a contact's cards; or chooses which linked card gives the contact its name (prefer_name) or its photo (prefer_photo).
+
+Input schema: {"additionalProperties":false,"properties":{"action":{"description":"What to do","enum":["link","unlink","prefer_name","prefer_photo"],"type":"string"},"id":{"description":"unlink: a card (only that one) or a contact (all its cards); prefer_name, prefer_photo: the card","type":"string"},"ids":{"description":"link: the contacts or cards to link (two or more)","items":{"type":"string"},"type":"array"}},"required":["action"],"type":"object"}

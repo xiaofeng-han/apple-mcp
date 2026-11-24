@@ -169,8 +169,8 @@ To give the agents the skill instead of the server, add `--skill` to the last co
 Without Homebrew, download `AppleContactsMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) and open it, or install it from the terminal:
 
 ```bash
-gh release download contacts-v0.0.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
-installer -pkg AppleContactsMCP-0.0.0.pkg -target CurrentUserHomeDirectory
+gh release download contacts-v0.1.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleContactsMCP-0.1.0.pkg -target CurrentUserHomeDirectory
 ```
 
 Installing for yourself puts the app in `~/Applications` and needs no administrator password. The app and package have no Developer ID signature; the cask takes off the quarantine, and a package downloaded in a browser has to be allowed under System Settings → Privacy & Security.

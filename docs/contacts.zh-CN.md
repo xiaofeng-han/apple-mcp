@@ -169,8 +169,8 @@ apple-contacts-mcp agents set-up --all    # 把服务器注册到这台 Mac 上�
 不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) 下载 `AppleContactsMCP-<版本>.pkg` 打开，或在终端里安装：
 
 ```bash
-gh release download contacts-v0.0.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
-installer -pkg AppleContactsMCP-0.0.0.pkg -target CurrentUserHomeDirectory
+gh release download contacts-v0.1.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleContactsMCP-0.1.0.pkg -target CurrentUserHomeDirectory
 ```
 
 只为自己安装会放到 `~/Applications`，不需要管理员密码。App 和安装包没有 Developer ID 签名；cask 会去掉隔离属性，浏览器下载的安装包要在「系统设置 → 隐私与安全性」里允许。

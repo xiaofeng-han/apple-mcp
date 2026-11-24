@@ -42,7 +42,9 @@
 | 11-13 16:49–16:51 | 删掉测试数据：74 个联系人（12 个是链接的）、14 个分组、1 个智能分组 | — | 之后搜 `agent test` 为 0 |
 | 11-13 16:52 | 提交，推送分支，开 PR #19 | `8d8c1b8` | — |
 | 11-13 16:53 | PR #19 的 CI 构建失败：CI 的 Swift 6.3.3 报两处名字遮蔽（P13） | `8d8c1b8` | `build-and-test` 失败 |
-| 11-13 16:56–16:58 | 修 P13；构建、四个 App 的 golden、单元测试、e2e | 本提交 | 各 `0 differ`；8 组 197 项全过；`80 passed, 0 failed` |
+| 11-13 16:56–16:58 | 修 P13；构建、四个 App 的 golden、单元测试、e2e | `11feede` | 各 `0 differ`；8 组 197 项全过；`80 passed, 0 failed` |
+| 11-13 18:19 | PR #19 合入 `main` | `2adfc7a` | CI 通过 |
+| 11-24 09:16 | 准备 Apple Contacts MCP 0.1.0 首发文档，准备发布 Notes 0.5.0 和 Contacts 0.1.0 | 本提交 | — |
 
 ---
 
@@ -185,18 +187,16 @@
 
 ---
 
-## 当前状态（11-13 16:58）
+## 当前状态（11-24 09:16）
 
-已提交到分支 `claude/apple-contacts-reverse-engineer-c146a0`，开了 PR #19 合入 `main`，**未合并、未发版**。CI 第一次构建失败（P13），修复已推送。构建无警告；单元测试全过（P10 的偶发失败除外）；四个 App 的 golden 都 `0 differ`；Contacts e2e `80 passed, 0 failed`。以前留下的 `agent test` 测试数据已删（这个 App 留的 30 天副本里只有测试数据）。
+PR #18（Notes 0.5.0）和 PR #19（Contacts 0.1.0）均已合入 `main`。已完成 Contacts 0.1.0 首发前的文档准备（去掉「从第一个发布版起」字样，补上 `gh release download` / `installer -pkg` 命令），即将发布 Apple Notes MCP 0.5.0 和 Apple Contacts MCP 0.1.0 并更新 `homebrew-tap`。
 
 ### 待办与遗留
 
 - **我（用户）：**
-  - 审 PR、决定合并。
   - 决定是否做打印/PDF 和 CSV/LDIF 导入（要把 Contacts.app 可执行文件载入进程，见 RE-FINDINGS §8）。
-  - 发 0.1.0 前：在 homebrew-tap 加 `Casks/apple-contacts-mcp.rb`，文档里补 `gh release download …` 和 `installer -pkg …` 两行（`release.sh` 要用），照 Journal 的首发准备提交 `64cc7df`。
 - **仓库：**
-  - 主 checkout 里另一个会话的未提交 Contacts 代码和本 worktree 的重写冲突，合并前要处理（不要直接丢弃别人的改动）。
+  - 主 checkout 里另一个会话的未提交 Contacts 代码和 `main` 上的实现冲突，后续决定是否清理（未丢弃）。
   - P10：共用底座的计时测试偶发失败，另查。
   - `settings set` 测试时写过一次 `ABNameSortingFormat`，值和原来一样（默认值）。
 

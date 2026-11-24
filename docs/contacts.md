@@ -156,7 +156,7 @@ Commands print the tool's JSON answer, sometimes after a short lead such as `Cre
 
 ## Install
 
-Releases are built for Apple silicon. From the first release on, the default way to install and set up is with Homebrew:
+Releases are built for Apple silicon. The default way to install and set up is with Homebrew:
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-contacts-mcp
@@ -164,7 +164,16 @@ apple-contacts-mcp setup                  # asks for Contacts and for Automation
 apple-contacts-mcp agents set-up --all    # register the server with the agents on this Mac
 ```
 
-To give the agents the skill instead of the server, add `--skill` to the last command. Instead of the last two commands, you can open Apple Contacts MCP from Applications: set up your agents in its **AI Assistants** tab, and give both permissions under **General**. Without Homebrew, download `AppleContactsMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) and open it; installing for yourself puts the app in `~/Applications` and needs no administrator password. The app and package have no Developer ID signature; the cask takes off the quarantine, and a package downloaded in a browser has to be allowed under System Settings → Privacy & Security.
+To give the agents the skill instead of the server, add `--skill` to the last command. Instead of the last two commands, you can open Apple Contacts MCP from Applications: set up your agents in its **AI Assistants** tab, and give both permissions under **General**.
+
+Without Homebrew, download `AppleContactsMCP-<version>.pkg` from [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) and open it, or install it from the terminal:
+
+```bash
+gh release download contacts-v0.0.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleContactsMCP-0.0.0.pkg -target CurrentUserHomeDirectory
+```
+
+Installing for yourself puts the app in `~/Applications` and needs no administrator password. The app and package have no Developer ID signature; the cask takes off the quarantine, and a package downloaded in a browser has to be allowed under System Settings → Privacy & Security.
 
 ### After installing
 
@@ -187,7 +196,7 @@ Agents that run commands in a sandbox (Codex does) cannot reach Contacts from it
 ditto dist/AppleContactsMCP.app ~/Applications/AppleContactsMCP.app
 ```
 
-`./scripts/build-pkg.sh contacts` builds the release package, and `scripts/release.sh contacts <version>` releases it, as described for [Apple Reminders MCP](reminders.md#build-from-source), with the note from [`CHANGELOG-contacts.md`](../CHANGELOG-contacts.md) and tags `contacts-v<version>`. The first release also needs the cask `Casks/apple-contacts-mcp.rb` in [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap), made like the other three; `update-cask.sh` only updates a cask that exists. The icon is `Resources/Contacts/AppIcon.icon`: `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Contacts/AppIcon.icon/Assets/artwork.png contacts`, then `./scripts/build-icon.sh contacts`.
+`./scripts/build-pkg.sh contacts` builds the release package, and `scripts/release.sh contacts <version>` releases it, as described for [Apple Reminders MCP](reminders.md#build-from-source), with the note from [`CHANGELOG-contacts.md`](../CHANGELOG-contacts.md) and tags `contacts-v<version>`. The icon is `Resources/Contacts/AppIcon.icon`: `swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Contacts/AppIcon.icon/Assets/artwork.png contacts`, then `./scripts/build-icon.sh contacts`.
 
 ### Why the permissions belong to this app
 

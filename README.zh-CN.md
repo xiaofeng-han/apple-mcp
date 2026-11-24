@@ -9,7 +9,7 @@
 | **Apple Notes MCP** | 备忘录：保留原生格式，原地修改，经 iCloud 同步 | `brew install --cask xiaofeng-han/tap/apple-notes-mcp` | [English](docs/notes.md) · [简体中文](docs/notes.zh-CN.md) |
 | **Apple Reminders MCP** | 提醒事项：「提醒事项」App 能做的都能做（标签、子任务、分区、智能清单等），走它自己的框架 | `brew install --cask xiaofeng-han/tap/apple-reminders-mcp` | [English](docs/reminders.md) · [简体中文](docs/reminders.zh-CN.md) |
 | **Apple Journal MCP** | 手记：带格式的手记、手记本、最近删除、添加照片视频和录音、各种附件的详情和分析，走「手记」自己的框架，由「手记」经 iCloud 同步 | `brew install --cask xiaofeng-han/tap/apple-journal-mcp` | [English](docs/journal.md) · [简体中文](docs/journal.zh-CN.md) |
-| **Apple Contacts MCP** | 通讯录：联系人卡片的全部字段（包括备注和照片）、链接的卡片、分组、智能分组、我的名片、账户、vCard 导入导出，删除的卡片保留 30 天，走「通讯录」自己的框架，由「通讯录」经 iCloud 同步 | `brew install --cask xiaofeng-han/tap/apple-contacts-mcp`（从第一个发布版起） | [English](docs/contacts.md) · [简体中文](docs/contacts.zh-CN.md) |
+| **Apple Contacts MCP** | 通讯录：联系人卡片的全部字段（包括备注和照片）、链接的卡片、分组、智能分组、我的名片、账户、vCard 导入导出，删除的卡片保留 30 天，走「通讯录」自己的框架，由「通讯录」经 iCloud 同步 | `brew install --cask xiaofeng-han/tap/apple-contacts-mcp` | [English](docs/contacts.md) · [简体中文](docs/contacts.zh-CN.md) |
 
 每个 App 各自独立：名字、命令（`apple-notes-mcp`、`apple-reminders-mcp`、`apple-journal-mcp`、`apple-contacts-mcp`）、服务器（`apple-notes`、`apple-reminders`、`apple-journal`、`apple-contacts`）、工具、权限、设置窗口和版本号都是各自的，所以只装想要的那个，agent 也只看到它的工具。都需要 Apple 芯片：Notes、Reminders 和 Contacts 需要 macOS 26 或更新，Apple Journal MCP 需要「手记」3.0（macOS 27.2）。各自的文档写了它能做什么、怎么安装、怎么配置 agent、需要哪些权限。
 

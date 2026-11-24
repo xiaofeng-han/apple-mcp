@@ -156,7 +156,7 @@ apple-contacts-mcp settings set --sort-by first_name
 
 ## 安装
 
-发布版为 Apple 芯片构建。从第一个发布版起，默认用 Homebrew 安装和配置：
+发布版为 Apple 芯片构建。默认用 Homebrew 安装和配置：
 
 ```bash
 brew install --cask xiaofeng-han/tap/apple-contacts-mcp
@@ -164,7 +164,16 @@ apple-contacts-mcp setup                  # 请求通讯录和「自动化 → �
 apple-contacts-mcp agents set-up --all    # 把服务器注册到这台 Mac 上的 agent
 ```
 
-要给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`。也可以不跑后两条命令，而是在「应用程序」里打开 Apple Contacts MCP：在「AI 助手」标签页配置 agent，在「通用」里给两项权限。不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) 下载 `AppleContactsMCP-<版本>.pkg` 打开；只为自己安装会放到 `~/Applications`，不需要管理员密码。App 和安装包没有 Developer ID 签名；cask 会去掉隔离属性，浏览器下载的安装包要在「系统设置 → 隐私与安全性」里允许。
+要给 agent 装技能而不是服务器，在最后一条命令后加 `--skill`。也可以不跑后两条命令，而是在「应用程序」里打开 Apple Contacts MCP：在「AI 助手」标签页配置 agent，在「通用」里给两项权限。
+
+不用 Homebrew 的话，从 [Releases](https://github.com/xiaofeng-han/apple-mcp/releases) 下载 `AppleContactsMCP-<版本>.pkg` 打开，或在终端里安装：
+
+```bash
+gh release download contacts-v0.0.0 -R xiaofeng-han/apple-mcp -p '*.pkg'
+installer -pkg AppleContactsMCP-0.0.0.pkg -target CurrentUserHomeDirectory
+```
+
+只为自己安装会放到 `~/Applications`，不需要管理员密码。App 和安装包没有 Developer ID 签名；cask 会去掉隔离属性，浏览器下载的安装包要在「系统设置 → 隐私与安全性」里允许。
 
 ### 装好之后
 
@@ -187,7 +196,7 @@ apple-contacts-mcp --self-check
 ditto dist/AppleContactsMCP.app ~/Applications/AppleContactsMCP.app
 ```
 
-`./scripts/build-pkg.sh contacts` 构建发布用的安装包，`scripts/release.sh contacts <版本>` 发版，和 [Apple Reminders MCP](reminders.zh-CN.md#从源码构建) 里写的一样，发布说明取自 [`CHANGELOG-contacts.md`](../CHANGELOG-contacts.md)，tag 是 `contacts-v<版本>`。第一次发版还需要在 [homebrew-tap](https://github.com/xiaofeng-han/homebrew-tap) 里照另外三个的样子加上 cask `Casks/apple-contacts-mcp.rb`；`update-cask.sh` 只更新已有的 cask。图标是 `Resources/Contacts/AppIcon.icon`：`swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Contacts/AppIcon.icon/Assets/artwork.png contacts`，然后 `./scripts/build-icon.sh contacts`。
+`./scripts/build-pkg.sh contacts` 构建发布用的安装包，`scripts/release.sh contacts <版本>` 发版，和 [Apple Reminders MCP](reminders.zh-CN.md#从源码构建) 里写的一样，发布说明取自 [`CHANGELOG-contacts.md`](../CHANGELOG-contacts.md)，tag 是 `contacts-v<版本>`。图标是 `Resources/Contacts/AppIcon.icon`：`swift scripts/compose-icon.swift Resources/Reminders/AppIcon.icon/Assets/artwork.png Resources/Contacts/AppIcon.icon/Assets/artwork.png contacts`，然后 `./scripts/build-icon.sh contacts`。
 
 ### 为什么权限记在这个 App 名下
 
